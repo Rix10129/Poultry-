@@ -1,0 +1,553 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: URL is set in prisma.config.ts (for migrations) and via adapter (for client)
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  ADMIN
+  CASHIER
+  SALESMAN
+}
+
+enum CustomerType {
+  FARM
+  VET_SHOP
+  SUB_DEALER
+  RETAIL
+}
+
+enum Species {
+  BROILER
+  LAYER
+  CATTLE
+  SHEEP
+  GOAT
+  FISH
+  GENERAL
+}
+
+enum UnitType {
+  CARTON
+  VIAL
+  ML
+  TABLET
+  SACHET
+  KG
+  GRAM
+  LITER
+  PIECE
+}
+
+enum PaymentMode {
+  CASH
+  BANK
+  CHEQUE
+  CREDIT
+}
+
+enum VoucherType {
+  CASH_RECEIPT
+  CASH_PAYMENT
+  BANK_RECEIPT
+  BANK_PAYMENT
+  JOURNAL
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  PURCHASE_RETURN
+  SALE_RETURN
+  ADJUSTMENT
+}
+
+// ─── Tenant Root ─────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  taxNumber String?
+  logoUrl   String?
+  currency  String   @default("PKR")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  suppliers        Supplier[]
+  customers        Customer[]
+  categories       Category[]
+  products         Product[]
+  batches          ProductBatch[]
+  stockMovements   StockMovement[]
+  purchases        PurchaseOrder[]
+  purchaseReturns  PurchaseReturn[]
+  invoices         SaleInvoice[]
+  saleReturns      SaleReturn[]
+  customerPayments CustomerPayment[]
+  supplierPayments SupplierPayment[]
+  accounts         Account[]
+  journalEntries   JournalEntry[]
+  auditLogs        AuditLog[]
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  email     String
+  password  String
+  role      UserRole @default(CASHIER)
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices  SaleInvoice[]
+  purchases PurchaseOrder[]
+  auditLogs AuditLog[]
+
+  @@unique([email, companyId])
+  @@index([companyId])
+}
+
+// ─── Suppliers ───────────────────────────────────────────────────────────────
+
+model Supplier {
+  id             String   @id @default(cuid())
+  companyId      String
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  taxNumber      String?
+  openingBalance Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products        Product[]
+  purchases       PurchaseOrder[]
+  purchaseReturns PurchaseReturn[]
+  payments        SupplierPayment[]
+
+  @@index([companyId])
+}
+
+// ─── Customers ───────────────────────────────────────────────────────────────
+
+model Customer {
+  id             String       @id @default(cuid())
+  companyId      String
+  name           String
+  type           CustomerType @default(RETAIL)
+  phone          String?
+  email          String?
+  address        String?
+  area           String?
+  creditLimit    Decimal      @default(0) @db.Decimal(12, 2)
+  openingBalance Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices    SaleInvoice[]
+  saleReturns SaleReturn[]
+  payments    CustomerPayment[]
+
+  @@index([companyId])
+}
+
+// ─── Inventory ───────────────────────────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  companyId     String
+  categoryId    String?
+  supplierId    String?
+  name          String
+  genericName   String?
+  species       Species   @default(GENERAL)
+  description   String?
+  unit          UnitType  @default(PIECE)
+  subUnit       UnitType?
+  unitsPerPack  Int?
+  salePrice     Decimal   @db.Decimal(12, 2)
+  purchasePrice Decimal   @db.Decimal(12, 2)
+  reorderLevel  Int       @default(10)
+  taxRate       Decimal   @default(0) @db.Decimal(5, 2)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category            Category?            @relation(fields: [categoryId], references: [id])
+  supplier            Supplier?            @relation(fields: [supplierId], references: [id])
+  batches             ProductBatch[]
+  stockMovements      StockMovement[]
+  purchaseItems       PurchaseOrderItem[]
+  invoiceItems        SaleInvoiceItem[]
+  saleReturnItems     SaleReturnItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+
+  @@index([companyId])
+  @@index([companyId, isActive])
+}
+
+// Stores each received batch separately — FEFO key
+model ProductBatch {
+  id              String    @id @default(cuid())
+  companyId       String
+  productId       String
+  batchNumber     String
+  manufactureDate DateTime?
+  expiryDate      DateTime
+  purchasePrice   Decimal   @db.Decimal(12, 2)
+  salePrice       Decimal   @db.Decimal(12, 2)
+  quantity        Int       // current stock in this batch
+  initialQuantity Int       // quantity at time of purchase receipt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product             Product              @relation(fields: [productId], references: [id])
+  stockMovements      StockMovement[]
+  invoiceItems        SaleInvoiceItem[]
+  purchaseItems       PurchaseOrderItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+  saleReturnItems     SaleReturnItem[]
+
+  @@unique([batchNumber, productId, companyId])
+  @@index([productId, expiryDate]) // FEFO lookup index
+  @@index([companyId, expiryDate]) // expiry dashboard index
+}
+
+model StockMovement {
+  id        String       @id @default(cuid())
+  companyId String
+  productId String
+  batchId   String?
+  type      MovementType
+  quantity  Int          // positive = stock in, negative = stock out
+  reference String?      // invoice/PO number
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [productId], references: [id])
+  batch   ProductBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([companyId, createdAt])
+}
+
+// ─── Purchases ───────────────────────────────────────────────────────────────
+
+model PurchaseOrder {
+  id             String   @id @default(cuid())
+  companyId      String
+  supplierId     String
+  userId         String
+  poNumber       String
+  orderDate      DateTime @default(now())
+  totalAmount    Decimal  @db.Decimal(12, 2)
+  discountAmount Decimal  @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  netAmount      Decimal  @db.Decimal(12, 2)
+  paidAmount     Decimal  @default(0) @db.Decimal(12, 2)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  user     User                @relation(fields: [userId], references: [id])
+  items    PurchaseOrderItem[]
+  payments SupplierPayment[]
+  returns  PurchaseReturn[]
+
+  @@unique([poNumber, companyId])
+  @@index([companyId, orderDate])
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(cuid())
+  purchaseOrderId String
+  productId       String
+  batchId         String?
+  quantity        Int
+  purchasePrice   Decimal @db.Decimal(12, 2)
+  discount        Decimal @default(0) @db.Decimal(12, 2)
+  taxRate         Decimal @default(0) @db.Decimal(5, 2)
+  totalAmount     Decimal @db.Decimal(12, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  batch         ProductBatch? @relation(fields: [batchId], references: [id])
+}
+
+model PurchaseReturn {
+  id              String   @id @default(cuid())
+  companyId       String
+  supplierId      String
+  purchaseOrderId String?
+  returnNumber    String
+  returnDate      DateTime @default(now())
+  totalAmount     Decimal  @db.Decimal(12, 2)
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier      Supplier             @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id])
+  items         PurchaseReturnItem[]
+
+  @@unique([returnNumber, companyId])
+}
+
+model PurchaseReturnItem {
+  id               String  @id @default(cuid())
+  purchaseReturnId String
+  productId        String
+  batchId          String?
+  quantity         Int
+  purchasePrice    Decimal @db.Decimal(12, 2)
+  totalAmount      Decimal @db.Decimal(12, 2)
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id])
+  batch          ProductBatch?  @relation(fields: [batchId], references: [id])
+}
+
+// ─── Sales ───────────────────────────────────────────────────────────────────
+
+model SaleInvoice {
+  id             String      @id @default(cuid())
+  companyId      String
+  customerId     String?
+  userId         String
+  invoiceNumber  String
+  invoiceDate    DateTime    @default(now())
+  dueDate        DateTime?
+  totalAmount    Decimal     @db.Decimal(12, 2)
+  discountAmount Decimal     @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal     @default(0) @db.Decimal(12, 2)
+  netAmount      Decimal     @db.Decimal(12, 2)
+  paidAmount     Decimal     @default(0) @db.Decimal(12, 2)
+  paymentMode    PaymentMode @default(CASH)
+  isCashSale     Boolean     @default(true)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer?         @relation(fields: [customerId], references: [id])
+  user     User              @relation(fields: [userId], references: [id])
+  items    SaleInvoiceItem[]
+  payments CustomerPayment[]
+  returns  SaleReturn[]
+
+  @@unique([invoiceNumber, companyId])
+  @@index([companyId, invoiceDate])
+  @@index([customerId])
+}
+
+// batchId is required — every sale line must reference a specific batch for FEFO
+model SaleInvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  productId   String
+  batchId     String
+  quantity    Int
+  salePrice   Decimal @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  invoice SaleInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product      @relation(fields: [productId], references: [id])
+  batch   ProductBatch @relation(fields: [batchId], references: [id])
+}
+
+model SaleReturn {
+  id           String   @id @default(cuid())
+  companyId    String
+  customerId   String?
+  invoiceId    String?
+  returnNumber String
+  returnDate   DateTime @default(now())
+  totalAmount  Decimal  @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer?       @relation(fields: [customerId], references: [id])
+  invoice  SaleInvoice?    @relation(fields: [invoiceId], references: [id])
+  items    SaleReturnItem[]
+
+  @@unique([returnNumber, companyId])
+}
+
+model SaleReturnItem {
+  id           String  @id @default(cuid())
+  saleReturnId String
+  productId    String
+  batchId      String?
+  quantity     Int
+  salePrice    Decimal @db.Decimal(12, 2)
+  totalAmount  Decimal @db.Decimal(12, 2)
+
+  saleReturn SaleReturn   @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
+  product    Product      @relation(fields: [productId], references: [id])
+  batch      ProductBatch? @relation(fields: [batchId], references: [id])
+}
+
+// ─── Payments ────────────────────────────────────────────────────────────────
+
+model CustomerPayment {
+  id          String      @id @default(cuid())
+  companyId   String
+  customerId  String
+  invoiceId   String?
+  amount      Decimal     @db.Decimal(12, 2)
+  paymentMode PaymentMode
+  paymentDate DateTime    @default(now())
+  reference   String?
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  company  Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer     @relation(fields: [customerId], references: [id])
+  invoice  SaleInvoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([companyId, paymentDate])
+  @@index([customerId])
+}
+
+model SupplierPayment {
+  id              String      @id @default(cuid())
+  companyId       String
+  supplierId      String
+  purchaseOrderId String?
+  amount          Decimal     @db.Decimal(12, 2)
+  paymentMode     PaymentMode
+  paymentDate     DateTime    @default(now())
+  reference       String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  @@index([companyId, paymentDate])
+  @@index([supplierId])
+}
+
+// ─── Accounting ──────────────────────────────────────────────────────────────
+
+model Account {
+  id        String      @id @default(cuid())
+  companyId String
+  code      String
+  name      String
+  type      AccountType
+  parentId  String?
+  isSystem  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent      Account?      @relation("AccountTree", fields: [parentId], references: [id])
+  children    Account[]     @relation("AccountTree")
+  debitLines  JournalLine[] @relation("DebitAccount")
+  creditLines JournalLine[] @relation("CreditAccount")
+
+  @@unique([code, companyId])
+  @@index([companyId, type])
+}
+
+model JournalEntry {
+  id            String      @id @default(cuid())
+  companyId     String
+  voucherType   VoucherType
+  voucherNumber String
+  entryDate     DateTime    @default(now())
+  description   String
+  totalAmount   Decimal     @db.Decimal(12, 2)
+  reference     String?
+  createdAt     DateTime    @default(now())
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   JournalLine[]
+
+  @@unique([voucherNumber, companyId])
+  @@index([companyId, entryDate])
+}
+
+model JournalLine {
+  id              String  @id @default(cuid())
+  journalEntryId  String
+  debitAccountId  String?
+  creditAccountId String?
+  amount          Decimal @db.Decimal(12, 2)
+  description     String?
+
+  journalEntry  JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  debitAccount  Account?     @relation("DebitAccount", fields: [debitAccountId], references: [id])
+  creditAccount Account?     @relation("CreditAccount", fields: [creditAccountId], references: [id])
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  action    String   // CREATE | UPDATE | DELETE
+  entity    String   // e.g. "Product", "SaleInvoice"
+  entityId  String
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([entity, entityId])
+}
