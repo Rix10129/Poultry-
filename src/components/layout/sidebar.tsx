@@ -14,51 +14,57 @@ import {
   BarChart3,
   Settings,
   Syringe,
+  Bell,
 } from "lucide-react"
 
 const navSections = [
   {
     title: "Overview",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/",       label: "Dashboard", icon: LayoutDashboard, alert: false },
+      { href: "/alerts", label: "Alerts",    icon: Bell,            alert: true  },
     ],
   },
   {
     title: "Operations",
     items: [
-      { href: "/inventory", label: "Inventory", icon: Package },
-      { href: "/sales",     label: "Sales",     icon: ShoppingCart },
-      { href: "/purchases", label: "Purchases", icon: Truck },
+      { href: "/inventory", label: "Inventory", icon: Package,      alert: false },
+      { href: "/sales",     label: "Sales",     icon: ShoppingCart, alert: false },
+      { href: "/purchases", label: "Purchases", icon: Truck,        alert: false },
     ],
   },
   {
     title: "People",
     items: [
-      { href: "/customers", label: "Customers", icon: Users },
-      { href: "/suppliers", label: "Suppliers", icon: Building2 },
+      { href: "/customers", label: "Customers", icon: Users,     alert: false },
+      { href: "/suppliers", label: "Suppliers", icon: Building2, alert: false },
     ],
   },
   {
     title: "Finance",
     items: [
-      { href: "/accounts", label: "Accounts", icon: BookOpen },
+      { href: "/accounts", label: "Accounts", icon: BookOpen, alert: false },
     ],
   },
   {
     title: "Analytics",
     items: [
-      { href: "/reports", label: "Reports", icon: BarChart3 },
+      { href: "/reports", label: "Reports", icon: BarChart3, alert: false },
     ],
   },
   {
     title: "System",
     items: [
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/settings", label: "Settings", icon: Settings, alert: false },
     ],
   },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  alertCount?: number
+}
+
+export function Sidebar({ alertCount = 0 }: SidebarProps) {
   const pathname = usePathname()
 
   return (
@@ -86,7 +92,12 @@ export function Sidebar() {
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon
-                const isActive = pathname === item.href
+                const isActive =
+                  item.href === "/"
+                    ? pathname === "/"
+                    : pathname === item.href || pathname.startsWith(item.href + "/")
+                const badge = item.alert ? alertCount : 0
+
                 return (
                   <li key={item.href}>
                     <Link
@@ -99,7 +110,12 @@ export function Sidebar() {
                       )}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
-                      {item.label}
+                      <span className="flex-1 min-w-0 truncate">{item.label}</span>
+                      {badge > 0 && (
+                        <span className="shrink-0 min-w-[1.2rem] h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )
@@ -110,7 +126,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-4 py-3 border-t border-slate-800">
-        <p className="text-[11px] text-slate-600 text-center">v1.0 · Module 1 of 9</p>
+        <p className="text-[11px] text-slate-600 text-center">v1.0 · Module 3 of 9</p>
       </div>
     </aside>
   )

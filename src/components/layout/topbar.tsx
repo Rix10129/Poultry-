@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { signOut } from "next-auth/react"
 import type { Session } from "next-auth"
 import { Bell, ChevronDown, LogOut, User } from "lucide-react"
@@ -12,7 +13,12 @@ const roleBadge: Record<string, string> = {
   SALESMAN: "bg-orange-100 text-orange-700 border-orange-200",
 }
 
-export function Topbar({ session }: { session: Session }) {
+interface TopbarProps {
+  session: Session
+  alertCount?: number
+}
+
+export function Topbar({ session, alertCount = 0 }: TopbarProps) {
   const [open, setOpen] = useState(false)
   const user = session.user as any
   const initials = (user.name as string)
@@ -24,15 +30,22 @@ export function Topbar({ session }: { session: Session }) {
 
   return (
     <header className="h-13 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-      {/* Company name */}
       <span className="text-sm font-semibold text-slate-800">{user.companyName}</span>
 
       <div className="flex items-center gap-2">
-        {/* Alerts */}
-        <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+        {/* Alert bell */}
+        <Link
+          href="/alerts"
+          className="relative p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          title={alertCount > 0 ? `${alertCount} alerts` : "Alerts"}
+        >
           <Bell className="w-4.5 h-4.5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-        </button>
+          {alertCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center bg-red-500 rounded-full ring-2 ring-white text-white text-[10px] font-bold px-0.5">
+              {alertCount > 99 ? "99+" : alertCount}
+            </span>
+          )}
+        </Link>
 
         {/* User menu */}
         <div className="relative">
@@ -45,7 +58,11 @@ export function Topbar({ session }: { session: Session }) {
             </div>
             <div className="text-left hidden sm:block leading-none">
               <p className="text-xs font-semibold text-slate-900">{user.name}</p>
-              <span className={`inline-block mt-0.5 px-1.5 py-px text-[10px] font-semibold rounded border ${roleBadge[user.role] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
+              <span
+                className={`inline-block mt-0.5 px-1.5 py-px text-[10px] font-semibold rounded border ${
+                  roleBadge[user.role] ?? "bg-slate-100 text-slate-500 border-slate-200"
+                }`}
+              >
                 {user.role}
               </span>
             </div>
