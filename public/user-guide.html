@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Poultry Vet System – User Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #fff; font-size: 14px; line-height: 1.7; }
+
+  /* Cover Page */
+  .cover { height: 100vh; background: linear-gradient(135deg, #1e3a5f 0%, #0f2442 60%, #1e3a5f 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; page-break-after: always; }
+  .cover-icon { width: 90px; height: 90px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 28px; font-size: 42px; }
+  .cover h1 { color: #fff; font-size: 36px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px; }
+  .cover h2 { color: rgba(255,255,255,0.75); font-size: 18px; font-weight: 400; margin-bottom: 40px; }
+  .cover-divider { width: 60px; height: 3px; background: #3b82f6; border-radius: 2px; margin: 0 auto 40px; }
+  .cover-meta { color: rgba(255,255,255,0.6); font-size: 13px; line-height: 2; }
+  .cover-meta strong { color: rgba(255,255,255,0.9); }
+  .cover-badge { display: inline-block; background: rgba(59,130,246,0.3); border: 1px solid rgba(59,130,246,0.5); color: #93c5fd; border-radius: 20px; padding: 4px 16px; font-size: 12px; font-weight: 600; margin-top: 30px; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* TOC */
+  .toc-page { padding: 60px 80px; page-break-after: always; }
+  .toc-page h2 { font-size: 22px; color: #1e3a5f; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 28px; }
+  .toc-section { margin-bottom: 8px; }
+  .toc-section a { text-decoration: none; color: #334155; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dotted #e2e8f0; }
+  .toc-section a:hover { color: #1e3a5f; }
+  .toc-section .toc-num { color: #94a3b8; font-size: 12px; }
+  .toc-group { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 6px; }
+
+  /* Content Layout */
+  .page { padding: 60px 80px; }
+  .chapter { page-break-before: always; }
+  .chapter:first-of-type { page-break-before: avoid; }
+
+  /* Chapter Header */
+  .chapter-header { background: linear-gradient(135deg, #1e3a5f, #2d5282); color: #fff; padding: 28px 36px; border-radius: 12px; margin-bottom: 32px; }
+  .chapter-number { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #93c5fd; margin-bottom: 6px; }
+  .chapter-header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .chapter-header p { color: rgba(255,255,255,0.75); font-size: 14px; }
+
+  /* Typography */
+  h2 { font-size: 18px; color: #1e3a5f; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 15px; color: #334155; margin: 20px 0 8px; font-weight: 600; }
+  p { margin-bottom: 12px; color: #475569; }
+  ul, ol { margin: 8px 0 12px 20px; color: #475569; }
+  li { margin-bottom: 6px; }
+
+  /* Steps */
+  .steps { counter-reset: step; }
+  .step { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .step-num { background: #1e3a5f; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .step-content { flex: 1; }
+  .step-content strong { color: #1e293b; display: block; margin-bottom: 2px; }
+
+  /* Boxes */
+  .tip { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .tip .tip-label { font-size: 11px; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .tip p { color: #1e40af; margin: 0; }
+  .warning { background: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .warning .tip-label { font-size: 11px; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .warning p { color: #9a3412; margin: 0; }
+  .success { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .success .tip-label { font-size: 11px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .success p { color: #166534; margin: 0; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: #1e3a5f; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; }
+  td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #475569; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+
+  /* Badge */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+
+  /* Screen mockup */
+  .screen { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 10px; padding: 20px; margin: 16px 0; }
+  .screen-bar { background: #1e3a5f; color: #fff; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .screen-bar span { font-size: 10px; opacity: 0.7; font-weight: 400; }
+  .field-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 140px; }
+  .field label { display: block; font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field .fval { background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 12px; font-size: 13px; color: #334155; }
+
+  /* Role cards */
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  .role-card { border: 2px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+  .role-card .role-name { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .role-card ul { margin: 0 0 0 16px; }
+  .role-card li { font-size: 13px; color: #64748b; margin-bottom: 3px; }
+
+  /* Module list */
+  .module-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .module-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; text-align: center; }
+  .module-card .mod-icon { font-size: 24px; margin-bottom: 6px; }
+  .module-card .mod-name { font-size: 12px; font-weight: 700; color: #334155; }
+  .module-card .mod-desc { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+
+  /* Print */
+  @media print {
+    body { font-size: 12px; }
+    .cover { height: 100vh; }
+    .chapter { page-break-before: always; }
+    .tip, .warning, .success { page-break-inside: avoid; }
+    .step { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+  }
+  @page { margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="cover-icon">💊</div>
+  <h1>Poultry Vet System</h1>
+  <h2>Distribution &amp; Retail Management</h2>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">
+    <p><strong>Complete User Guide</strong></p>
+    <p>All 9 Modules Explained Step by Step</p>
+    <p style="margin-top:16px">Version 1.0 &nbsp;·&nbsp; 2026</p>
+  </div>
+  <div class="cover-badge">For Business Owners &amp; Staff</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ TOC -->
+<div class="toc-page">
+  <h2>Table of Contents</h2>
+
+  <div class="toc-group">Getting Started</div>
+  <div class="toc-section"><a href="#intro">Introduction &amp; System Overview <span class="toc-num">3</span></a></div>
+  <div class="toc-section"><a href="#login">Logging In &amp; Dashboard <span class="toc-num">4</span></a></div>
+  <div class="toc-section"><a href="#roles">User Roles &amp; Permissions <span class="toc-num">5</span></a></div>
+
+  <div class="toc-group">Daily Operations</div>
+  <div class="toc-section"><a href="#inventory">Module 1 – Inventory Management <span class="toc-num">6</span></a></div>
+  <div class="toc-section"><a href="#sales">Module 2 – Sales &amp; Invoicing <span class="toc-num">8</span></a></div>
+  <div class="toc-section"><a href="#purchases">Module 3 – Purchases &amp; Stock Receiving <span class="toc-num">10</span></a></div>
+  <div class="toc-section"><a href="#customers">Module 4 – Customer Management <span class="toc-num">12</span></a></div>
+  <div class="toc-section"><a href="#suppliers">Module 5 – Supplier Management <span class="toc-num">13</span></a></div>
+
+  <div class="toc-group">Finance &amp; Analytics</div>
+  <div class="toc-section"><a href="#accounts">Module 6 – Accounts &amp; Vouchers <span class="toc-num">14</span></a></div>
+  <div class="toc-section"><a href="#reports">Module 7 – Reports <span class="toc-num">16</span></a></div>
+  <div class="toc-section"><a href="#alerts">Module 8 – Alerts <span class="toc-num">18</span></a></div>
+
+  <div class="toc-group">System Administration</div>
+  <div class="toc-section"><a href="#users">Module 9 – Users &amp; Staff <span class="toc-num">19</span></a></div>
+  <div class="toc-section"><a href="#settings">Company Settings <span class="toc-num">20</span></a></div>
+  <div class="toc-section"><a href="#excel">Excel Reports &amp; Auto Email <span class="toc-num">21</span></a></div>
+  <div class="toc-section"><a href="#tips">Tips &amp; Best Practices <span class="toc-num">22</span></a></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ PAGE CONTENT -->
+<div class="page">
+
+<!-- ───────────────────────────────────────────── INTRO -->
+<div class="chapter" id="intro">
+  <div class="chapter-header">
+    <div class="chapter-number">Introduction</div>
+    <h1>What is Poultry Vet System?</h1>
+    <p>Everything your business needs — in one place, accessible from any device</p>
+  </div>
+
+  <p>The <strong>Poultry Vet System</strong> is a complete business management system designed specifically for <strong>veterinary medicine distributors and retailers</strong> in Pakistan. It replaces notebooks, spreadsheets, and manual records with a fast, organised, and reliable system.</p>
+
+  <div class="module-grid">
+    <div class="module-card"><div class="mod-icon">📦</div><div class="mod-name">Inventory</div><div class="mod-desc">Track stock & expiry dates</div></div>
+    <div class="module-card"><div class="mod-icon">🧾</div><div class="mod-name">Sales</div><div class="mod-desc">Create invoices instantly</div></div>
+    <div class="module-card"><div class="mod-icon">🛒</div><div class="mod-name">Purchases</div><div class="mod-desc">Record stock received</div></div>
+    <div class="module-card"><div class="mod-icon">👥</div><div class="mod-name">Customers</div><div class="mod-desc">Credit limits & history</div></div>
+    <div class="module-card"><div class="mod-icon">🏭</div><div class="mod-name">Suppliers</div><div class="mod-desc">Manage your vendors</div></div>
+    <div class="module-card"><div class="mod-icon">📒</div><div class="mod-name">Accounts</div><div class="mod-desc">Full double-entry ledger</div></div>
+    <div class="module-card"><div class="mod-icon">📊</div><div class="mod-name">Reports</div><div class="mod-desc">Sales, stock, recovery</div></div>
+    <div class="module-card"><div class="mod-icon">🔔</div><div class="mod-name">Alerts</div><div class="mod-desc">Expiry & low stock</div></div>
+    <div class="module-card"><div class="mod-icon">👤</div><div class="mod-name">Users</div><div class="mod-desc">Staff access control</div></div>
+  </div>
+
+  <h2>How to Access the System</h2>
+  <p>This system runs in any web browser — no installation is needed. Open your browser (Chrome, Firefox, Safari) and go to your company's link:</p>
+  <div class="screen">
+    <div class="screen-bar">🌐 Web Browser Address Bar</div>
+    <p style="font-family:monospace;font-size:15px;color:#1e3a5f;font-weight:600;">https://your-company.vercel.app</p>
+    <p style="font-size:12px;color:#94a3b8;margin:4px 0 0;">You can bookmark this link or save it on your desktop for quick access.</p>
+  </div>
+
+  <div class="tip">
+    <div class="tip-label">💡 Good to Know</div>
+    <p>The system works on any device — desktop computer, laptop, tablet, or mobile phone. You do not need to install anything.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── LOGIN -->
+<div class="chapter" id="login">
+  <div class="chapter-header">
+    <div class="chapter-number">Getting Started</div>
+    <h1>Logging In &amp; The Dashboard</h1>
+    <p>Your first screen after opening the system</p>
+  </div>
+
+  <h2>How to Log In</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Open your browser and go to your system link.</strong>The login page will appear automatically.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Enter your Email Address.</strong>This is given to you by your manager or system owner.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Enter your Password.</strong>Type it carefully. Passwords are case-sensitive (capital letters matter).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Click "Sign In".</strong>You will be taken to the Dashboard.</div></div>
+  </div>
+
+  <div class="warning">
+    <div class="tip-label">⚠ Important</div>
+    <p>If you see "Invalid email or password", check your email spelling and try again. Contact your manager if you cannot log in.</p>
+  </div>
+
+  <h2>The Dashboard — Your Home Screen</h2>
+  <p>After logging in, you will see the Dashboard. This gives you a quick summary of your business today:</p>
+
+  <table>
+    <tr><th>Card / Number</th><th>What It Means</th></tr>
+    <tr><td><strong>Today's Sales</strong></td><td>Total value of all invoices created today</td></tr>
+    <tr><td><strong>Monthly Revenue</strong></td><td>Total money received this month (cash + bank)</td></tr>
+    <tr><td><strong>Total Receivables</strong></td><td>Total amount your customers owe you</td></tr>
+    <tr><td><strong>Active Alerts</strong></td><td>Number of products expiring soon or with low stock</td></tr>
+    <tr><td><strong>Recent Invoices</strong></td><td>The last 5 sales made — with status (Paid / Partial / Unpaid)</td></tr>
+  </table>
+
+  <h2>The Sidebar (Left Menu)</h2>
+  <p>The left side of the screen always shows the navigation menu. Click any item to go to that section:</p>
+  <ul>
+    <li><strong>Dashboard</strong> – Home screen with summary</li>
+    <li><strong>Alerts</strong> – Expiry and low stock warnings (red number = urgent)</li>
+    <li><strong>Inventory</strong> – All your products and batches</li>
+    <li><strong>Sales</strong> – View and create sales invoices</li>
+    <li><strong>Purchases</strong> – View and create purchase orders</li>
+    <li><strong>Customers</strong> – Your customer list</li>
+    <li><strong>Suppliers</strong> – Your supplier list</li>
+    <li><strong>Accounts</strong> – Financial ledger and vouchers</li>
+    <li><strong>Reports</strong> – Detailed business reports</li>
+    <li><strong>Users</strong> – Staff accounts (Owner/Admin only)</li>
+    <li><strong>Settings</strong> – Company information</li>
+  </ul>
+</div>
+
+<!-- ───────────────────────────────────────────── ROLES -->
+<div class="chapter" id="roles">
+  <div class="chapter-header">
+    <div class="chapter-number">Getting Started</div>
+    <h1>User Roles &amp; Permissions</h1>
+    <p>Who can do what in the system</p>
+  </div>
+
+  <p>Every staff member is given a <strong>role</strong> when their account is created. The role decides what they can see and do in the system.</p>
+
+  <div class="role-grid">
+    <div class="role-card" style="border-color:#7c3aed">
+      <div class="role-name" style="color:#7c3aed">👑 Owner</div>
+      <ul>
+        <li>Full access to everything</li>
+        <li>Can manage all staff accounts</li>
+        <li>Can change company settings</li>
+        <li>Can view all financial reports</li>
+        <li>Only one person should be Owner</li>
+      </ul>
+    </div>
+    <div class="role-card" style="border-color:#1d4ed8">
+      <div class="role-name" style="color:#1d4ed8">🛡 Admin</div>
+      <ul>
+        <li>Same as Owner, except:</li>
+        <li>Cannot create other Admins</li>
+        <li>Cannot change company settings</li>
+        <li>Can manage Cashiers and Salesmen</li>
+      </ul>
+    </div>
+    <div class="role-card" style="border-color:#059669">
+      <div class="role-name" style="color:#059669">🧾 Cashier</div>
+      <ul>
+        <li>Can create sales invoices</li>
+        <li>Can receive customer payments</li>
+        <li>Can view inventory</li>
+        <li>Cannot change prices or settings</li>
+        <li>Cannot delete records</li>
+      </ul>
+    </div>
+    <div class="role-card" style="border-color:#d97706">
+      <div class="role-name" style="color:#d97706">🚗 Salesman</div>
+      <ul>
+        <li>Can create sales invoices</li>
+        <li>Can view customers</li>
+        <li>Cannot access accounts</li>
+        <li>Cannot see financial reports</li>
+        <li>Field sales staff role</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-label">💡 Best Practice</div>
+    <p>Give Cashier role to counter staff, Salesman role to field reps, Admin to your manager, and keep Owner for yourself only.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── INVENTORY -->
+<div class="chapter" id="inventory">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 1</div>
+    <h1>Inventory Management</h1>
+    <p>Track your products, batches, and stock levels</p>
+  </div>
+
+  <p>The Inventory module is where all your medicines and products are stored. Every product has <strong>batches</strong> — each batch has its own expiry date and purchase price, so the system always knows which stock to sell first (oldest expiry first).</p>
+
+  <h2>Adding a New Product</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Inventory" in the left menu.</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Click the "Add Product" button</strong> (top right corner).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Fill in the product details:</strong>
+      <ul style="margin-top:8px">
+        <li><strong>Product Name</strong> – e.g. "Newcastle Disease Vaccine La Sota"</li>
+        <li><strong>Generic Name</strong> – The scientific/chemical name</li>
+        <li><strong>Category</strong> – Vaccine, Antibiotic, Vitamin, etc.</li>
+        <li><strong>Species</strong> – Broiler, Layer, Cattle, General, etc.</li>
+        <li><strong>Unit</strong> – Vial, Sachet, ML, Tablet, etc.</li>
+        <li><strong>Sale Price</strong> – Your selling price per unit</li>
+        <li><strong>Purchase Price</strong> – What you paid per unit</li>
+        <li><strong>Reorder Level</strong> – Minimum stock before alert is triggered</li>
+        <li><strong>Supplier</strong> – Which company supplies this product</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Click "Save Product".</strong></div></div>
+  </div>
+
+  <h2>Understanding Batches</h2>
+  <p>When you receive stock from a supplier, you add a <strong>batch</strong> — not just the product. A batch records:</p>
+  <table>
+    <tr><th>Field</th><th>What to Enter</th></tr>
+    <tr><td>Batch Number</td><td>The number printed on the box/packet (e.g. NDV-2024-001)</td></tr>
+    <tr><td>Manufacture Date</td><td>Date of manufacture from the label</td></tr>
+    <tr><td>Expiry Date</td><td>Expiry date from the label — very important!</td></tr>
+    <tr><td>Quantity</td><td>How many units received</td></tr>
+    <tr><td>Purchase Price</td><td>Price you paid for this specific batch</td></tr>
+  </table>
+
+  <div class="tip">
+    <div class="tip-label">💡 Why Batches Matter</div>
+    <p>When you make a sale, the system automatically uses the batch expiring soonest first (FEFO method). This prevents you from accidentally selling stock that expires before other stock.</p>
+  </div>
+
+  <h2>Expiry Date Colour Codes</h2>
+  <table>
+    <tr><th>Colour</th><th>Meaning</th><th>What To Do</th></tr>
+    <tr><td><span class="badge badge-red">Red</span></td><td>Expires within 30 days</td><td>Sell immediately or return to supplier</td></tr>
+    <tr><td><span class="badge badge-yellow">Orange</span></td><td>Expires within 60 days</td><td>Prioritise selling these</td></tr>
+    <tr><td><span class="badge badge-blue">Blue</span></td><td>Expires within 90 days</td><td>Keep an eye on these</td></tr>
+    <tr><td><span class="badge badge-green">Green</span></td><td>Expiry is far away</td><td>Normal — no action needed</td></tr>
+  </table>
+
+  <h2>Searching &amp; Filtering Products</h2>
+  <p>On the Inventory page, you can:</p>
+  <ul>
+    <li>Type a product name in the <strong>search box</strong> to find it quickly</li>
+    <li>Filter by <strong>Category</strong> (Vaccines, Antibiotics, etc.)</li>
+    <li>Filter by <strong>Species</strong> (Broiler, Layer, etc.)</li>
+    <li>Click any product to see all its batches and full details</li>
+  </ul>
+</div>
+
+<!-- ───────────────────────────────────────────── SALES -->
+<div class="chapter" id="sales">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 2</div>
+    <h1>Sales &amp; Invoicing</h1>
+    <p>Create sales invoices and record customer payments</p>
+  </div>
+
+  <p>Every time you sell medicines to a customer, you create a <strong>Sales Invoice</strong>. The system automatically reduces stock and updates the customer's account.</p>
+
+  <h2>Creating a New Invoice</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Sales" in the left menu, then click "New Sale".</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Select the Customer</strong> from the dropdown, OR leave it as "Walk-in Customer" for a cash sale without a registered customer.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Choose Payment Mode:</strong>
+      <ul style="margin-top:6px">
+        <li><strong>Cash</strong> – Customer paid in cash right now</li>
+        <li><strong>Bank</strong> – Customer paid via bank transfer</li>
+        <li><strong>Cheque</strong> – Customer paid by cheque</li>
+        <li><strong>Credit</strong> – Customer will pay later (goes to their account)</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Add Products</strong> by clicking "Add Item". For each item:
+      <ul style="margin-top:6px">
+        <li>Search and select the product</li>
+        <li>Choose the batch (system suggests best batch automatically)</li>
+        <li>Enter quantity</li>
+        <li>Price fills automatically — you can edit if needed</li>
+        <li>Add discount if applicable</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-content"><strong>Enter the Amount Received.</strong> If the customer paid in full, this equals the total. If partial, enter what was received.</div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-content"><strong>Set Due Date</strong> for credit payments (when customer should pay).</div></div>
+    <div class="step"><div class="step-num">7</div><div class="step-content"><strong>Click "Create Invoice".</strong> The invoice is saved and stock is automatically reduced.</div></div>
+  </div>
+
+  <h2>Invoice Status</h2>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="badge badge-green">PAID</span></td><td>Customer paid the full amount</td></tr>
+    <tr><td><span class="badge badge-yellow">PARTIAL</span></td><td>Customer paid some amount, balance remaining</td></tr>
+    <tr><td><span class="badge badge-red">UNPAID</span></td><td>No payment received yet</td></tr>
+  </table>
+
+  <h2>Printing an Invoice</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click on any invoice</strong> to open its detail page.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Click the "Print" button</strong> (top right).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Your browser's print dialog will open.</strong> Select your printer, or choose "Save as PDF" to save a digital copy.</div></div>
+  </div>
+
+  <h2>Receiving a Customer Payment Later</h2>
+  <p>If a customer pays for a credit invoice at a later date:</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Go to Sales</strong> and find the customer's invoice.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Open the invoice</strong> and click <strong>"Record Payment"</strong>.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Enter the amount paid</strong> and payment method, then save.</div></div>
+  </div>
+
+  <div class="warning">
+    <div class="tip-label">⚠ Credit Limit Warning</div>
+    <p>If a customer has reached their credit limit, the system will show a warning when creating a new invoice. Check with your manager before proceeding.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── PURCHASES -->
+<div class="chapter" id="purchases">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 3</div>
+    <h1>Purchases &amp; Stock Receiving</h1>
+    <p>Record stock received from suppliers and track what you owe</p>
+  </div>
+
+  <p>Every time you receive medicines from a supplier, you record a <strong>Purchase Order</strong>. This adds stock to your inventory and records the amount you owe to the supplier.</p>
+
+  <h2>Creating a Purchase Order</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Purchases" in the left menu, then "New Purchase".</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Select the Supplier</strong> from whom you received the stock.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Enter the PO Number</strong> — this is the invoice/bill number from the supplier's paperwork.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Select the Order Date</strong> — when you received the stock.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-content"><strong>Add Products</strong> received. For each item:
+      <ul style="margin-top:6px">
+        <li>Select the product</li>
+        <li>Enter batch number, manufacture date, expiry date</li>
+        <li>Enter quantity and purchase price</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-content"><strong>Enter Amount Paid</strong> if you paid the supplier immediately. Leave as 0 if paying later.</div></div>
+    <div class="step"><div class="step-num">7</div><div class="step-content"><strong>Click "Create Purchase Order".</strong> Stock is added to inventory automatically.</div></div>
+  </div>
+
+  <div class="success">
+    <div class="tip-label">✅ Stock Added Automatically</div>
+    <p>As soon as you save a purchase order, the batch is created and stock is immediately available in the inventory for sale.</p>
+  </div>
+
+  <h2>Paying a Supplier Later</h2>
+  <p>If you did not pay the supplier immediately:</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Go to Purchases</strong> and open the purchase order.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Click "Record Payment"</strong> and enter the amount paid.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Save.</strong> The remaining balance is updated automatically.</div></div>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── CUSTOMERS -->
+<div class="chapter" id="customers">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 4</div>
+    <h1>Customer Management</h1>
+    <p>Manage your customers, credit limits, and account history</p>
+  </div>
+
+  <h2>Adding a New Customer</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Customers" → "Add Customer".</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Fill in customer details:</strong> Name, Phone, Email, Area/City.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Select Customer Type:</strong>
+      <ul style="margin-top:6px">
+        <li><strong>Farm</strong> – Poultry farming business</li>
+        <li><strong>Vet Shop</strong> – Veterinary medicine retail shop</li>
+        <li><strong>Sub Dealer</strong> – Wholesale distributor</li>
+        <li><strong>Retail</strong> – Walk-in customer</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Set Credit Limit</strong> — maximum amount the customer can owe you (e.g. PKR 100,000).</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-content"><strong>Enter Opening Balance</strong> if the customer already owed you money before you started using this system.</div></div>
+  </div>
+
+  <h2>Viewing a Customer's Account</h2>
+  <p>Click on any customer to see their complete account ledger — all invoices, payments, and the current outstanding balance.</p>
+
+  <table>
+    <tr><th>What You See</th><th>Meaning</th></tr>
+    <tr><td>Opening Balance</td><td>Amount they owed before using this system</td></tr>
+    <tr><td>Invoiced Amount</td><td>Total value of all invoices created for them</td></tr>
+    <tr><td>Total Paid</td><td>Total amount received from them</td></tr>
+    <tr><td>Outstanding</td><td>Amount they still owe you right now</td></tr>
+  </table>
+</div>
+
+<!-- ───────────────────────────────────────────── SUPPLIERS -->
+<div class="chapter" id="suppliers">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 5</div>
+    <h1>Supplier Management</h1>
+    <p>Manage your supplier accounts and what you owe them</p>
+  </div>
+
+  <h2>Adding a New Supplier</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Suppliers" → "Add Supplier".</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Enter the company name, phone, email, and address.</strong></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Enter Opening Balance</strong> if you already owed them money before using this system.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Click Save.</strong></div></div>
+  </div>
+
+  <p>Clicking on a supplier shows all purchase orders made from them and the total amount currently payable to them.</p>
+</div>
+
+<!-- ───────────────────────────────────────────── ACCOUNTS -->
+<div class="chapter" id="accounts">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 6</div>
+    <h1>Accounts &amp; Vouchers</h1>
+    <p>Full double-entry accounting — cash, bank, and journal entries</p>
+  </div>
+
+  <p>The Accounts module keeps your financial records. Every sale and purchase is automatically recorded here. You use this module to:</p>
+  <ul>
+    <li>Record money received (Cash Receipts)</li>
+    <li>Record money paid out (Cash Payments)</li>
+    <li>Record bank transactions</li>
+    <li>View the ledger of any account</li>
+  </ul>
+
+  <h2>Chart of Accounts</h2>
+  <p>The system comes pre-set with the following accounts:</p>
+  <table>
+    <tr><th>Account</th><th>Type</th><th>Used For</th></tr>
+    <tr><td>Cash in Hand</td><td>Asset</td><td>Physical cash in your shop/office</td></tr>
+    <tr><td>Bank Account</td><td>Asset</td><td>Money in your bank</td></tr>
+    <tr><td>Accounts Receivable</td><td>Asset</td><td>What customers owe you</td></tr>
+    <tr><td>Inventory</td><td>Asset</td><td>Value of stock in hand</td></tr>
+    <tr><td>Accounts Payable</td><td>Liability</td><td>What you owe suppliers</td></tr>
+    <tr><td>Sales Revenue</td><td>Revenue</td><td>Income from sales</td></tr>
+    <tr><td>Cost of Goods Sold</td><td>Expense</td><td>Cost of products sold</td></tr>
+  </table>
+
+  <h2>Creating a Voucher</h2>
+  <p>Vouchers are used to record money movements that are not part of a sale or purchase:</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Accounts" → "Vouchers" → "New Voucher".</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Select Voucher Type:</strong>
+      <ul style="margin-top:6px">
+        <li><strong>Cash Receipt</strong> – Cash coming in (not from a sale invoice)</li>
+        <li><strong>Cash Payment</strong> – Cash going out (rent, salary, expenses)</li>
+        <li><strong>Bank Receipt</strong> – Money received in bank</li>
+        <li><strong>Bank Payment</strong> – Money paid from bank</li>
+        <li><strong>Journal</strong> – Any other accounting adjustment</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Select the accounts</strong> to debit and credit.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Enter the amount and description</strong>, then save.</div></div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-label">💡 Example</div>
+    <p>Paid Rs 15,000 rent in cash → Create a <strong>Cash Payment</strong> voucher: Debit "Operating Expenses", Credit "Cash in Hand", Amount 15,000, Description "Monthly rent June 2026".</p>
+  </div>
+
+  <h2>Viewing an Account Ledger</h2>
+  <p>Click on any account (e.g. "Cash in Hand") to see every transaction that has gone through it, with a running balance.</p>
+</div>
+
+<!-- ───────────────────────────────────────────── REPORTS -->
+<div class="chapter" id="reports">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 7</div>
+    <h1>Reports</h1>
+    <p>Analyse your business performance with 5 detailed reports</p>
+  </div>
+
+  <p>Click <strong>"Reports"</strong> in the left menu to access all 5 reports. Each report has filters so you can see data for any time period.</p>
+
+  <h2>1. Sales Report</h2>
+  <p>Shows all invoices in a selected date range. You can filter by customer type (Farm, Vet Shop, Sub Dealer, Retail).</p>
+  <p><strong>What you can see:</strong> Total sales, total discounts, amount collected, amount pending, customer-wise breakdown.</p>
+
+  <h2>2. Purchase Report</h2>
+  <p>Shows all purchase orders in a selected date range. Filter by supplier to see how much you purchased from each company.</p>
+  <p><strong>What you can see:</strong> Total purchases, amount paid, amount still payable, supplier-wise summary.</p>
+
+  <h2>3. Stock Valuation Report</h2>
+  <p>Shows the current value of all your inventory. This tells you how much money is "locked" in your stock.</p>
+  <table>
+    <tr><th>Column</th><th>Meaning</th></tr>
+    <tr><td>Quantity</td><td>Total units currently in stock</td></tr>
+    <tr><td>Purchase Value</td><td>How much you paid for this stock</td></tr>
+    <tr><td>Sale Value</td><td>How much you can sell it for</td></tr>
+    <tr><td>Gross Margin</td><td>Your potential profit from this stock</td></tr>
+  </table>
+
+  <h2>4. Customer Recovery Report</h2>
+  <p>Shows which customers owe you money, ranked from highest to lowest outstanding balance. This is your <strong>collection list</strong> — use it to follow up with customers who have not paid.</p>
+
+  <h2>5. Trial Balance</h2>
+  <p>A complete accounting summary showing all accounts with their debit and credit totals. This is used by accountants to verify that the books are balanced. If Debits = Credits, your accounts are correct.</p>
+
+  <div class="tip">
+    <div class="tip-label">💡 Tip</div>
+    <p>Run the <strong>Customer Recovery Report</strong> every week and call the top customers with the highest outstanding balances to collect your money.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── ALERTS -->
+<div class="chapter" id="alerts">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 8</div>
+    <h1>Alerts</h1>
+    <p>Automatic warnings for expiry and low stock</p>
+  </div>
+
+  <p>The system automatically monitors your inventory and warns you about two important situations. The <strong>red number</strong> on the Alerts menu item shows how many urgent issues need attention.</p>
+
+  <h2>Expiry Alerts</h2>
+  <p>Any batch expiring within the next <strong>90 days</strong> appears in the alerts. Take action immediately:</p>
+  <ul>
+    <li><strong>0–30 days:</strong> Critical. Sell immediately or contact supplier for return/exchange.</li>
+    <li><strong>31–60 days:</strong> Urgent. Prioritise selling these batches.</li>
+    <li><strong>61–90 days:</strong> Warning. Monitor closely.</li>
+  </ul>
+
+  <h2>Low Stock Alerts</h2>
+  <p>Any product where total stock falls to or below its <strong>Reorder Level</strong> appears here. This means you need to order more from your supplier soon.</p>
+
+  <div class="warning">
+    <div class="tip-label">⚠ Check Alerts Daily</div>
+    <p>Make it a habit to check the Alerts page every morning. Expired medicine that is sold causes serious legal and health problems.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── USERS -->
+<div class="chapter" id="users">
+  <div class="chapter-header">
+    <div class="chapter-number">Module 9</div>
+    <h1>Users &amp; Staff Management</h1>
+    <p>Add staff accounts and control what they can access</p>
+  </div>
+
+  <p>Only the <strong>Owner</strong> and <strong>Admin</strong> can access the Users section. This is where you create accounts for your staff.</p>
+
+  <h2>Adding a New Staff Member</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Users" in the left menu, then "Add User".</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Enter their Full Name, Email Address, and Phone Number.</strong></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Select their Role</strong> (Cashier or Salesman for regular staff).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>Set a Password</strong> — give them a simple one and tell them to remember it. Minimum 6 characters.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-content"><strong>Click "Create User".</strong> They can now log in with their email and password.</div></div>
+  </div>
+
+  <h2>Deactivating a Staff Member</h2>
+  <p>If a staff member leaves your company, you should deactivate their account so they cannot log in anymore:</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Users" and find the staff member.</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Click on their name</strong> to open their profile.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Scroll down to "Danger Zone"</strong> and click <strong>"Deactivate Account"</strong>.</div></div>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── SETTINGS -->
+<div class="chapter" id="settings">
+  <div class="chapter-header">
+    <div class="chapter-number">System Administration</div>
+    <h1>Company Settings</h1>
+    <p>Set up your company profile — this appears on all invoices</p>
+  </div>
+
+  <p>Only the <strong>Owner</strong> can edit company settings. Go to <strong>Settings</strong> in the left menu.</p>
+
+  <table>
+    <tr><th>Field</th><th>What to Enter</th></tr>
+    <tr><td>Company Name</td><td>Your business name (appears on all invoices)</td></tr>
+    <tr><td>Phone</td><td>Your business phone number</td></tr>
+    <tr><td>Email</td><td>Business email — reports will be sent here</td></tr>
+    <tr><td>Tax / NTN Number</td><td>Your National Tax Number (optional)</td></tr>
+    <tr><td>Currency</td><td>PKR, USD, AED, etc. (PKR is default)</td></tr>
+    <tr><td>Address</td><td>Your business address</td></tr>
+    <tr><td>Logo URL</td><td>Web link to your company logo image</td></tr>
+  </table>
+
+  <div class="tip">
+    <div class="tip-label">💡 Adding Your Logo</div>
+    <p>To add your logo: upload your logo image to <strong>imgbb.com</strong> (free), copy the direct image link, and paste it in the Logo URL field. Your logo will then appear on all invoices and in the top left of the system.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── EXCEL -->
+<div class="chapter" id="excel">
+  <div class="chapter-header">
+    <div class="chapter-number">System Administration</div>
+    <h1>Excel Reports &amp; Auto Email</h1>
+    <p>Download business data to Excel and receive automatic reports by email</p>
+  </div>
+
+  <h2>Downloading an Excel Report</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><strong>Click "Settings" in the left menu.</strong></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><strong>Scroll down</strong> to the "Download Business Report" section.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><strong>Click one of the three buttons:</strong>
+      <ul style="margin-top:6px">
+        <li><strong>Last 15 Days</strong> – Data from the last 2 weeks</li>
+        <li><strong>Last 30 Days</strong> – Data from the last month</li>
+        <li><strong>Last 90 Days</strong> – Data from the last 3 months</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><strong>The Excel file downloads automatically.</strong> Open it in Microsoft Excel or Google Sheets.</div></div>
+  </div>
+
+  <h2>What is Inside the Excel File</h2>
+  <p>The downloaded file has <strong>4 sheets</strong> (tabs at the bottom):</p>
+  <table>
+    <tr><th>Sheet</th><th>Contents</th></tr>
+    <tr><td>📊 Sales</td><td>All invoices in the period — customer, amount, paid, balance</td></tr>
+    <tr><td>🛒 Purchases</td><td>All purchase orders — supplier, amount, amount paid</td></tr>
+    <tr><td>📦 Inventory</td><td>All products — stock quantity, value, expiry warnings</td></tr>
+    <tr><td>💰 Receivables</td><td>All customers — outstanding balance, credit status</td></tr>
+  </table>
+
+  <h2>Automatic Email Every 15 Days</h2>
+  <p>The system automatically emails this Excel report to the <strong>Owner's email address</strong> on the <strong>1st and 16th of every month</strong>. No action is needed — it happens automatically.</p>
+
+  <div class="success">
+    <div class="tip-label">✅ Always Up to Date</div>
+    <p>You will receive your business summary in your inbox every 15 days without doing anything. Make sure your email is correctly entered in Company Settings.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────── TIPS -->
+<div class="chapter" id="tips">
+  <div class="chapter-header">
+    <div class="chapter-number">Best Practices</div>
+    <h1>Tips for Getting the Most from the System</h1>
+    <p>Daily habits that keep your business organised</p>
+  </div>
+
+  <h2>Daily Habits</h2>
+  <ul>
+    <li>✅ Check the <strong>Alerts</strong> page every morning before starting work</li>
+    <li>✅ Create a sales invoice for <strong>every sale</strong> — even small cash sales</li>
+    <li>✅ Record purchases <strong>on the same day</strong> you receive stock</li>
+    <li>✅ Collect customer payments and <strong>immediately record them</strong> in the system</li>
+    <li>✅ Always scan the <strong>batch number and expiry date</strong> when receiving stock</li>
+  </ul>
+
+  <h2>Weekly Habits</h2>
+  <ul>
+    <li>✅ Run the <strong>Customer Recovery Report</strong> and call customers with high outstanding balances</li>
+    <li>✅ Check inventory for any items below the <strong>Reorder Level</strong></li>
+    <li>✅ Review <strong>Expiry Alerts</strong> and plan to sell expiring stock</li>
+  </ul>
+
+  <h2>Monthly Habits</h2>
+  <ul>
+    <li>✅ Download the <strong>30-Day Excel Report</strong> for your records</li>
+    <li>✅ Review the <strong>Trial Balance</strong> with your accountant</li>
+    <li>✅ Update <strong>Opening Balances</strong> if you have new customers or suppliers</li>
+  </ul>
+
+  <h2>Common Questions</h2>
+  <table>
+    <tr><th>Question</th><th>Answer</th></tr>
+    <tr><td>I made a mistake in an invoice. What do I do?</td><td>Contact your system administrator. Important transactions should not be deleted without recording a correction.</td></tr>
+    <tr><td>The system is slow. What should I do?</td><td>Check your internet connection. The system requires internet to work. Try refreshing the page (press F5).</td></tr>
+    <tr><td>I forgot my password.</td><td>Ask your Owner or Admin to change your password from the Users section.</td></tr>
+    <tr><td>A product is not showing in the sale screen.</td><td>Make sure the product has stock (a batch with quantity > 0). Zero stock products cannot be sold.</td></tr>
+    <tr><td>Can two people use the system at the same time?</td><td>Yes! Each person logs in with their own account. Multiple people can use the system simultaneously.</td></tr>
+    <tr><td>Is my data safe?</td><td>Yes. Data is stored in a secure cloud database with automatic backups. It cannot be lost even if your computer breaks.</td></tr>
+  </table>
+
+  <div class="tip" style="margin-top:28px">
+    <div class="tip-label">📞 Need Help?</div>
+    <p>Contact your system administrator or the Poultry Vet System support team for any issues not covered in this guide.</p>
+  </div>
+
+  <!-- Footer -->
+  <div style="margin-top:60px;padding-top:24px;border-top:2px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:12px">
+    <p style="font-weight:700;color:#1e3a5f;font-size:14px">Poultry Vet System — Distribution &amp; Retail Management</p>
+    <p>Version 1.0 &nbsp;·&nbsp; 2026 &nbsp;·&nbsp; All rights reserved</p>
+    <p style="margin-top:6px">This document is confidential and intended only for authorised users of the system.</p>
+  </div>
+</div>
+
+</div><!-- end .page -->
+</body>
+</html>
