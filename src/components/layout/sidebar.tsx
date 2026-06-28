@@ -142,7 +142,7 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
       </nav>
 
       <div className="px-4 py-3 border-t border-slate-800">
-        <p className="text-[11px] text-slate-600 text-center">v1.0 · 9 modules complete</p>
+        <p className="text-[11px] text-slate-600 text-center">Poultry Vet System · v1.0</p>
       </div>
     </aside>
   )
