@@ -97,7 +97,7 @@ const modules = [
   { n: 6, name: "Customers & Ledger",             status: "done" },
   { n: 7, name: "Accounts & Vouchers",            status: "done" },
   { n: 8, name: "Reports & Dashboard",            status: "done" },
-  { n: 9, name: "Users & Roles",                  status: "next" },
+  { n: 9, name: "Users & Roles",                  status: "done" },
 ]
 
 export default async function DashboardPage() {

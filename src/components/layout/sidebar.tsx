@@ -15,6 +15,7 @@ import {
   Settings,
   Syringe,
   Bell,
+  UserCog,
 } from "lucide-react"
 
 const navSections = [
@@ -55,6 +56,7 @@ const navSections = [
   {
     title: "System",
     items: [
+      { href: "/users",    label: "Users",    icon: UserCog, alert: false, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, alert: false },
     ],
   },
@@ -62,10 +64,12 @@ const navSections = [
 
 interface SidebarProps {
   alertCount?: number
+  role?: string
 }
 
-export function Sidebar({ alertCount = 0 }: SidebarProps) {
+export function Sidebar({ alertCount = 0, role }: SidebarProps) {
   const pathname = usePathname()
+  const isManager = role === "OWNER" || role === "ADMIN"
 
   return (
     <aside className="w-60 bg-slate-900 flex flex-col border-r border-slate-800 shrink-0 h-full">
@@ -90,7 +94,7 @@ export function Sidebar({ alertCount = 0 }: SidebarProps) {
               {section.title}
             </p>
             <ul className="space-y-0.5">
-              {section.items.map((item) => {
+              {section.items.filter((item) => !(item as any).adminOnly || isManager).map((item) => {
                 const Icon = item.icon
                 const isActive =
                   item.href === "/"
@@ -126,7 +130,7 @@ export function Sidebar({ alertCount = 0 }: SidebarProps) {
       </nav>
 
       <div className="px-4 py-3 border-t border-slate-800">
-        <p className="text-[11px] text-slate-600 text-center">v1.0 · Module 3 of 9</p>
+        <p className="text-[11px] text-slate-600 text-center">v1.0 · 9 modules complete</p>
       </div>
     </aside>
   )

@@ -31,11 +31,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/login")
 
   const companyId = (session.user as any)?.companyId as string | undefined
+  const role = (session.user as any)?.role as string | undefined
   const alertCount = companyId ? await getAlertCount(companyId) : 0
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar alertCount={alertCount} />
+      <Sidebar alertCount={alertCount} role={role} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar session={session} alertCount={alertCount} />
         <main className="flex-1 overflow-auto p-6">{children}</main>
