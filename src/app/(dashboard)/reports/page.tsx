@@ -1,20 +1,82 @@
-import { BarChart3 } from "lucide-react"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { redirect } from "next/navigation"
+import Link from "next/link"
+import {
+  TrendingUp, ShoppingCart, Package, Users, Scale, ArrowRight,
+} from "lucide-react"
 
 export const metadata = { title: "Reports" }
 
-export default function ReportsPage() {
+const REPORT_CARDS = [
+  {
+    title: "Sales Report",
+    description: "Date-wise and customer-wise sales summary with payment status.",
+    href: "/reports/sales",
+    icon: TrendingUp,
+    color: "bg-blue-50 text-blue-600 border-blue-200",
+  },
+  {
+    title: "Purchase Report",
+    description: "Supplier-wise purchase totals and order history.",
+    href: "/reports/purchases",
+    icon: ShoppingCart,
+    color: "bg-purple-50 text-purple-600 border-purple-200",
+  },
+  {
+    title: "Stock Valuation",
+    description: "Current stock levels with purchase and sale values per product.",
+    href: "/reports/stock",
+    icon: Package,
+    color: "bg-green-50 text-green-600 border-green-200",
+  },
+  {
+    title: "Customer Recovery",
+    description: "Outstanding receivables ranked by balance — identify overdue accounts.",
+    href: "/reports/recovery",
+    icon: Users,
+    color: "bg-orange-50 text-orange-600 border-orange-200",
+  },
+  {
+    title: "Trial Balance",
+    description: "All accounts with total debits, credits, and net balance.",
+    href: "/reports/trial-balance",
+    icon: Scale,
+    color: "bg-slate-50 text-slate-600 border-slate-200",
+  },
+]
+
+export default async function ReportsPage() {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect("/login")
+
   return (
-    <div className="flex flex-col items-center justify-center h-[calc(100vh-9rem)] text-center px-4">
-      <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 mb-4">
-        <BarChart3 className="w-10 h-10 text-slate-400" />
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Financial and operational reports for your business</p>
       </div>
-      <h1 className="text-xl font-bold text-slate-900">Reports &amp; Dashboard</h1>
-      <p className="text-slate-500 text-sm mt-2 max-w-md leading-relaxed">
-        Sales summary, stock valuation, expiry report, recovery report, top products, and salesman-wise sales.
-      </p>
-      <span className="mt-5 px-3 py-1.5 text-xs font-medium text-slate-500 rounded-full border border-slate-200">
-        Module 8 — Coming soon
-      </span>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {REPORT_CARDS.map((card) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            className="group flex items-start gap-4 bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow-sm transition-all"
+          >
+            <div className={`p-3 rounded-xl border ${card.color} shrink-0`}>
+              <card.icon className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                {card.title}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{card.description}</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 shrink-0 mt-0.5 transition-colors" />
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
