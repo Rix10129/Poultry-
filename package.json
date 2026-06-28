@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "PRISMA_CLIENT_ENGINE_TYPE=wasm next build",
+    "start": "next start -H 0.0.0.0",
     "lint": "eslint",
     "db:generate": "PRISMA_CLIENT_ENGINE_TYPE=wasm prisma generate",
     "db:migrate": "prisma migrate dev",

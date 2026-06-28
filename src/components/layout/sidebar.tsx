@@ -65,9 +65,11 @@ const navSections = [
 interface SidebarProps {
   alertCount?: number
   role?: string
+  companyName?: string
+  logoUrl?: string | null
 }
 
-export function Sidebar({ alertCount = 0, role }: SidebarProps) {
+export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarProps) {
   const pathname = usePathname()
   const isManager = role === "OWNER" || role === "ADMIN"
 
@@ -76,11 +78,21 @@ export function Sidebar({ alertCount = 0, role }: SidebarProps) {
       {/* Logo */}
       <div className="px-4 py-4 border-b border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-            <Syringe className="w-4 h-4 text-blue-400" />
-          </div>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={companyName ?? "Logo"}
+              className="w-8 h-8 rounded-lg object-contain bg-white/10 shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
+              <Syringe className="w-4 h-4 text-blue-400" />
+            </div>
+          )}
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white leading-tight">Poultry Vet</p>
+            <p className="text-sm font-semibold text-white leading-tight truncate">
+              {companyName ?? "Poultry Vet"}
+            </p>
             <p className="text-[11px] text-slate-500 leading-tight">Distribution System</p>
           </div>
         </div>

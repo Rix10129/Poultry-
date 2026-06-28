@@ -32,11 +32,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const companyId = (session.user as any)?.companyId as string | undefined
   const role = (session.user as any)?.role as string | undefined
-  const alertCount = companyId ? await getAlertCount(companyId) : 0
+
+  const [alertCount, company] = await Promise.all([
+    companyId ? getAlertCount(companyId) : Promise.resolve(0),
+    companyId
+      ? db.company.findUnique({ where: { id: companyId }, select: { name: true, logoUrl: true } })
+      : Promise.resolve(null),
+  ])
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar alertCount={alertCount} role={role} />
+      <Sidebar
+        alertCount={alertCount}
+        role={role}
+        companyName={company?.name}
+        logoUrl={company?.logoUrl}
+      />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar session={session} alertCount={alertCount} />
         <main className="flex-1 overflow-auto p-6">{children}</main>

@@ -1,20 +1,79 @@
-import { Settings } from "lucide-react"
+import { db } from "@/lib/db"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { redirect } from "next/navigation"
+import { CompanySettingsForm } from "@/components/settings/company-settings-form"
 
+export const dynamic = "force-dynamic"
 export const metadata = { title: "Settings" }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect("/login")
+  const actor = session.user as any
+
+  const company = await db.company.findUnique({
+    where: { id: actor.companyId },
+    select: {
+      name: true,
+      phone: true,
+      email: true,
+      address: true,
+      taxNumber: true,
+      currency: true,
+      logoUrl: true,
+    },
+  })
+
+  if (!company) redirect("/login")
+
+  const isOwner = actor.role === "OWNER"
+
   return (
-    <div className="flex flex-col items-center justify-center h-[calc(100vh-9rem)] text-center px-4">
-      <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 mb-4">
-        <Settings className="w-10 h-10 text-slate-400" />
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Company Settings</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Business profile, logo, and regional settings
+        </p>
       </div>
-      <h1 className="text-xl font-bold text-slate-900">Users &amp; Roles</h1>
-      <p className="text-slate-500 text-sm mt-2 max-w-md leading-relaxed">
-        User management, role-based permission matrix (owner / admin / cashier / salesman), and a full audit log of who changed what.
-      </p>
-      <span className="mt-5 px-3 py-1.5 text-xs font-medium text-slate-500 rounded-full border border-slate-200">
-        Module 9 — Coming soon
-      </span>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        {isOwner ? (
+          <CompanySettingsForm company={company} />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-5 text-sm">
+              {[
+                ["Company Name", company.name],
+                ["Phone", company.phone ?? "—"],
+                ["Email", company.email ?? "—"],
+                ["Tax Number", company.taxNumber ?? "—"],
+                ["Currency", company.currency],
+                ["Address", company.address ?? "—"],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-xs font-medium text-slate-500 mb-0.5">{label}</p>
+                  <p className="text-slate-800">{value}</p>
+                </div>
+              ))}
+            </div>
+            {company.logoUrl && (
+              <div className="mt-5">
+                <p className="text-xs font-medium text-slate-500 mb-1.5">Logo</p>
+                <img
+                  src={company.logoUrl}
+                  alt="Company logo"
+                  className="h-12 object-contain"
+                />
+              </div>
+            )}
+            <p className="text-xs text-amber-600 mt-5 border border-amber-200 bg-amber-50 rounded-lg px-3 py-2">
+              Only the Owner can edit company settings.
+            </p>
+          </>
+        )}
+      </div>
     </div>
   )
 }
