@@ -71,11 +71,21 @@ export default async function AccountDetailPage({ params }: Props) {
     balance: number
   }
 
-  type DebitLine = (typeof debitLines)[number]
-  type CreditLine = (typeof creditLines)[number]
+  interface JLine {
+    id: string
+    amount: { toString(): string }
+    description: string | null
+    journalEntry: {
+      id: string
+      voucherNumber: string
+      entryDate: Date
+      description: string
+      voucherType: string
+    }
+  }
 
   const rows: Omit<LedgerRow, "balance">[] = [
-    ...debitLines.map((l: DebitLine) => ({
+    ...(debitLines as JLine[]).map((l) => ({
       key: `dr-${l.id}`,
       date: l.journalEntry.entryDate,
       voucherNumber: l.journalEntry.voucherNumber,
@@ -84,7 +94,7 @@ export default async function AccountDetailPage({ params }: Props) {
       debit: parseFloat(l.amount.toString()),
       credit: 0,
     })),
-    ...creditLines.map((l: CreditLine) => ({
+    ...(creditLines as JLine[]).map((l) => ({
       key: `cr-${l.id}`,
       date: l.journalEntry.entryDate,
       voucherNumber: l.journalEntry.voucherNumber,
