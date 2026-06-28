@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CompanySettingsForm } from "@/components/settings/company-settings-form"
+import { ReportDownloadButton } from "@/components/settings/report-download-button"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Settings" }
@@ -73,6 +74,20 @@ export default async function SettingsPage() {
             </p>
           </>
         )}
+      </div>
+
+      {/* Excel Report Download — available to all roles */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="text-base font-semibold text-slate-900 mb-1">Download Business Report</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Export a complete Excel report with Sales, Purchases, Inventory, and Receivables.
+          Automatically emailed to the owner every 15 days.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <ReportDownloadButton days={15} label="Last 15 Days" />
+          <ReportDownloadButton days={30} label="Last 30 Days" />
+          <ReportDownloadButton days={90} label="Last 90 Days" />
+        </div>
       </div>
     </div>
   )
