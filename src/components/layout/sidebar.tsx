@@ -74,7 +74,7 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
   const isManager = role === "OWNER" || role === "ADMIN"
 
   return (
-    <aside className="w-60 bg-slate-900 flex flex-col border-r border-slate-800 shrink-0 h-full">
+    <aside className="w-60 bg-slate-900 flex flex-col border-r border-slate-800 shrink-0 h-full print:hidden">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-slate-800">
         <div className="flex items-center gap-2.5">

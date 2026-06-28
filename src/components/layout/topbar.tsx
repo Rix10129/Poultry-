@@ -29,7 +29,7 @@ export function Topbar({ session, alertCount = 0 }: TopbarProps) {
     .toUpperCase()
 
   return (
-    <header className="h-13 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
+    <header className="h-13 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 print:hidden">
       <span className="text-sm font-semibold text-slate-800">{user.companyName}</span>
 
       <div className="flex items-center gap-2">
