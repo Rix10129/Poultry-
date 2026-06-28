@@ -2,6 +2,22 @@ import { Pool } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient, UserRole, CustomerType, Species, UnitType, AccountType } from "@prisma/client"
 import bcrypt from "bcryptjs"
+import fs from "fs"
+import path from "path"
+
+// Load .env so the seed works when run directly with tsx
+try {
+  const lines = fs.readFileSync(path.join(process.cwd(), ".env"), "utf-8").split("\n")
+  for (const line of lines) {
+    const t = line.trim()
+    if (!t || t.startsWith("#")) continue
+    const eq = t.indexOf("=")
+    if (eq === -1) continue
+    const k = t.slice(0, eq).trim()
+    const v = t.slice(eq + 1).trim().replace(/^["']|["']$/g, "")
+    if (k && !process.env[k]) process.env[k] = v
+  }
+} catch { /* env vars already set externally */ }
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
