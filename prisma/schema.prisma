@@ -76,6 +76,17 @@ enum MovementType {
   ADJUSTMENT
 }
 
+enum PDCType {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum PDCStatus {
+  PENDING
+  DEPOSITED
+  BOUNCED
+}
+
 // ─── Tenant Root ─────────────────────────────────────────────────────────────
 
 model Company {
@@ -106,6 +117,7 @@ model Company {
   accounts         Account[]
   journalEntries   JournalEntry[]
   auditLogs        AuditLog[]
+  pdcCheques       PDCCheque[]
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -150,6 +162,7 @@ model Supplier {
   purchases       PurchaseOrder[]
   purchaseReturns PurchaseReturn[]
   payments        SupplierPayment[]
+  pdcCheques      PDCCheque[]
 
   @@index([companyId])
 }
@@ -174,6 +187,7 @@ model Customer {
   invoices    SaleInvoice[]
   saleReturns SaleReturn[]
   payments    CustomerPayment[]
+  pdcCheques  PDCCheque[]
 
   @@index([companyId])
 }
@@ -550,4 +564,30 @@ model AuditLog {
 
   @@index([companyId, createdAt])
   @@index([entity, entityId])
+}
+
+// ─── PDC Cheque Register ──────────────────────────────────────────────────────
+
+model PDCCheque {
+  id           String    @id @default(cuid())
+  companyId    String
+  type         PDCType
+  customerId   String?
+  supplierId   String?
+  chequeNumber String
+  bankName     String?
+  chequeDate   DateTime
+  amount       Decimal   @db.Decimal(12, 2)
+  status       PDCStatus @default(PENDING)
+  depositedAt  DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([companyId, chequeDate])
+  @@index([companyId, status])
 }

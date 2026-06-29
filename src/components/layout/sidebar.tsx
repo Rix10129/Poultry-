@@ -16,6 +16,7 @@ import {
   Syringe,
   Bell,
   UserCog,
+  FileText,
 } from "lucide-react"
 
 const navSections = [
@@ -44,7 +45,8 @@ const navSections = [
   {
     title: "Finance",
     items: [
-      { href: "/accounts", label: "Accounts", icon: BookOpen, alert: false },
+      { href: "/accounts",     label: "Accounts",  icon: BookOpen,  alert: false },
+      { href: "/accounts/pdc", label: "PDC Cheques", icon: FileText, alert: false },
     ],
   },
   {
