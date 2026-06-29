@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import {
   TrendingUp, ShoppingCart, Package, Users, Scale, ArrowRight,
-  Clock, Wallet, FileText,
+  Clock, Wallet, FileText, UserCheck, MapPin, Receipt,
 } from "lucide-react"
 
 export const metadata = { title: "Reports" }
@@ -65,6 +65,27 @@ const REPORT_CARDS = [
     href: "/accounts/pdc",
     icon: FileText,
     color: "bg-indigo-50 text-indigo-600 border-indigo-200",
+  },
+  {
+    title: "Salesman Performance",
+    description: "Sales, collections, and recovery % per salesman — filter by date range.",
+    href: "/reports/salesman",
+    icon: UserCheck,
+    color: "bg-cyan-50 text-cyan-600 border-cyan-200",
+  },
+  {
+    title: "Area-wise Report",
+    description: "Sales and outstanding grouped by customer area or route.",
+    href: "/reports/area",
+    icon: MapPin,
+    color: "bg-lime-50 text-lime-600 border-lime-200",
+  },
+  {
+    title: "Expense Summary",
+    description: "View all business expenses by category and date range.",
+    href: "/expenses",
+    icon: Receipt,
+    color: "bg-rose-50 text-rose-600 border-rose-200",
   },
 ]
 

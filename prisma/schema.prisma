@@ -87,6 +87,18 @@ enum PDCStatus {
   BOUNCED
 }
 
+enum ExpenseCategory {
+  FUEL
+  VEHICLE
+  SALARY
+  RENT
+  UTILITIES
+  OFFICE
+  MARKETING
+  BANK_CHARGES
+  OTHER
+}
+
 // ─── Tenant Root ─────────────────────────────────────────────────────────────
 
 model Company {
@@ -118,6 +130,7 @@ model Company {
   journalEntries   JournalEntry[]
   auditLogs        AuditLog[]
   pdcCheques       PDCCheque[]
+  expenses         Expense[]
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -138,6 +151,7 @@ model User {
   invoices  SaleInvoice[]
   purchases PurchaseOrder[]
   auditLogs AuditLog[]
+  expenses  Expense[]
 
   @@unique([email, companyId])
   @@index([companyId])
@@ -590,4 +604,27 @@ model PDCCheque {
 
   @@index([companyId, chequeDate])
   @@index([companyId, status])
+}
+
+// ─── Expenses ─────────────────────────────────────────────────────────────────
+
+model Expense {
+  id          String          @id @default(cuid())
+  companyId   String
+  userId      String
+  category    ExpenseCategory
+  description String
+  amount      Decimal         @db.Decimal(12, 2)
+  expenseDate DateTime
+  paymentMode PaymentMode
+  reference   String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([companyId, expenseDate])
+  @@index([companyId, category])
 }

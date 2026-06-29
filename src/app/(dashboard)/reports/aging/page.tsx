@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { WhatsAppCopyButton } from "@/components/reports/whatsapp-copy-button"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Aging Report" }
@@ -24,6 +25,7 @@ export default async function AgingReportPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
+  const companyName = (session.user as any).companyName as string ?? "Your Company"
 
   const today = new Date()
   today.setHours(23, 59, 59, 999)
@@ -148,6 +150,7 @@ export default async function AgingReportPage() {
                 <th className="text-right px-4 py-3 font-medium text-orange-700 bg-orange-50">61–90 Days</th>
                 <th className="text-right px-4 py-3 font-medium text-red-700 bg-red-50">90+ Days</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-900">Total</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -183,6 +186,13 @@ export default async function AgingReportPage() {
                   <td className="px-4 py-3 text-right font-bold text-slate-900">
                     {formatCurrency(row.total)}
                   </td>
+                  <td className="px-4 py-3">
+                    <WhatsAppCopyButton
+                      customerName={row.name}
+                      amount={row.total.toLocaleString("en-PK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      companyName={companyName}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -194,6 +204,7 @@ export default async function AgingReportPage() {
                 <td className="px-4 py-3 text-right font-bold text-orange-700 bg-orange-50">{formatCurrency(grandTotal.b61_90)}</td>
                 <td className="px-4 py-3 text-right font-bold text-red-700 bg-red-50">{formatCurrency(grandTotal.b90plus)}</td>
                 <td className="px-4 py-3 text-right font-bold text-slate-900 text-base">{formatCurrency(grandTotal.total)}</td>
+                <td className="px-4 py-3"></td>
               </tr>
             </tfoot>
           </table>

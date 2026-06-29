@@ -17,6 +17,8 @@ import {
   Bell,
   UserCog,
   FileText,
+  Receipt,
+  AlertTriangle,
 } from "lucide-react"
 
 const navSections = [
@@ -30,9 +32,11 @@ const navSections = [
   {
     title: "Operations",
     items: [
-      { href: "/inventory", label: "Inventory", icon: Package,      alert: false },
-      { href: "/sales",     label: "Sales",     icon: ShoppingCart, alert: false },
-      { href: "/purchases", label: "Purchases", icon: Truck,        alert: false },
+      { href: "/inventory",         label: "Inventory",    icon: Package,       alert: false },
+      { href: "/inventory/reorder", label: "Reorder Sheet", icon: AlertTriangle, alert: false },
+      { href: "/sales",             label: "Sales",        icon: ShoppingCart,  alert: false },
+      { href: "/purchases",         label: "Purchases",    icon: Truck,         alert: false },
+      { href: "/expenses",          label: "Expenses",     icon: Receipt,       alert: false },
     ],
   },
   {
