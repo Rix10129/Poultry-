@@ -17,3 +17,14 @@ body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: A4;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

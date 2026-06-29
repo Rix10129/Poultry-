@@ -31,20 +31,26 @@ export default async function InvoiceDetailPage({ params }: Props) {
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const invoice = await db.saleInvoice.findFirst({
-    where: { id, companyId },
-    include: {
-      customer: { select: { name: true, phone: true, address: true } },
-      user: { select: { name: true } },
-      items: {
-        include: {
-          product: { select: { name: true, unit: true } },
-          batch: { select: { batchNumber: true, expiryDate: true } },
+  const [invoice, company] = await Promise.all([
+    db.saleInvoice.findFirst({
+      where: { id, companyId },
+      include: {
+        customer: { select: { name: true, phone: true, address: true } },
+        user: { select: { name: true, role: true } },
+        items: {
+          include: {
+            product: { select: { name: true, unit: true } },
+            batch: { select: { batchNumber: true, expiryDate: true } },
+          },
+          orderBy: { id: "asc" },
         },
-        orderBy: { id: "asc" },
       },
-    },
-  })
+    }),
+    db.company.findFirst({
+      where: { id: companyId },
+      select: { name: true, logoUrl: true, phone: true, address: true, email: true },
+    }),
+  ])
 
   if (!invoice) notFound()
 
@@ -55,8 +61,8 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const isPartial = !isPaid && paid > 0.001
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 print:max-w-none print:space-y-4">
-      {/* Header */}
+    <div className="max-w-4xl mx-auto space-y-6 print:max-w-none print:space-y-0 print:p-8">
+      {/* Screen header — hidden when printing */}
       <div className="flex items-start justify-between print:hidden">
         <div className="flex items-center gap-3">
           <Link href="/sales" className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -91,18 +97,36 @@ export default async function InvoiceDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Print header (visible only on print) */}
-      <div className="hidden print:flex print:justify-between print:items-start">
-        <div>
-          <h1 className="text-2xl font-bold">SALE INVOICE</h1>
-          <p className="text-lg font-mono font-semibold mt-1">{invoice.invoiceNumber}</p>
-        </div>
-        <div className="text-right text-sm">
-          <p>Date: {formatDate(invoice.invoiceDate)}</p>
-          {invoice.dueDate && <p>Due: {formatDate(invoice.dueDate)}</p>}
-          <p className="mt-1">
-            Status: {isPaid ? "PAID" : isPartial ? "PARTIAL" : "UNPAID"}
-          </p>
+      {/* Print header — company branding (only visible when printing) */}
+      <div className="hidden print:block print:mb-6">
+        <div className="flex justify-between items-center pb-4 border-b-2 border-slate-800">
+          {/* Left: Company logo + name */}
+          <div className="flex items-center gap-4">
+            {company?.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={company.logoUrl}
+                alt={company.name}
+                className="h-16 w-auto object-contain"
+              />
+            )}
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{company?.name ?? "Company"}</p>
+              {company?.phone && <p className="text-xs text-slate-500 mt-0.5">{company.phone}</p>}
+              {company?.email && <p className="text-xs text-slate-500">{company.email}</p>}
+              {company?.address && <p className="text-xs text-slate-500">{company.address}</p>}
+            </div>
+          </div>
+          {/* Right: Invoice info */}
+          <div className="text-right">
+            <p className="text-xs font-bold tracking-widest text-slate-500 uppercase">Sale Invoice</p>
+            <p className="text-2xl font-mono font-bold text-slate-900 mt-0.5">{invoice.invoiceNumber}</p>
+            <p className="text-sm text-slate-600 mt-1">Date: {formatDate(invoice.invoiceDate)}</p>
+            {invoice.dueDate && <p className="text-sm text-slate-600">Due: {formatDate(invoice.dueDate)}</p>}
+            <p className={`text-sm font-bold mt-1 ${isPaid ? "text-green-600" : isPartial ? "text-yellow-600" : "text-red-600"}`}>
+              Status: {isPaid ? "PAID ✓" : isPartial ? "PARTIAL" : "UNPAID"}
+            </p>
+          </div>
         </div>
       </div>
 
