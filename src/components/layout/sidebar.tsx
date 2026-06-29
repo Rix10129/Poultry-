@@ -19,6 +19,7 @@ import {
   FileText,
   Receipt,
   AlertTriangle,
+  Target,
 } from "lucide-react"
 
 const navSections = [
@@ -56,7 +57,8 @@ const navSections = [
   {
     title: "Analytics",
     items: [
-      { href: "/reports", label: "Reports", icon: BarChart3, alert: false },
+      { href: "/reports",         label: "Reports",      icon: BarChart3, alert: false },
+      { href: "/reports/targets", label: "Sales Targets", icon: Target, alert: false },
     ],
   },
   {

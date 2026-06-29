@@ -11,6 +11,12 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: { default: "Poultry Vet System", template: "%s | Poultry Vet System" },
   description: "Poultry & Veterinary Medicine Distribution & Retail Management System",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PoultryVet",
+  },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

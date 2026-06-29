@@ -173,8 +173,10 @@ export async function createInvoice(
   const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
   const paidAmount = Math.max(0, parseFloat(formData.get("paidAmount") as string) || 0)
   const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
+  const schemeNotes = (formData.get("schemeNotes") as string) || null
   const notes = (formData.get("notes") as string) || null
   const linesJson = formData.get("linesJson") as string
+  const bypassCreditLimit = formData.get("bypassCreditLimit") === "1"
 
   if (!linesJson) return { error: "No line items provided" }
   if (!VALID_PAYMENT_MODES.includes(paymentModeRaw as any)) return { error: "Invalid payment mode" }
@@ -186,6 +188,41 @@ export async function createInvoice(
     return { error: "Invalid line data" }
   }
   if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one line item" }
+
+  // Credit limit check
+  if (customerId && !bypassCreditLimit) {
+    const customer = await db.customer.findFirst({
+      where: { id: customerId, companyId },
+      select: { creditLimit: true, name: true },
+    })
+    if (customer) {
+      const creditLimit = parseFloat(customer.creditLimit.toString())
+      if (creditLimit > 0) {
+        const invoiceAgg = await db.saleInvoice.aggregate({
+          where: { customerId, companyId },
+          _sum: { netAmount: true, paidAmount: true },
+        })
+        const outstanding = (parseFloat(invoiceAgg._sum.netAmount?.toString() ?? "0")) -
+                            (parseFloat(invoiceAgg._sum.paidAmount?.toString() ?? "0"))
+
+        // Estimate new invoice net amount from lines
+        let estTotal = 0
+        for (const l of lines) {
+          estTotal += l.quantity * l.salePrice * (1 - (l.discount ?? 0) / 100)
+        }
+        const estNet = Math.max(0, estTotal - discountAmount)
+
+        if (outstanding + estNet > creditLimit) {
+          const role = user.role as string
+          if (role !== "OWNER" && role !== "ADMIN") {
+            return {
+              error: `Credit limit exceeded. ${customer.name} has PKR ${outstanding.toLocaleString()} outstanding against a limit of PKR ${creditLimit.toLocaleString()}. Ask your manager to approve this sale.`,
+            }
+          }
+        }
+      }
+    }
+  }
 
   let invoiceId = ""
 
@@ -222,6 +259,7 @@ export async function createInvoice(
           paidAmount: Math.min(paidAmount, netAmount + 0.001),
           paymentMode: paymentModeRaw as PaymentMode,
           isCashSale: !customerId,
+          schemeNotes: schemeNotes || null,
           notes: notes || null,
         },
       })

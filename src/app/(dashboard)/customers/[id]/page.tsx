@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Pencil } from "lucide-react"
+import { ChevronLeft, Pencil, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PaymentForm } from "@/components/customers/payment-form"
@@ -158,6 +158,12 @@ export default async function CustomerDetailPage({ params }: Props) {
         </div>
         <div className="flex gap-2 flex-wrap">
           <PaymentForm customerId={id} unpaidInvoices={unpaidInvoices} />
+          <Link href={`/customers/${id}/statement`}>
+            <Button variant="outline" size="sm">
+              <FileText className="h-4 w-4" />
+              Statement
+            </Button>
+          </Link>
           <Link href={`/customers/${id}/edit`}>
             <Button variant="outline" size="sm">
               <Pencil className="h-4 w-4" />
