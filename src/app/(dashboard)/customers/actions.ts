@@ -89,18 +89,31 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
   redirect(`/customers/${id}`)
 }
 
-export async function deleteCustomer(formData: FormData): Promise<void> {
+export async function deleteCustomer(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const session = await getServerSession(authOptions)
   const user = session?.user as any
-  if (!user?.companyId) return
+  if (!user?.companyId) return { error: "Not authenticated" }
 
   const companyId = user.companyId as string
   const id = (formData.get("id") as string)?.trim()
 
+  const [invoiceCount, paymentCount] = await Promise.all([
+    db.saleInvoice.count({ where: { customerId: id, companyId } }),
+    db.customerPayment.count({ where: { customerId: id, companyId } }),
+  ])
+
+  if (invoiceCount > 0 || paymentCount > 0)
+    return {
+      error: `Cannot delete — this customer has ${invoiceCount} invoice(s) on record. Deactivate instead.`,
+    }
+
   try {
     await db.customer.deleteMany({ where: { id, companyId } })
   } catch {
-    // Foreign key violation — silently redirect
+    return { error: "Failed to delete customer" }
   }
 
   revalidatePath("/customers")

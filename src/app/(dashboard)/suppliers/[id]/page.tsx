@@ -6,6 +6,8 @@ import Link from "next/link"
 import { ChevronLeft, Pencil, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { DeleteButton } from "@/components/ui/delete-button"
+import { deleteSupplier } from "@/app/(dashboard)/suppliers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -84,6 +86,12 @@ export default async function SupplierDetailPage({ params }: Props) {
               Edit
             </Button>
           </Link>
+          <DeleteButton
+            action={deleteSupplier}
+            id={id}
+            label="Delete"
+            confirmMessage={`Delete supplier "${supplier.name}"? This cannot be undone.`}
+          />
         </div>
       </div>
 

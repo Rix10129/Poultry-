@@ -3,10 +3,13 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, RotateCcw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { PrintButton } from "@/components/sales/print-button"
+import { DeleteButton } from "@/components/ui/delete-button"
+import { deletePurchase } from "@/app/(dashboard)/purchases/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -65,7 +68,19 @@ export default async function PurchaseDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/purchases/returns/new?supplierId=${po.supplier.id}`}>
+            <Button variant="outline" size="sm">
+              <RotateCcw className="h-4 w-4" />
+              Return
+            </Button>
+          </Link>
           <PrintButton />
+          <DeleteButton
+            action={deletePurchase}
+            id={po.id}
+            label="Delete"
+            confirmMessage={`Delete ${po.poNumber}? This removes stock and cannot be undone.`}
+          />
           {isPaid ? (
             <Badge variant="success">Paid</Badge>
           ) : isPartial ? (

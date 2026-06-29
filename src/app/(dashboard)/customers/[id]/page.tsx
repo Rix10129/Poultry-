@@ -7,6 +7,8 @@ import { ChevronLeft, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PaymentForm } from "@/components/customers/payment-form"
+import { DeleteButton } from "@/components/ui/delete-button"
+import { deleteCustomer } from "@/app/(dashboard)/customers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -154,7 +156,7 @@ export default async function CustomerDetailPage({ params }: Props) {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <PaymentForm customerId={id} unpaidInvoices={unpaidInvoices} />
           <Link href={`/customers/${id}/edit`}>
             <Button variant="outline" size="sm">
@@ -162,6 +164,12 @@ export default async function CustomerDetailPage({ params }: Props) {
               Edit
             </Button>
           </Link>
+          <DeleteButton
+            action={deleteCustomer}
+            id={id}
+            label="Delete"
+            confirmMessage={`Delete customer? This cannot be undone.`}
+          />
         </div>
       </div>
 

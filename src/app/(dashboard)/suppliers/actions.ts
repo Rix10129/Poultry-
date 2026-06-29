@@ -67,18 +67,31 @@ export async function updateSupplier(_: ActionState, formData: FormData): Promis
   redirect(`/suppliers/${id}`)
 }
 
-export async function deleteSupplier(formData: FormData): Promise<void> {
+export async function deleteSupplier(
+  _prev: { error: string } | null,
+  formData: FormData
+): Promise<{ error: string } | null> {
   const session = await getServerSession(authOptions)
   const user = session?.user as any
-  if (!user?.companyId) return
+  if (!user?.companyId) return { error: "Not authenticated" }
 
   const companyId = user.companyId as string
   const id = (formData.get("id") as string)?.trim()
 
+  const [poCount, paymentCount] = await Promise.all([
+    db.purchaseOrder.count({ where: { supplierId: id, companyId } }),
+    db.supplierPayment.count({ where: { supplierId: id, companyId } }),
+  ])
+
+  if (poCount > 0 || paymentCount > 0)
+    return {
+      error: `Cannot delete — this supplier has ${poCount} purchase order(s) on record. Remove their data first.`,
+    }
+
   try {
     await db.supplier.deleteMany({ where: { id, companyId } })
   } catch {
-    // Silently redirect — foreign key violations show as a no-op
+    return { error: "Failed to delete supplier" }
   }
 
   revalidatePath("/suppliers")

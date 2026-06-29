@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, Truck } from "lucide-react"
+import { Plus, Truck, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -40,12 +40,20 @@ export default async function PurchasesPage({
             {orders.length} order{orders.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Link href="/purchases/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            New Purchase
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/purchases/returns">
+            <Button variant="outline">
+              <RotateCcw className="h-4 w-4" />
+              Returns
+            </Button>
+          </Link>
+          <Link href="/purchases/new">
+            <Button>
+              <Plus className="h-4 w-4" />
+              New Purchase
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <form method="GET" className="flex gap-3">

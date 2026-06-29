@@ -9,6 +9,142 @@ import { MovementType, PaymentMode } from "@prisma/client"
 
 type ActionState = { error: string } | null
 
+export async function deleteInvoice(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+
+  try {
+    await db.$transaction(async (tx) => {
+      const invoice = await tx.saleInvoice.findFirst({
+        where: { id, companyId },
+        include: { items: true, payments: true },
+      })
+      if (!invoice) throw new Error("Invoice not found")
+      if (invoice.payments.length > 0)
+        throw new Error("Cannot delete — this invoice has recorded payments. Delete the payments first.")
+
+      for (const item of invoice.items) {
+        await tx.productBatch.update({
+          where: { id: item.batchId },
+          data: { quantity: { increment: item.quantity } },
+        })
+      }
+      await tx.stockMovement.deleteMany({ where: { reference: invoice.invoiceNumber } })
+      await tx.saleInvoice.delete({ where: { id } })
+    })
+  } catch (e: any) {
+    return { error: e?.message ?? "Failed to delete invoice" }
+  }
+
+  revalidatePath("/sales")
+  revalidatePath("/inventory")
+  redirect("/sales")
+}
+
+type ReturnLineInput = {
+  productId: string
+  batchId: string
+  quantity: number
+  salePrice: number
+}
+
+export async function createSaleReturn(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+
+  const customerId = (formData.get("customerId") as string) || null
+  const invoiceId = (formData.get("invoiceId") as string) || null
+  const returnDate = (formData.get("returnDate") as string) || new Date().toISOString()
+  const notes = (formData.get("notes") as string)?.trim() || null
+  const linesJson = formData.get("linesJson") as string
+
+  if (!linesJson) return { error: "No items provided" }
+  let lines: ReturnLineInput[]
+  try {
+    lines = JSON.parse(linesJson)
+  } catch {
+    return { error: "Invalid items data" }
+  }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one item" }
+
+  let returnId = ""
+
+  try {
+    await db.$transaction(async (tx) => {
+      const count = await tx.saleReturn.count({ where: { companyId } })
+      const year = new Date().getFullYear()
+      const returnNumber = `SR-${year}-${String(count + 1).padStart(5, "0")}`
+
+      const totalAmount = lines.reduce((s, l) => s + l.quantity * l.salePrice, 0)
+
+      const ret = await tx.saleReturn.create({
+        data: {
+          companyId,
+          customerId: customerId || null,
+          invoiceId: invoiceId || null,
+          returnNumber,
+          returnDate: new Date(returnDate),
+          totalAmount,
+          notes,
+        },
+      })
+      returnId = ret.id
+
+      for (const line of lines) {
+        const batch = await tx.productBatch.findFirst({
+          where: { id: line.batchId, companyId, productId: line.productId },
+        })
+        if (!batch) throw new Error("Batch not found")
+
+        await tx.saleReturnItem.create({
+          data: {
+            saleReturnId: ret.id,
+            productId: line.productId,
+            batchId: line.batchId,
+            quantity: line.quantity,
+            salePrice: line.salePrice,
+            totalAmount: line.quantity * line.salePrice,
+          },
+        })
+
+        await tx.productBatch.update({
+          where: { id: line.batchId },
+          data: { quantity: { increment: line.quantity } },
+        })
+
+        await tx.stockMovement.create({
+          data: {
+            companyId,
+            productId: line.productId,
+            batchId: line.batchId,
+            type: MovementType.SALE_RETURN,
+            quantity: line.quantity,
+            reference: returnNumber,
+            notes: `Sale Return ${returnNumber}`,
+          },
+        })
+      }
+    })
+  } catch (e: any) {
+    return { error: e?.message ?? "Failed to create sale return" }
+  }
+
+  revalidatePath("/sales/returns")
+  revalidatePath("/inventory")
+  redirect(`/sales/returns/${returnId}`)
+}
+
 type LineInput = {
   productId: string
   batchId: string

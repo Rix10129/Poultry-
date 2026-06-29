@@ -9,6 +9,158 @@ import { MovementType } from "@prisma/client"
 
 type ActionState = { error: string } | null
 
+export async function deletePurchase(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+
+  try {
+    await db.$transaction(async (tx) => {
+      const po = await tx.purchaseOrder.findFirst({
+        where: { id, companyId },
+        include: { items: { include: { batch: true } }, payments: true },
+      })
+      if (!po) throw new Error("Purchase order not found")
+      if (po.payments.length > 0)
+        throw new Error("Cannot delete — this order has recorded payments. Remove payments first.")
+
+      for (const item of po.items) {
+        if (!item.batch) continue
+        const sold = item.batch.initialQuantity - item.batch.quantity
+        if (sold > 0)
+          throw new Error(
+            `Cannot delete — ${sold} unit(s) from this order have already been sold. Create a purchase return instead.`
+          )
+      }
+
+      await tx.stockMovement.deleteMany({ where: { reference: po.poNumber } })
+
+      for (const item of po.items) {
+        if (item.batchId) {
+          await tx.productBatch.delete({ where: { id: item.batchId } })
+        }
+      }
+
+      await tx.purchaseOrder.delete({ where: { id } })
+    })
+  } catch (e: any) {
+    return { error: e?.message ?? "Failed to delete purchase order" }
+  }
+
+  revalidatePath("/purchases")
+  revalidatePath("/inventory")
+  redirect("/purchases")
+}
+
+type PurchaseReturnLine = {
+  productId: string
+  batchId: string
+  quantity: number
+  purchasePrice: number
+}
+
+export async function createPurchaseReturn(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+
+  const supplierId = (formData.get("supplierId") as string)?.trim()
+  if (!supplierId) return { error: "Supplier is required" }
+  const purchaseOrderId = (formData.get("purchaseOrderId") as string) || null
+  const returnDate = (formData.get("returnDate") as string) || new Date().toISOString()
+  const notes = (formData.get("notes") as string)?.trim() || null
+  const linesJson = formData.get("linesJson") as string
+
+  if (!linesJson) return { error: "No items provided" }
+  let lines: PurchaseReturnLine[]
+  try {
+    lines = JSON.parse(linesJson)
+  } catch {
+    return { error: "Invalid items data" }
+  }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one item" }
+
+  const supplier = await db.supplier.findFirst({ where: { id: supplierId, companyId } })
+  if (!supplier) return { error: "Supplier not found" }
+
+  let returnId = ""
+
+  try {
+    await db.$transaction(async (tx) => {
+      const count = await tx.purchaseReturn.count({ where: { companyId } })
+      const year = new Date().getFullYear()
+      const returnNumber = `PR-${year}-${String(count + 1).padStart(5, "0")}`
+
+      const totalAmount = lines.reduce((s, l) => s + l.quantity * l.purchasePrice, 0)
+
+      const ret = await tx.purchaseReturn.create({
+        data: {
+          companyId,
+          supplierId,
+          purchaseOrderId: purchaseOrderId || null,
+          returnNumber,
+          returnDate: new Date(returnDate),
+          totalAmount,
+          notes,
+        },
+      })
+      returnId = ret.id
+
+      for (const line of lines) {
+        const batch = await tx.productBatch.findFirst({
+          where: { id: line.batchId, companyId, productId: line.productId },
+        })
+        if (!batch) throw new Error("Batch not found")
+        if (batch.quantity < line.quantity)
+          throw new Error(`Insufficient stock in batch — only ${batch.quantity} available`)
+
+        await tx.purchaseReturnItem.create({
+          data: {
+            purchaseReturnId: ret.id,
+            productId: line.productId,
+            batchId: line.batchId,
+            quantity: line.quantity,
+            purchasePrice: line.purchasePrice,
+            totalAmount: line.quantity * line.purchasePrice,
+          },
+        })
+
+        await tx.productBatch.update({
+          where: { id: line.batchId },
+          data: { quantity: { decrement: line.quantity } },
+        })
+
+        await tx.stockMovement.create({
+          data: {
+            companyId,
+            productId: line.productId,
+            batchId: line.batchId,
+            type: MovementType.PURCHASE_RETURN,
+            quantity: -line.quantity,
+            reference: returnNumber,
+            notes: `Purchase Return ${returnNumber}`,
+          },
+        })
+      }
+    })
+  } catch (e: any) {
+    return { error: e?.message ?? "Failed to create purchase return" }
+  }
+
+  revalidatePath("/purchases/returns")
+  revalidatePath("/inventory")
+  redirect(`/purchases/returns/${returnId}`)
+}
+
 type LineInput = {
   productId: string
   batchNumber: string
