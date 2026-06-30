@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, AlertTriangle, Printer } from "lucide-react"
+import { ChevronLeft, AlertTriangle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { PrintButton } from "@/components/sales/print-button"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Reorder Sheet" }
@@ -93,13 +94,7 @@ export default async function ReorderSheetPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors print:hidden"
-        >
-          <Printer className="h-4 w-4" />
-          Print
-        </button>
+        <PrintButton />
       </div>
 
       {reorderItems.length === 0 ? (
