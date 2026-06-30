@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { ExpenseCategory, PaymentMode } from "@prisma/client"
+import { writeAuditLog } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -63,5 +64,15 @@ export async function deleteExpense(_prev: ActionState, formData: FormData): Pro
   if (!expense) return { error: "Expense not found" }
 
   await db.expense.delete({ where: { id } })
+
+  await writeAuditLog({
+    companyId,
+    userId: (session.user as any).id,
+    action: "DELETE",
+    entity: "Expense",
+    entityId: id,
+    oldValues: { category: expense.category, amount: expense.amount.toString() },
+  })
+
   redirect("/expenses")
 }

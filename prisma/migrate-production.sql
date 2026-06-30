@@ -131,3 +131,15 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS "Expense_companyId_expenseDate_idx" ON "Expense"("companyId", "expenseDate");
 CREATE INDEX IF NOT EXISTS "Expense_companyId_category_idx"    ON "Expense"("companyId", "category");
+
+-- ─── New table: FailedLogin (login rate limiting) ────────────────────────────
+
+CREATE TABLE IF NOT EXISTS "FailedLogin" (
+  "id"        TEXT         NOT NULL,
+  "email"     TEXT         NOT NULL,
+  "ipAddress" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "FailedLogin_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "FailedLogin_email_createdAt_idx" ON "FailedLogin"("email", "createdAt");

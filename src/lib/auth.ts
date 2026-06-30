@@ -16,15 +16,33 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        const email = credentials.email.toLowerCase().trim()
+
+        // Rate limiting: block after 5 failed attempts in 15 minutes
+        const windowStart = new Date(Date.now() - 15 * 60 * 1000)
+        const recentFailures = await db.failedLogin.count({
+          where: { email, createdAt: { gte: windowStart } },
+        })
+        if (recentFailures >= 5) return null
+
         const user = await db.user.findFirst({
-          where: { email: credentials.email, isActive: true },
+          where: { email, isActive: true },
           include: { company: { select: { name: true } } },
         })
 
-        if (!user) return null
+        if (!user) {
+          await db.failedLogin.create({ data: { email } })
+          return null
+        }
 
         const isValid = await bcrypt.compare(credentials.password, user.password)
-        if (!isValid) return null
+        if (!isValid) {
+          await db.failedLogin.create({ data: { email } })
+          return null
+        }
+
+        // Clear failure history on successful login
+        await db.failedLogin.deleteMany({ where: { email } }).catch(() => null)
 
         return {
           id: user.id,

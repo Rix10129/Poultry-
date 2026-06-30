@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { CustomerType, PaymentMode } from "@prisma/client"
+import { writeAuditLog } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -115,6 +116,14 @@ export async function deleteCustomer(
   } catch {
     return { error: "Failed to delete customer" }
   }
+
+  await writeAuditLog({
+    companyId,
+    userId: (user as any).id,
+    action: "DELETE",
+    entity: "Customer",
+    entityId: id,
+  })
 
   revalidatePath("/customers")
   redirect("/customers")

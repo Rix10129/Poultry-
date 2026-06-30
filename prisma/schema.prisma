@@ -584,6 +584,15 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
+model FailedLogin {
+  id        String   @id @default(cuid())
+  email     String
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}
+
 // ─── PDC Cheque Register ──────────────────────────────────────────────────────
 
 model PDCCheque {

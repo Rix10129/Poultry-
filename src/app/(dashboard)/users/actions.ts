@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { UserRole } from "@prisma/client"
 import bcrypt from "bcryptjs"
+import { writeAuditLog } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 type PasswordState = { error: string } | { ok: true } | null
@@ -56,6 +57,15 @@ export async function createUser(_: ActionState, formData: FormData): Promise<Ac
     return { error: "Failed to create user" }
   }
 
+  await writeAuditLog({
+    companyId: actor.companyId,
+    userId: actor.id,
+    action: "CREATE",
+    entity: "User",
+    entityId: id,
+    newValues: { name, email, role },
+  })
+
   revalidatePath("/users")
   redirect(`/users/${id}`)
 }
@@ -87,6 +97,15 @@ export async function updateUser(_: ActionState, formData: FormData): Promise<Ac
     if (e?.code === "P2002") return { error: "A user with this email already exists in your company" }
     return { error: "Failed to update user" }
   }
+
+  await writeAuditLog({
+    companyId: actor.companyId,
+    userId: actor.id,
+    action: "UPDATE",
+    entity: "User",
+    entityId: id,
+    newValues: { name, email, role },
+  })
 
   revalidatePath("/users")
   revalidatePath(`/users/${id}`)
@@ -130,6 +149,16 @@ export async function toggleActive(formData: FormData): Promise<void> {
   if (!target || !canManage(actor.role, target.role)) return
 
   await db.user.update({ where: { id }, data: { isActive: !target.isActive } })
+
+  await writeAuditLog({
+    companyId: actor.companyId,
+    userId: actor.id,
+    action: "UPDATE",
+    entity: "User",
+    entityId: id,
+    newValues: { isActive: !target.isActive },
+  })
+
   revalidatePath("/users")
   revalidatePath(`/users/${id}`)
   redirect(`/users/${id}`)

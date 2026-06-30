@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -99,12 +100,12 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Demo credentials hint */}
-        <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl">
-          <p className="text-xs font-semibold text-slate-400 mb-1.5">Demo credentials</p>
-          <p className="text-xs text-slate-500 font-mono">owner@demo.com  /  cashier@demo.com  /  salesman@demo.com</p>
-          <p className="text-xs text-slate-500 mt-0.5">Password: <span className="text-slate-300">demo1234</span></p>
-        </div>
+        <p className="text-center text-sm text-slate-500 mt-4">
+          New company?{" "}
+          <Link href="/register" className="text-blue-400 hover:text-blue-300 transition-colors">
+            Create an account
+          </Link>
+        </p>
       </div>
     </div>
   )

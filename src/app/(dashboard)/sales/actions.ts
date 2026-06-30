@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
+import { writeAuditLog } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -19,6 +20,7 @@ export async function deleteInvoice(
   const companyId = user.companyId as string
   const id = (formData.get("id") as string)?.trim()
 
+  let invoiceNumber = ""
   try {
     await db.$transaction(async (tx) => {
       const invoice = await tx.saleInvoice.findFirst({
@@ -28,6 +30,7 @@ export async function deleteInvoice(
       if (!invoice) throw new Error("Invoice not found")
       if (invoice.payments.length > 0)
         throw new Error("Cannot delete — this invoice has recorded payments. Delete the payments first.")
+      invoiceNumber = invoice.invoiceNumber
 
       for (const item of invoice.items) {
         await tx.productBatch.update({
@@ -41,6 +44,15 @@ export async function deleteInvoice(
   } catch (e: any) {
     return { error: e?.message ?? "Failed to delete invoice" }
   }
+
+  await writeAuditLog({
+    companyId,
+    userId: user.id,
+    action: "DELETE",
+    entity: "SaleInvoice",
+    entityId: id,
+    oldValues: { invoiceNumber },
+  })
 
   revalidatePath("/sales")
   revalidatePath("/inventory")

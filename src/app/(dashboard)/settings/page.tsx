@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CompanySettingsForm } from "@/components/settings/company-settings-form"
 import { ReportDownloadButton } from "@/components/settings/report-download-button"
+import Link from "next/link"
+import { Download } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Settings" }
@@ -91,6 +93,24 @@ export default async function SettingsPage() {
           <ReportDownloadButton days={90} label="Last 90 Days" />
         </div>
       </div>
+
+      {/* Data Export — owner only */}
+      {isOwner && (
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-base font-semibold text-slate-900 mb-1">Export All Data</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Download a full JSON backup of all your company data — customers, suppliers, products,
+            invoices, purchases, and expenses. Use this for data portability or offline backup.
+          </p>
+          <Link
+            href="/api/export"
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Export JSON Backup
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
