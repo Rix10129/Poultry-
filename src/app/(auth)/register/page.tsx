@@ -1,29 +1,43 @@
 "use client"
 
-import { useActionState, useEffect } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useActionState } from "react"
 import Link from "next/link"
 import { registerCompany } from "./actions"
 import type { RegisterState } from "./actions"
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [state, formAction, pending] = useActionState<RegisterState, FormData>(
     registerCompany,
     null
   )
 
-  useEffect(() => {
-    if (state && "success" in state) {
-      // Auto sign-in after registration
-      signIn("credentials", {
-        email: state.email,
-        password: (document.getElementById("password") as HTMLInputElement)?.value ?? "",
-        redirect: false,
-      }).then(() => router.push("/"))
-    }
-  }, [state, router])
+  const success = state !== null && "success" in (state ?? {})
+
+  if (success && state && "email" in state) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/20 border border-green-500/30 mb-6">
+            <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Check your inbox</h1>
+          <p className="text-slate-400 mb-2">
+            We sent a verification link to
+          </p>
+          <p className="text-blue-400 font-semibold mb-6">{state.email}</p>
+          <p className="text-slate-500 text-sm mb-8">
+            Click the link in the email to activate your account. The link expires in 24 hours.
+          </p>
+          <Link href="/login" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -87,7 +101,6 @@ export default function RegisterPage() {
                 Password <span className="text-red-400">*</span>
               </label>
               <input
-                id="password"
                 name="password"
                 type="password"
                 required
@@ -113,21 +126,16 @@ export default function RegisterPage() {
             {state && "error" in state && (
               <div className="flex items-center gap-2 px-3.5 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
                 <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-red-400">{state.error}</p>
               </div>
             )}
 
-            {state && "success" in state && (
-              <div className="px-3.5 py-3 bg-green-500/10 border border-green-500/20 rounded-xl">
-                <p className="text-sm text-green-400">Account created! Signing you in…</p>
-              </div>
-            )}
-
             <button
               type="submit"
-              disabled={pending || (state !== null && "success" in (state ?? {}))}
+              disabled={pending}
               className="w-full py-2.5 px-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm mt-2"
             >
               {pending ? "Creating account…" : "Create Account"}

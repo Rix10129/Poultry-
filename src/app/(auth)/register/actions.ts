@@ -4,6 +4,8 @@ import { db } from "@/lib/db"
 import { UserRole } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
+import { randomUUID } from "crypto"
+import { sendVerificationEmail } from "@/lib/email"
 
 const registerSchema = z
   .object({
@@ -42,6 +44,7 @@ export async function registerCompany(
   if (existing) return { error: "An account with this email already exists" }
 
   const hashed = await bcrypt.hash(password, 12)
+  const verificationToken = randomUUID()
 
   try {
     await db.$transaction(async (tx) => {
@@ -53,11 +56,19 @@ export async function registerCompany(
           email,
           password: hashed,
           role: UserRole.OWNER,
+          emailVerified: false,
+          verificationToken,
         },
       })
     })
   } catch {
     return { error: "Failed to create account. Please try again." }
+  }
+
+  try {
+    await sendVerificationEmail(email, ownerName.trim(), verificationToken)
+  } catch {
+    // Don't block registration if email fails; user can request resend later
   }
 
   return { success: true, email }

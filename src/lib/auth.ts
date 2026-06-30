@@ -35,6 +35,9 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Block unverified registrations without counting as a failed login attempt
+        if (!user.emailVerified) return null
+
         const isValid = await bcrypt.compare(credentials.password, user.password)
         if (!isValid) {
           await db.failedLogin.create({ data: { email } })

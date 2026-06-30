@@ -143,3 +143,13 @@ CREATE TABLE IF NOT EXISTS "FailedLogin" (
 );
 
 CREATE INDEX IF NOT EXISTS "FailedLogin_email_createdAt_idx" ON "FailedLogin"("email", "createdAt");
+
+-- ─── User: email verification + password reset columns ───────────────────────
+
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailVerified"       BOOLEAN      NOT NULL DEFAULT true;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "verificationToken"   TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordResetToken"  TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordResetExpiry" TIMESTAMP(3);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "User_verificationToken_key"  ON "User"("verificationToken");
+CREATE UNIQUE INDEX IF NOT EXISTS "User_passwordResetToken_key" ON "User"("passwordResetToken");

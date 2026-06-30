@@ -138,16 +138,20 @@ model Company {
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  companyId String
-  name      String
-  email     String
-  password  String
-  role      UserRole @default(CASHIER)
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  companyId           String
+  name                String
+  email               String
+  password            String
+  role                UserRole  @default(CASHIER)
+  phone               String?
+  isActive            Boolean   @default(true)
+  emailVerified       Boolean   @default(true)
+  verificationToken   String?   @unique
+  passwordResetToken  String?   @unique
+  passwordResetExpiry DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   company      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices     SaleInvoice[]
