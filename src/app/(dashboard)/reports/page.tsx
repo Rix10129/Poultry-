@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   TrendingUp, ShoppingCart, Package, Users, Scale, ArrowRight,
   Clock, Wallet, FileText, UserCheck, MapPin, Receipt, Target,
+  LineChart, BarChart2,
 } from "lucide-react"
 
 export const metadata = { title: "Reports" }
@@ -93,6 +94,20 @@ const REPORT_CARDS = [
     href: "/reports/targets",
     icon: Target,
     color: "bg-violet-50 text-violet-600 border-violet-200",
+  },
+  {
+    title: "P&L Statement",
+    description: "Revenue, cost of goods sold, operating expenses, and net profit for any period.",
+    href: "/reports/pl",
+    icon: LineChart,
+    color: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  },
+  {
+    title: "Balance Sheet",
+    description: "Snapshot of assets (inventory + receivables), liabilities (payables), and equity.",
+    href: "/reports/balance-sheet",
+    icon: BarChart2,
+    color: "bg-sky-50 text-sky-600 border-sky-200",
   },
 ]
 

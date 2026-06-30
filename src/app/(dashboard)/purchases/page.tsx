@@ -7,29 +7,39 @@ import { Plus, Truck, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { Pagination } from "@/components/ui/pagination"
 
 export const metadata = { title: "Purchases" }
+
+const PAGE_SIZE = 50
 
 export default async function PurchasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q } = await searchParams
+  const { q, page: pageParam } = await searchParams
+  const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
 
-  const orders = await db.purchaseOrder.findMany({
-    where: {
-      companyId,
-      ...(q ? { poNumber: { contains: q, mode: "insensitive" } } : {}),
-    },
-    include: { supplier: { select: { name: true } } },
-    orderBy: { orderDate: "desc" },
-    take: 100,
-  })
+  const where = {
+    companyId,
+    ...(q ? { poNumber: { contains: q, mode: "insensitive" as const } } : {}),
+  }
+
+  const [orders, total] = await Promise.all([
+    db.purchaseOrder.findMany({
+      where,
+      include: { supplier: { select: { name: true } } },
+      orderBy: { orderDate: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+    }),
+    db.purchaseOrder.count({ where }),
+  ])
 
   return (
     <div className="space-y-6">
@@ -37,7 +47,7 @@ export default async function PurchasesPage({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Purchases</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {orders.length} order{orders.length !== 1 ? "s" : ""}
+            {total} order{total !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -141,6 +151,12 @@ export default async function PurchasesPage({
               })}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            baseUrl={q ? `/purchases?q=${encodeURIComponent(q)}` : "/purchases"}
+          />
         </div>
       )}
     </div>

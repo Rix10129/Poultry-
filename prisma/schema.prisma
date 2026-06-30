@@ -107,8 +107,9 @@ model Company {
   phone     String?
   email     String?
   address   String?
-  taxNumber String?
-  logoUrl   String?
+  taxNumber  String?
+  strnNumber String?
+  logoUrl    String?
   currency  String   @default("PKR")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

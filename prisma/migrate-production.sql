@@ -22,9 +22,10 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
--- ─── New nullable column on SaleInvoice (fixes /sales crash) ─────────────────
+-- ─── New nullable columns ─────────────────────────────────────────────────────
 
 ALTER TABLE "SaleInvoice" ADD COLUMN IF NOT EXISTS "schemeNotes" TEXT;
+ALTER TABLE "Company"     ADD COLUMN IF NOT EXISTS "strnNumber"  TEXT;
 
 -- ─── New table: PDCCheque ────────────────────────────────────────────────────
 

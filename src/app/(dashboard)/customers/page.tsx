@@ -7,8 +7,11 @@ import { Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
+import { Pagination } from "@/components/ui/pagination"
 
 export const metadata = { title: "Customers" }
+
+const PAGE_SIZE = 50
 
 const TYPE_LABELS: Record<string, string> = {
   FARM: "Farm",
@@ -27,26 +30,34 @@ const TYPE_VARIANTS: Record<string, "info" | "success" | "warning" | "default"> 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string }>
+  searchParams: Promise<{ q?: string; type?: string; page?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q, type } = await searchParams
+  const { q, type, page: pageParam } = await searchParams
+  const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
 
-  const customers = await db.customer.findMany({
-    where: {
-      companyId,
-      ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-      ...(type ? { type: type as any } : {}),
-    },
-    include: {
-      invoices: { select: { netAmount: true, paidAmount: true } },
-      _count: { select: { invoices: true } },
-    },
-    orderBy: { name: "asc" },
-  })
+  const where = {
+    companyId,
+    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(type ? { type: type as any } : {}),
+  }
+
+  const [customers, total] = await Promise.all([
+    db.customer.findMany({
+      where,
+      include: {
+        invoices: { select: { netAmount: true, paidAmount: true } },
+        _count: { select: { invoices: true } },
+      },
+      orderBy: { name: "asc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+    }),
+    db.customer.count({ where }),
+  ])
 
   return (
     <div className="space-y-6">
@@ -54,7 +65,7 @@ export default async function CustomersPage({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {customers.length} customer{customers.length !== 1 ? "s" : ""}
+            {total} customer{total !== 1 ? "s" : ""}
           </p>
         </div>
         <Link href="/customers/new">
@@ -170,6 +181,12 @@ export default async function CustomersPage({
               })}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            baseUrl={`/customers${new URLSearchParams({ ...(q ? { q } : {}), ...(type ? { type } : {}) }).toString() ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(type ? { type } : {}) }).toString()}` : ""}`}
+          />
         </div>
       )}
     </div>

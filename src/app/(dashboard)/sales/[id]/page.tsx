@@ -48,7 +48,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
     }),
     db.company.findFirst({
       where: { id: companyId },
-      select: { name: true, logoUrl: true, phone: true, address: true, email: true },
+      select: { name: true, logoUrl: true, phone: true, address: true, email: true, taxNumber: true, strnNumber: true },
     }),
   ])
 
@@ -115,6 +115,8 @@ export default async function InvoiceDetailPage({ params }: Props) {
               {company?.phone && <p className="text-xs text-slate-500 mt-0.5">{company.phone}</p>}
               {company?.email && <p className="text-xs text-slate-500">{company.email}</p>}
               {company?.address && <p className="text-xs text-slate-500">{company.address}</p>}
+              {company?.taxNumber && <p className="text-xs text-slate-500">NTN: {company.taxNumber}</p>}
+              {company?.strnNumber && <p className="text-xs text-slate-500">STRN: {company.strnNumber}</p>}
             </div>
           </div>
           {/* Right: Invoice info */}

@@ -7,29 +7,39 @@ import { Plus, FileText, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { Pagination } from "@/components/ui/pagination"
 
 export const metadata = { title: "Sales" }
+
+const PAGE_SIZE = 50
 
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q } = await searchParams
+  const { q, page: pageParam } = await searchParams
+  const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
 
-  const invoices = await db.saleInvoice.findMany({
-    where: {
-      companyId,
-      ...(q ? { invoiceNumber: { contains: q, mode: "insensitive" } } : {}),
-    },
-    include: { customer: { select: { name: true } } },
-    orderBy: { invoiceDate: "desc" },
-    take: 100,
-  })
+  const where = {
+    companyId,
+    ...(q ? { invoiceNumber: { contains: q, mode: "insensitive" as const } } : {}),
+  }
+
+  const [invoices, total] = await Promise.all([
+    db.saleInvoice.findMany({
+      where,
+      include: { customer: { select: { name: true } } },
+      orderBy: { invoiceDate: "desc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+    }),
+    db.saleInvoice.count({ where }),
+  ])
 
   return (
     <div className="space-y-6">
@@ -37,7 +47,7 @@ export default async function SalesPage({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Sales</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {invoices.length} invoice{invoices.length !== 1 ? "s" : ""}
+            {total} invoice{total !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -149,6 +159,12 @@ export default async function SalesPage({
               })}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            baseUrl={q ? `/sales?q=${encodeURIComponent(q)}` : "/sales"}
+          />
         </div>
       )}
     </div>

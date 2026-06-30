@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { Species } from "@prisma/client"
+import { Pagination } from "@/components/ui/pagination"
 
 export const metadata = { title: "Inventory" }
 
 const SPECIES_LIST = ["BROILER", "LAYER", "CATTLE", "SHEEP", "GOAT", "FISH", "GENERAL"]
+const PAGE_SIZE = 50
 
 function cap(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase()
@@ -20,27 +22,35 @@ function cap(s: string) {
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; species?: string }>
+  searchParams: Promise<{ q?: string; species?: string; page?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q, species } = await searchParams
+  const { q, species, page: pageParam } = await searchParams
+  const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
 
-  const products = await db.product.findMany({
-    where: {
-      companyId,
-      isActive: true,
-      ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-      ...(species && SPECIES_LIST.includes(species) ? { species: species as Species } : {}),
-    },
-    include: {
-      category: { select: { name: true } },
-      batches: { select: { quantity: true, expiryDate: true } },
-    },
-    orderBy: { name: "asc" },
-  })
+  const where = {
+    companyId,
+    isActive: true,
+    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(species && SPECIES_LIST.includes(species) ? { species: species as Species } : {}),
+  }
+
+  const [products, total] = await Promise.all([
+    db.product.findMany({
+      where,
+      include: {
+        category: { select: { name: true } },
+        batches: { select: { quantity: true, expiryDate: true } },
+      },
+      orderBy: { name: "asc" },
+      take: PAGE_SIZE,
+      skip: (page - 1) * PAGE_SIZE,
+    }),
+    db.product.count({ where }),
+  ])
 
   return (
     <div className="space-y-6">
@@ -49,7 +59,7 @@ export default async function InventoryPage({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Inventory</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {products.length} product{products.length !== 1 ? "s" : ""}
+            {total} product{total !== 1 ? "s" : ""}
           </p>
         </div>
         <Link href="/inventory/new">
@@ -157,6 +167,12 @@ export default async function InventoryPage({
               })}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            baseUrl={`/inventory${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString() ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString()}` : ""}`}
+          />
         </div>
       )}
     </div>

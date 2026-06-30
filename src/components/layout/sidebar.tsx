@@ -20,6 +20,9 @@ import {
   Receipt,
   AlertTriangle,
   Target,
+  LineChart,
+  BarChart2,
+  ClipboardList,
 } from "lucide-react"
 
 const navSections = [
@@ -33,11 +36,12 @@ const navSections = [
   {
     title: "Operations",
     items: [
-      { href: "/inventory",         label: "Inventory",    icon: Package,       alert: false },
-      { href: "/inventory/reorder", label: "Reorder Sheet", icon: AlertTriangle, alert: false },
-      { href: "/sales",             label: "Sales",        icon: ShoppingCart,  alert: false },
-      { href: "/purchases",         label: "Purchases",    icon: Truck,         alert: false },
-      { href: "/expenses",          label: "Expenses",     icon: Receipt,       alert: false },
+      { href: "/inventory",                  label: "Inventory",       icon: Package,       alert: false },
+      { href: "/inventory/reorder",         label: "Reorder Sheet",   icon: AlertTriangle, alert: false },
+      { href: "/inventory/adjustments/new", label: "Stock Adjustment", icon: ClipboardList, alert: false },
+      { href: "/sales",                     label: "Sales",           icon: ShoppingCart,  alert: false },
+      { href: "/purchases",                 label: "Purchases",       icon: Truck,         alert: false },
+      { href: "/expenses",                  label: "Expenses",        icon: Receipt,       alert: false },
     ],
   },
   {
@@ -57,8 +61,10 @@ const navSections = [
   {
     title: "Analytics",
     items: [
-      { href: "/reports",         label: "Reports",      icon: BarChart3, alert: false },
-      { href: "/reports/targets", label: "Sales Targets", icon: Target, alert: false },
+      { href: "/reports",              label: "Reports",       icon: BarChart3,  alert: false },
+      { href: "/reports/targets",      label: "Sales Targets", icon: Target,     alert: false },
+      { href: "/reports/pl",           label: "P&L Statement", icon: LineChart,  alert: false },
+      { href: "/reports/balance-sheet", label: "Balance Sheet", icon: BarChart2,  alert: false },
     ],
   },
   {

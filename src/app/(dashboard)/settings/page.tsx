@@ -21,6 +21,7 @@ export default async function SettingsPage() {
       email: true,
       address: true,
       taxNumber: true,
+      strnNumber: true,
       currency: true,
       logoUrl: true,
     },
@@ -49,7 +50,8 @@ export default async function SettingsPage() {
                 ["Company Name", company.name],
                 ["Phone", company.phone ?? "—"],
                 ["Email", company.email ?? "—"],
-                ["Tax Number", company.taxNumber ?? "—"],
+                ["NTN Number", company.taxNumber ?? "—"],
+                ["STRN Number", company.strnNumber ?? "—"],
                 ["Currency", company.currency],
                 ["Address", company.address ?? "—"],
               ].map(([label, value]) => (

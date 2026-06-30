@@ -13,6 +13,7 @@ interface Props {
     email: string | null
     address: string | null
     taxNumber: string | null
+    strnNumber: string | null
     currency: string
     logoUrl: string | null
   }
@@ -74,11 +75,21 @@ export function CompanySettingsForm({ company }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Tax / NTN Number</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">NTN Number</label>
           <input
             name="taxNumber"
             defaultValue={company.taxNumber ?? ""}
-            placeholder="NTN-1234567"
+            placeholder="1234567"
+            className="w-full h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">STRN Number</label>
+          <input
+            name="strnNumber"
+            defaultValue={company.strnNumber ?? ""}
+            placeholder="12-34-5678-001-23"
             className="w-full h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>

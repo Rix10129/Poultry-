@@ -18,6 +18,7 @@ export async function updateCompany(_: ActionState, formData: FormData): Promise
   const email = (formData.get("email") as string)?.trim() || null
   const address = (formData.get("address") as string)?.trim() || null
   const taxNumber = (formData.get("taxNumber") as string)?.trim() || null
+  const strnNumber = (formData.get("strnNumber") as string)?.trim() || null
   const currency = (formData.get("currency") as string)?.trim() || "PKR"
   const logoUrl = (formData.get("logoUrl") as string)?.trim() || null
 
@@ -25,7 +26,7 @@ export async function updateCompany(_: ActionState, formData: FormData): Promise
 
   await db.company.update({
     where: { id: actor.companyId },
-    data: { name, phone, email, address, taxNumber, currency, logoUrl },
+    data: { name, phone, email, address, taxNumber, strnNumber, currency, logoUrl },
   })
 
   revalidatePath("/settings")
