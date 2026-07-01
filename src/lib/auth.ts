@@ -27,7 +27,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await db.user.findFirst({
           where: { email, isActive: true },
-          include: { company: { select: { name: true } } },
+          include: { company: { select: { name: true, status: true } } },
         })
 
         if (!user) {
@@ -35,8 +35,12 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Block unverified registrations without counting as a failed login attempt
+        // Block unverified email without counting as a failed attempt
         if (!user.emailVerified) return null
+
+        // Block companies pending approval or suspended — show specific message
+        if (user.company.status === "PENDING") throw new Error("PENDING_APPROVAL")
+        if (user.company.status === "SUSPENDED") throw new Error("SUSPENDED")
 
         const isValid = await bcrypt.compare(credentials.password, user.password)
         if (!isValid) {

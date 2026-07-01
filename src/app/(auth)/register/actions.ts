@@ -5,7 +5,9 @@ import { UserRole } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { randomUUID } from "crypto"
-import { sendVerificationEmail } from "@/lib/email"
+import { sendAdminApprovalRequest } from "@/lib/email"
+
+const APP_URL = (process.env.NEXTAUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")
 
 const registerSchema = z
   .object({
@@ -44,11 +46,17 @@ export async function registerCompany(
   if (existing) return { error: "An account with this email already exists" }
 
   const hashed = await bcrypt.hash(password, 12)
-  const verificationToken = randomUUID()
+  const approvalToken = randomUUID()
 
   try {
     await db.$transaction(async (tx) => {
-      const company = await tx.company.create({ data: { name: companyName.trim() } })
+      const company = await tx.company.create({
+        data: {
+          name: companyName.trim(),
+          status: "PENDING",
+          approvalToken,
+        },
+      })
       await tx.user.create({
         data: {
           companyId: company.id,
@@ -56,8 +64,7 @@ export async function registerCompany(
           email,
           password: hashed,
           role: UserRole.OWNER,
-          emailVerified: false,
-          verificationToken,
+          emailVerified: true,
         },
       })
     })
@@ -65,10 +72,17 @@ export async function registerCompany(
     return { error: "Failed to create account. Please try again." }
   }
 
-  try {
-    await sendVerificationEmail(email, ownerName.trim(), verificationToken)
-  } catch {
-    // Don't block registration if email fails; user can request resend later
+  // Notify admin to approve or reject
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (adminEmail) {
+    await sendAdminApprovalRequest({
+      to: adminEmail,
+      companyName: companyName.trim(),
+      ownerName: ownerName.trim(),
+      ownerEmail: email,
+      approveUrl: `${APP_URL}/api/admin/company/approve?token=${approvalToken}`,
+      rejectUrl: `${APP_URL}/api/admin/company/reject?token=${approvalToken}`,
+    }).catch(() => null)
   }
 
   return { success: true, email }

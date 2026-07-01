@@ -23,7 +23,13 @@ export default function LoginPage() {
     })
 
     if (result?.error) {
-      setError("Invalid email or password. Please try again.")
+      if (result.error === "PENDING_APPROVAL") {
+        setError("Your account is awaiting admin approval. You will receive an email once it's activated.")
+      } else if (result.error === "SUSPENDED") {
+        setError("This account has been suspended. Please contact support.")
+      } else {
+        setError("Invalid email or password. Please try again.")
+      }
       setLoading(false)
     } else {
       router.push("/")

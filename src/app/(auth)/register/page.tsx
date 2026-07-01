@@ -23,13 +23,16 @@ export default function RegisterPage() {
                 d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Check your inbox</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Registration Submitted!</h1>
           <p className="text-slate-400 mb-2">
-            We sent a verification link to
+            Your registration for
           </p>
-          <p className="text-blue-400 font-semibold mb-6">{state.email}</p>
+          <p className="text-blue-400 font-semibold mb-4">{state.email}</p>
+          <p className="text-slate-400 mb-2">
+            has been received and is <strong className="text-white">awaiting admin approval</strong>.
+          </p>
           <p className="text-slate-500 text-sm mb-8">
-            Click the link in the email to activate your account. The link expires in 24 hours.
+            You will receive an email at the above address once your account is activated. This usually takes less than 24 hours.
           </p>
           <Link href="/login" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
             Back to sign in

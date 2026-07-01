@@ -153,3 +153,15 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordResetExpiry" TIMESTAMP(3);
 
 CREATE UNIQUE INDEX IF NOT EXISTS "User_verificationToken_key"  ON "User"("verificationToken");
 CREATE UNIQUE INDEX IF NOT EXISTS "User_passwordResetToken_key" ON "User"("passwordResetToken");
+
+-- ─── Company: approval workflow ───────────────────────────────────────────────
+
+DO $$ BEGIN
+  CREATE TYPE "CompanyStatus" AS ENUM ('PENDING', 'ACTIVE', 'SUSPENDED');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "status"        "CompanyStatus" NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "approvalToken" TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "Company_approvalToken_key" ON "Company"("approvalToken");

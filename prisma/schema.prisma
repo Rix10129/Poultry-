@@ -99,20 +99,28 @@ enum ExpenseCategory {
   OTHER
 }
 
+enum CompanyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
 // ─── Tenant Root ─────────────────────────────────────────────────────────────
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  address   String?
-  taxNumber  String?
-  strnNumber String?
-  logoUrl    String?
-  currency  String   @default("PKR")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String        @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  taxNumber     String?
+  strnNumber    String?
+  logoUrl       String?
+  currency      String        @default("PKR")
+  status        CompanyStatus @default(ACTIVE)
+  approvalToken String?       @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   users            User[]
   suppliers        Supplier[]
