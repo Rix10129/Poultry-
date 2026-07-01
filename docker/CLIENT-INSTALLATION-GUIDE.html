@@ -3,99 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Poultry Vet System — Setup Guide</title>
+<title>Poultry Vet System — Client Guide</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: Arial, sans-serif; font-size: 14px; color: #1e293b; line-height: 1.7; background: white; }
-  .page { max-width: 760px; margin: 0 auto; padding: 48px 40px; }
+  .page { max-width: 740px; margin: 0 auto; padding: 48px 40px; }
 
-  /* Header */
   .header { text-align: center; margin-bottom: 40px; }
-  .header .brand { font-size: 22px; font-weight: 800; color: #1e3a5f; }
-  .header .tagline { color: #64748b; font-size: 13px; margin-top: 2px; }
-  .header .guide-title { margin-top: 20px; font-size: 20px; font-weight: 700; color: #0f172a; }
-  .header .guide-sub { color: #64748b; font-size: 13px; margin-top: 4px; }
-  .header-bar { height: 4px; background: linear-gradient(90deg, #1e3a5f, #2563eb); border-radius: 2px; margin: 16px auto 0; width: 80px; }
+  .brand { font-size: 24px; font-weight: 800; color: #1e3a5f; }
+  .tagline { color: #64748b; font-size: 13px; margin-top: 3px; }
+  .bar { height: 4px; width: 60px; background: #2563eb; border-radius: 2px; margin: 14px auto 0; }
 
-  /* Big step */
-  .big-step { margin-bottom: 36px; }
-  .big-step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
-  .big-num { background: #1e3a5f; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
-  .big-title { font-size: 17px; font-weight: 700; color: #0f172a; }
-  .big-body { margin-left: 50px; }
+  h2 { font-size: 18px; color: #0f172a; margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 14px; font-weight: 700; color: #1e3a5f; margin: 20px 0 8px; }
 
-  /* Sub step */
-  .sub { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
-  .sub-bullet { color: #2563eb; font-size: 18px; line-height: 1.4; flex-shrink: 0; }
-  .sub p { color: #374151; font-size: 14px; }
-  .sub strong { color: #0f172a; }
+  p { color: #475569; font-size: 13px; margin-bottom: 8px; }
+  ul, ol { padding-left: 20px; color: #475569; font-size: 13px; }
+  li { margin-bottom: 5px; }
+  strong { color: #0f172a; }
 
-  /* Boxes */
-  .box { border-radius: 10px; padding: 14px 18px; margin: 12px 0; }
-  .tip { background: #eff6ff; border-left: 4px solid #2563eb; }
-  .warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
-  .important { background: #fef2f2; border-left: 4px solid #ef4444; }
-  .success { background: #f0fdf4; border-left: 4px solid #22c55e; }
-  .box-icon { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-  .tip .box-icon { color: #1d4ed8; }
-  .warning .box-icon { color: #92400e; }
-  .important .box-icon { color: #b91c1c; }
-  .success .box-icon { color: #15803d; }
-  .box p { font-size: 13px; color: #374151; line-height: 1.6; }
+  .big-step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
+  .num { background: #1e3a5f; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+  .step-body strong { display: block; font-size: 14px; color: #0f172a; margin-bottom: 3px; }
 
-  /* Action box (click this!) */
-  .action { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 14px 18px; margin: 12px 0; text-align: center; }
-  .action .action-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 4px; }
-  .action .action-text { font-size: 16px; font-weight: 700; color: #1e3a5f; }
-  .action .action-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .box { border-radius: 8px; padding: 13px 16px; margin: 12px 0; font-size: 13px; }
+  .blue  { background: #eff6ff; border-left: 4px solid #3b82f6; }
+  .green { background: #f0fdf4; border-left: 4px solid #22c55e; }
+  .amber { background: #fffbeb; border-left: 4px solid #f59e0b; }
+  .red   { background: #fef2f2; border-left: 4px solid #ef4444; }
+  .box strong { color: #0f172a; display: block; margin-bottom: 3px; }
+  .box p { margin: 0; color: #374151; font-size: 13px; }
 
-  /* URL display */
-  .url-box { background: #0f172a; color: #7dd3fc; padding: 10px 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 15px; text-align: center; margin: 10px 0; letter-spacing: 0.5px; }
+  .big-icon-box { border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; margin: 10px 0; }
+  .big-icon { font-size: 40px; margin-bottom: 8px; }
+  .big-icon-box strong { font-size: 16px; color: #0f172a; display: block; }
+  .big-icon-box p { font-size: 12px; color: #64748b; margin: 4px 0 0; }
 
-  /* Divider */
-  hr { border: none; border-top: 1px solid #e2e8f0; margin: 32px 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
 
-  /* Section heading */
-  .section-heading { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 16px; margin-top: 32px; }
+  .card { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+  .card .card-icon { font-size: 24px; margin-bottom: 6px; }
+  .card strong { font-size: 14px; color: #0f172a; display: block; margin-bottom: 6px; }
+  .card p { font-size: 12px; color: #64748b; margin: 0; }
 
-  /* Daily card */
-  .daily-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
-  .daily-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
-  .daily-card .dc-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 4px; }
-  .daily-card .dc-action { font-size: 14px; font-weight: 700; color: #0f172a; }
-  .daily-card .dc-file { font-size: 12px; color: #2563eb; margin-top: 2px; }
+  .q-row { padding: 11px 0; border-bottom: 1px solid #f1f5f9; }
+  .q-row .q { font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 3px; }
+  .q-row .a { font-size: 13px; color: #475569; }
 
-  /* Backup schedule */
-  .sched { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-start; }
-  .sched-day { background: #1e3a5f; color: white; padding: 4px 12px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap; margin-top: 2px; }
-  .sched p { font-size: 13px; color: #374151; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+  th { background: #1e3a5f; color: white; padding: 9px 14px; text-align: left; }
+  td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+  td:first-child { font-weight: 600; color: #0f172a; width: 150px; }
 
-  /* Troubleshoot */
-  .trouble { border-bottom: 1px solid #f1f5f9; padding: 10px 0; }
-  .trouble .q { font-weight: 700; color: #0f172a; font-size: 13px; margin-bottom: 3px; }
-  .trouble .a { color: #475569; font-size: 13px; }
-
-  /* Contact table */
-  .contact-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  .contact-table td { padding: 10px 14px; border: 1px solid #e2e8f0; font-size: 13px; }
-  .contact-table td:first-child { background: #f8fafc; font-weight: 600; color: #374151; width: 160px; }
-  .contact-table td:last-child { color: #0f172a; min-height: 32px; }
-
-  /* Footer */
-  .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 48px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
-
-  /* Page break */
-  .pb { page-break-before: always; padding-top: 40px; }
-
-  /* Checklist */
   .check-list { list-style: none; padding: 0; }
-  .check-list li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #374151; display: flex; gap: 10px; align-items: center; }
-  .check-list li::before { content: '☐'; font-size: 18px; color: #cbd5e1; }
+  .check-list li { padding: 9px 0; border-bottom: 1px solid #f8fafc; font-size: 13px; color: #374151; display: flex; gap: 12px; }
+  .check-list li::before { content: '☐'; font-size: 18px; color: #cbd5e1; line-height: 1.2; }
 
-  @media print {
-    .page { padding: 24px; max-width: 100%; }
-    .pb { page-break-before: always; }
-  }
+  .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 48px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+  .pb { page-break-before: always; padding-top: 40px; }
+  @media print { .page { padding: 20px; max-width: 100%; } .pb { page-break-before: always; } }
 </style>
 </head>
 <body>
@@ -104,253 +70,238 @@
   <!-- HEADER -->
   <div class="header">
     <div class="brand">🐔 Poultry Vet System</div>
-    <div class="tagline">Your complete business solution — works without internet</div>
-    <div class="guide-title">How to Set Up &amp; Use Your Software</div>
-    <div class="guide-sub">Simple step-by-step guide for first-time setup</div>
-    <div class="header-bar"></div>
+    <div class="tagline">Your complete business management software</div>
+    <div class="bar"></div>
+    <p style="margin-top:18px; font-size:15px; font-weight:600; color:#0f172a;">How to Use Your Software</p>
+    <p style="font-size:12px; color:#94a3b8; margin:2px 0 0;">Client Guide — Keep this document safe</p>
   </div>
 
-  <!-- WHAT YOU GET -->
-  <div class="box success">
-    <div class="box-icon">✅ What this software does for your business</div>
-    <p>Manage your <strong>sales, purchases, stock, customers, accounts, and reports</strong> — all in one place. Works on your PC even without internet. Your data stays on your own computer, safe and private.</p>
+  <!-- WHAT IT DOES -->
+  <div class="box green">
+    <strong>✅ What this software manages for you</strong>
+    <p>Sales &amp; invoices · Purchases &amp; supplier bills · Stock &amp; inventory · Customer accounts &amp; statements · Expenses · Financial reports · Staff users</p>
   </div>
 
-  <hr>
+  <!-- HOW IT WORKS -->
+  <h2>How It Works — The Simple Version</h2>
 
-  <!-- STEP 1 -->
+  <div class="two-col">
+    <div class="big-icon-box">
+      <div class="big-icon">🌐</div>
+      <strong>It opens in your browser</strong>
+      <p>Like a website — but it works on your own PC even without internet</p>
+    </div>
+    <div class="big-icon-box">
+      <div class="big-icon">💾</div>
+      <strong>Your data stays on your PC</strong>
+      <p>Nothing is shared online. Your business data is private and secure.</p>
+    </div>
+  </div>
+
+  <!-- SETUP NOTE -->
+  <div class="box amber">
+    <strong>⚠ Your system has already been set up for you</strong>
+    <p>Your provider has already installed and configured everything on this PC. You do not need to install anything. Just follow the daily steps below.</p>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e2e8f0; margin:28px 0;">
+
+  <!-- DAILY USE - THE MAIN SECTION -->
+  <h2>Every Day — Opening the Software</h2>
+
   <div class="big-step">
-    <div class="big-step-header">
-      <div class="big-num">1</div>
-      <div class="big-title">Download one free program first</div>
+    <div class="num">1</div>
+    <div class="step-body">
+      <strong>Turn on your PC and wait about 2–3 minutes</strong>
+      <p>The software starts itself automatically in the background. You do not need to open or click anything during this time — just let the PC load completely.</p>
     </div>
-    <div class="big-body">
-      <p style="color:#475569; margin-bottom:12px;">The Poultry Vet System needs a helper program called <strong>Docker Desktop</strong> to run on your computer. It is completely free and you only install it once.</p>
+  </div>
 
-      <div class="action">
-        <div class="action-label">Open this website in your browser</div>
-        <div class="action-text">docker.com/products/docker-desktop</div>
-        <div class="action-sub">Click the big blue "Download for Windows" button</div>
-      </div>
-
-      <div class="box warning">
-        <div class="box-icon">⏱ This download is about 500 MB</div>
-        <p>On a slow connection it may take 10–20 minutes to download. You only do this once.</p>
+  <div class="big-step">
+    <div class="num">2</div>
+    <div class="step-body">
+      <strong>Double-click "Open Poultry Vet" on your Desktop</strong>
+      <p>This icon was placed on your desktop during setup. It opens the software directly in your browser.</p>
+      <div class="big-icon-box" style="max-width:200px; margin:10px 0;">
+        <div class="big-icon">🌐</div>
+        <strong>Open Poultry Vet</strong>
+        <p>Double-click this icon</p>
       </div>
     </div>
   </div>
 
-  <!-- STEP 2 -->
   <div class="big-step">
-    <div class="big-step-header">
-      <div class="big-num">2</div>
-      <div class="big-title">Install the helper program</div>
-    </div>
-    <div class="big-body">
-      <div class="sub"><div class="sub-bullet">①</div><p>Find the downloaded file in your Downloads folder — it is called <strong>Docker Desktop Installer.exe</strong></p></div>
-      <div class="sub"><div class="sub-bullet">②</div><p>Double-click it to open the installer</p></div>
-      <div class="sub"><div class="sub-bullet">③</div><p>Click <strong>OK</strong> on everything it asks — just keep clicking Next / OK / Accept</p></div>
-      <div class="sub"><div class="sub-bullet">④</div><p>Your computer may restart — that is normal, let it restart</p></div>
-      <div class="sub"><div class="sub-bullet">⑤</div><p>After restarting, a whale icon 🐳 will appear in the bottom-right corner of your screen (near the clock). <strong>Wait for it to stop moving</strong> — when it is still, Docker is ready.</p></div>
-
-      <div class="box tip">
-        <div class="box-icon">💡 Think of it like this</div>
-        <p>Docker Desktop is like the engine of a car. You don't use it directly — it just needs to be running in the background so the Poultry Vet software can work. Every time you start your PC, open Docker Desktop first.</p>
-      </div>
+    <div class="num">3</div>
+    <div class="step-body">
+      <strong>Log in with your email and password</strong>
+      <p>Your browser opens to the login page. Enter your email and password and click <strong>Sign In</strong>.</p>
     </div>
   </div>
 
-  <!-- STEP 3 -->
-  <div class="big-step">
-    <div class="big-step-header">
-      <div class="big-num">3</div>
-      <div class="big-title">Copy the Poultry Vet folder to your computer</div>
-    </div>
-    <div class="big-body">
-      <p style="color:#475569; margin-bottom:12px;">Your system provider will give you a USB drive or send you the software folder. Copy the entire <strong>Poultry-</strong> folder to your computer — for example into your <strong>Documents</strong> folder.</p>
+  <div class="box green">
+    <strong>🎉 That's it — you're in!</strong>
+    <p>No terminals. No waiting for programs to load. Just double-click and work.</p>
+  </div>
 
-      <div class="box success">
-        <div class="box-icon">✅ Make sure you have these files inside the docker folder</div>
-        <p>📄 <strong>start.bat</strong> — this is what you double-click to open the software<br>
-        📄 <strong>stop.bat</strong> — this closes the software at end of day<br>
-        📄 <strong>backup.bat</strong> — this saves a copy of all your data</p>
-      </div>
-    </div>
+  <div class="box blue">
+    <strong>💡 If the page shows an error when you first click</strong>
+    <p>The software is still loading in the background. Wait 1–2 more minutes, then refresh the page (press <strong>F5</strong>). This sometimes happens right after turning on the PC.</p>
   </div>
 
   <div class="pb"></div>
 
-  <!-- STEP 4 -->
+  <!-- CLOSING -->
+  <h2>Closing the Software</h2>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-icon">✅</div>
+      <strong>Correct way</strong>
+      <p>Just close the browser tab or window. Your data is saved automatically — nothing is lost.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">✅</div>
+      <strong>Shutting down the PC</strong>
+      <p>Just shut down Windows normally. You do not need to do anything special before shutting down.</p>
+    </div>
+  </div>
+
+  <div class="box blue">
+    <strong>💡 You don't need to "stop" the software</strong>
+    <p>Unlike the old version, you don't need to run any stop commands. Just close the browser and shut down your PC when you're done.</p>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e2e8f0; margin:28px 0;">
+
+  <!-- BACKUP -->
+  <h2>Backups — Do This Every Week</h2>
+
+  <div class="box red">
+    <strong>🚨 This is very important — please read</strong>
+    <p>If your computer is stolen, gets a virus, or stops working, a backup is the ONLY way to recover your data. It takes less than 1 minute. Do it every week.</p>
+  </div>
+
   <div class="big-step">
-    <div class="big-step-header">
-      <div class="big-num">4</div>
-      <div class="big-title">Start the software for the first time</div>
-    </div>
-    <div class="big-body">
-      <div class="box warning">
-        <div class="box-icon">⏱ First time only: takes 5 to 15 minutes</div>
-        <p>The very first time you start, the software sets itself up automatically. After that, it starts in under 1 minute every time. Just be patient on this first start.</p>
+    <div class="num">1</div>
+    <div class="step-body">
+      <strong>Double-click "Backup Poultry Vet" on your Desktop</strong>
+      <div class="big-icon-box" style="max-width:220px; margin:10px 0;">
+        <div class="big-icon">💾</div>
+        <strong>Backup Poultry Vet</strong>
+        <p>Double-click this icon</p>
       </div>
-
-      <div class="sub"><div class="sub-bullet">①</div><p>Make sure the 🐳 whale icon is visible and still in the taskbar (Docker is running)</p></div>
-      <div class="sub"><div class="sub-bullet">②</div><p>Open the <strong>Poultry- → docker</strong> folder</p></div>
-      <div class="sub"><div class="sub-bullet">③</div><p>Double-click <strong>start.bat</strong></p></div>
-      <div class="sub"><div class="sub-bullet">④</div><p>A black window opens and shows some text — this is normal, just wait</p></div>
-      <div class="sub"><div class="sub-bullet">⑤</div><p>Your browser (Chrome/Edge) will open automatically with the login page</p></div>
-
-      <div class="box tip">
-        <div class="box-icon">💡 If the browser doesn't open automatically</div>
-        <p>Open Chrome or Edge yourself and type this in the address bar:</p>
-        <div class="url-box">http://localhost:3000</div>
-      </div>
+      <p>A small popup will appear saying <strong>"Backup saved successfully!"</strong></p>
     </div>
   </div>
 
-  <!-- STEP 5 -->
   <div class="big-step">
-    <div class="big-step-header">
-      <div class="big-num">5</div>
-      <div class="big-title">Create your account</div>
-    </div>
-    <div class="big-body">
-      <div class="sub"><div class="sub-bullet">①</div><p>On the login page, click <strong>"Create Account"</strong> or go to:</p></div>
-      <div class="url-box">http://localhost:3000/register</div>
-      <div class="sub" style="margin-top:10px;"><div class="sub-bullet">②</div><p>Fill in: <strong>your company name, your name, email address, and a password</strong></p></div>
-      <div class="sub"><div class="sub-bullet">③</div><p>Click <strong>Create Account</strong></p></div>
-      <div class="sub"><div class="sub-bullet">④</div><p>You will see a message: <em>"Registration submitted — awaiting admin approval"</em></p></div>
-      <div class="sub"><div class="sub-bullet">⑤</div><p><strong>Call or WhatsApp your system provider</strong> — they will approve your account within a few minutes. You will also get an email confirmation.</p></div>
-      <div class="sub"><div class="sub-bullet">⑥</div><p>Once approved, go back to <code>http://localhost:3000</code> and log in with your email and password</p></div>
-
-      <div class="box success">
-        <div class="box-icon">🎉 You are ready!</div>
-        <p>After logging in, you will see your dashboard. Start by adding your products in <strong>Inventory</strong>, then add your customers, and you're good to go.</p>
-      </div>
+    <div class="num">2</div>
+    <div class="step-body">
+      <strong>Copy the backup to a USB drive</strong>
+      <p>Open the <strong>Poultry- → docker → backups</strong> folder. You will see files with today's date. Copy the entire <strong>backups</strong> folder to a USB drive.</p>
     </div>
   </div>
 
-  <hr>
-
-  <!-- DAILY USE -->
-  <div class="section-heading">Every Day — How to Open and Close</div>
-
-  <div class="daily-grid">
-    <div class="daily-card">
-      <div class="dc-label">🌅 Morning — Opening</div>
-      <div class="dc-action">1. Open Docker Desktop<br>2. Wait for 🐳 to stop moving<br>3. Double-click start.bat<br>4. Browser opens — you're ready!</div>
-    </div>
-    <div class="daily-card">
-      <div class="dc-label">🌙 Evening — Closing</div>
-      <div class="dc-action">1. Double-click stop.bat<br>2. Wait for the black window to close<br>3. Now shut down your PC normally</div>
-      <div class="dc-file" style="margin-top:6px; color:#ef4444; font-size:11px;">⚠ Don't just close the browser — run stop.bat first</div>
+  <div class="big-step">
+    <div class="num">3</div>
+    <div class="step-body">
+      <strong>Keep the USB drive somewhere safe</strong>
+      <p>Store it somewhere away from the computer — at home, in a drawer, or with a trusted person. If the PC is stolen, your USB drive saves everything.</p>
     </div>
   </div>
 
-  <div class="box tip" style="margin-top:14px;">
-    <div class="box-icon">💡 Your data is always safe</div>
-    <p>Even if the power goes out or you close the software without running stop.bat — your data is never lost. It is saved on your PC automatically.</p>
-  </div>
-
-  <div class="pb"></div>
-
-  <!-- BACKUPS -->
-  <div class="section-heading">Backups — Take One Every Week</div>
-
-  <div class="box important">
-    <div class="box-icon">🚨 This is the most important habit</div>
-    <p>If your computer is stolen, catches a virus, or stops working — <strong>your backup is the only way to get your data back</strong>. It takes less than 1 minute. Please do this every week.</p>
-  </div>
-
-  <div class="big-body" style="margin-left:0;">
-    <div class="sub"><div class="sub-bullet">①</div><p>Make sure the software is running (start.bat has been run)</p></div>
-    <div class="sub"><div class="sub-bullet">②</div><p>Double-click <strong>backup.bat</strong></p></div>
-    <div class="sub"><div class="sub-bullet">③</div><p>A black window opens and closes automatically — the backup is done</p></div>
-    <div class="sub"><div class="sub-bullet">④</div><p>Go into the <strong>docker → backups</strong> folder — you will see a file with today's date</p></div>
-    <div class="sub"><div class="sub-bullet">⑤</div><p><strong>Copy the backups folder to a USB drive</strong> and keep the USB drive somewhere safe (not next to the PC)</p></div>
-  </div>
-
-  <div style="margin-top:16px; margin-bottom:8px; font-weight:600; font-size:13px; color:#374151;">Recommended schedule:</div>
-  <div class="sched"><div class="sched-day">Daily</div><p>Run backup.bat at the end of each working day</p></div>
-  <div class="sched"><div class="sched-day">Weekly</div><p>Copy the backups folder to your USB drive</p></div>
-  <div class="sched"><div class="sched-day">Monthly</div><p>Copy to a second USB drive. Keep one at home, one at the shop.</p></div>
-
-  <hr>
-
-  <!-- TROUBLESHOOTING -->
-  <div class="section-heading">Something Not Working? Check Here First</div>
-
-  <div class="trouble">
-    <div class="q">❓ The software won't start / start.bat gives an error</div>
-    <div class="a">Docker Desktop is probably not open. Find it in your Start Menu, open it, wait for the 🐳 whale to stop moving, then try start.bat again.</div>
-  </div>
-
-  <div class="trouble">
-    <div class="q">❓ The page shows an error or just loads forever</div>
-    <div class="a">Wait 2–3 more minutes and refresh the page. After a PC restart, the first load takes extra time.</div>
-  </div>
-
-  <div class="trouble">
-    <div class="q">❓ I closed the browser — where is my software?</div>
-    <div class="a">Just open Chrome or Edge and go to: <strong>http://localhost:3000</strong> — the software is still running.</div>
-  </div>
-
-  <div class="trouble">
-    <div class="q">❓ I forgot my password</div>
-    <div class="a">Go to <strong>http://localhost:3000/forgot-password</strong> and enter your email. You will receive a link to reset your password.</div>
-  </div>
-
-  <div class="trouble">
-    <div class="q">❓ The software is running slowly</div>
-    <div class="a">Close other programs and extra browser tabs. The software needs some memory to run smoothly. Restarting the PC often fixes slowness.</div>
-  </div>
-
-  <div class="trouble">
-    <div class="q">❓ I want another staff member to use the software</div>
-    <div class="a">Log in → go to <strong>Users</strong> in the menu → click <strong>Add User</strong>. Enter their name, email, and role. They log in at the same address: http://localhost:3000</div>
-  </div>
-
-  <div class="pb"></div>
-
-  <!-- SETUP CHECKLIST -->
-  <div class="section-heading">Setup Checklist — Tick Each One as You Complete It</div>
-
-  <ul class="check-list">
-    <li>Docker Desktop downloaded from docker.com</li>
-    <li>Docker Desktop installed (computer may have restarted)</li>
-    <li>Whale icon 🐳 is visible in the taskbar</li>
-    <li>Poultry- software folder copied to PC</li>
-    <li>start.bat double-clicked and software opened in browser</li>
-    <li>Account created at http://localhost:3000/register</li>
-    <li>System provider contacted to approve account</li>
-    <li>Approval email received</li>
-    <li>Logged in successfully — dashboard visible</li>
-    <li>First backup taken (backup.bat run)</li>
-    <li>Backup folder copied to USB drive</li>
-    <li>Support contact saved in phone</li>
-  </ul>
-
-  <hr>
-
-  <!-- CONTACT -->
-  <div class="section-heading">Your Support Contact</div>
-  <p style="color:#64748b; font-size:13px; margin-bottom:10px;">If you ever have a problem, contact us first before doing anything else. We are here to help.</p>
-
-  <table class="contact-table">
-    <tr><td>Company Name</td><td></td></tr>
-    <tr><td>Contact Person</td><td></td></tr>
-    <tr><td>Phone / WhatsApp</td><td></td></tr>
-    <tr><td>Email</td><td></td></tr>
-    <tr><td>Support Hours</td><td></td></tr>
-    <tr><td>Online Portal</td><td>https://poultry-gamma.vercel.app</td></tr>
+  <table style="margin-top:6px;">
+    <tr><th>How Often</th><th>What to Do</th></tr>
+    <tr><td>Every Day</td><td>Click "Backup Poultry Vet" at end of the day</td></tr>
+    <tr><td>Every Week</td><td>Copy backups folder to USB drive</td></tr>
+    <tr><td>Every Month</td><td>Copy to a second USB drive. Keep one at home.</td></tr>
   </table>
 
-  <div class="box tip" style="margin-top:16px;">
-    <div class="box-icon">💡 Online version also available</div>
-    <p>This software also works online at <strong>poultry-gamma.vercel.app</strong> — useful if you want to check data from your phone or another computer. Same login details.</p>
+  <div class="pb"></div>
+
+  <!-- PROBLEMS -->
+  <h2>If Something Goes Wrong</h2>
+
+  <div class="q-row">
+    <div class="q">❓ The "Open Poultry Vet" icon is missing from my Desktop</div>
+    <div class="a">Open your browser (Chrome or Edge) and type <strong>http://localhost:3000</strong> in the address bar and press Enter.</div>
   </div>
 
-  <!-- FOOTER -->
+  <div class="q-row">
+    <div class="q">❓ The page shows an error or doesn't load</div>
+    <div class="a">Wait 2–3 minutes after turning on the PC, then try again. If it still doesn't work, restart the PC and wait 3 minutes before clicking the icon.</div>
+  </div>
+
+  <div class="q-row">
+    <div class="q">❓ I forgot my password</div>
+    <div class="a">On the login page, click <strong>"Forgot Password"</strong> and enter your email. You will receive an email with a link to set a new password.</div>
+  </div>
+
+  <div class="q-row">
+    <div class="q">❓ I want to add a staff member</div>
+    <div class="a">Log in → click <strong>Users</strong> in the left menu → click <strong>Add User</strong>. Enter their name, email, and role. They log in the same way you do.</div>
+  </div>
+
+  <div class="q-row">
+    <div class="q">❓ The software is running slowly</div>
+    <div class="a">Close other programs and extra browser tabs. Restart the PC — this usually fixes slowness.</div>
+  </div>
+
+  <div class="q-row">
+    <div class="q">❓ The backup says "failed"</div>
+    <div class="a">The software may still be starting up. Wait 3 minutes after turning on the PC, then try the backup again.</div>
+  </div>
+
+  <div class="q-row">
+    <div class="q">❓ The PC was replaced or reinstalled — can I get my data back?</div>
+    <div class="a">Yes — contact your system provider and give them the backup file from your USB drive. They will restore everything.</div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e2e8f0; margin:28px 0;">
+
+  <!-- ONLINE VERSION -->
+  <h2>Online Version</h2>
+  <p>The same software is also available online. Useful if you want to check data from your phone or another computer:</p>
+  <div class="box blue">
+    <strong>🌐 Online Portal</strong>
+    <p>Use the same email and password to log in at your online portal address (ask your provider).</p>
+  </div>
+
+  <div class="pb"></div>
+
+  <!-- SETUP CHECKLIST (for provider) -->
+  <h2 style="color:#94a3b8;">Setup Checklist — For Provider Use</h2>
+  <p style="color:#94a3b8; font-size:12px;">Tick each item during installation before handing the PC to the client.</p>
+
+  <ul class="check-list">
+    <li>Docker Desktop installed on client PC</li>
+    <li>Docker Desktop set to start automatically with Windows</li>
+    <li>setup.bat run as administrator — completed successfully</li>
+    <li>"Open Poultry Vet" icon visible on Desktop</li>
+    <li>"Backup Poultry Vet" icon visible on Desktop</li>
+    <li>Software starts automatically after PC restart (tested)</li>
+    <li>Client account registered and approved</li>
+    <li>Client logged in successfully and shown the dashboard</li>
+    <li>First backup taken and shown to client</li>
+    <li>Backup folder copied to USB drive — USB given to client</li>
+    <li>Client shown the two desktop icons and how to use them</li>
+    <li>Support contact written in the box below</li>
+  </ul>
+
+  <hr style="border:none; border-top:1px solid #e2e8f0; margin:28px 0;">
+
+  <!-- CONTACT -->
+  <h2>Your Support Contact</h2>
+  <table>
+    <tr><td>Company</td><td>&nbsp;</td></tr>
+    <tr><td>Contact Person</td><td>&nbsp;</td></tr>
+    <tr><td>Phone / WhatsApp</td><td>&nbsp;</td></tr>
+    <tr><td>Email</td><td>&nbsp;</td></tr>
+    <tr><td>Support Hours</td><td>&nbsp;</td></tr>
+  </table>
+
   <div class="footer">
-    <p>Poultry Vet Distribution System &nbsp;·&nbsp; Client Copy &nbsp;·&nbsp; Keep this guide safe</p>
+    <p>Poultry Vet Distribution System &nbsp;·&nbsp; Client Copy &nbsp;·&nbsp; Keep this guide with your PC</p>
   </div>
 
 </div>
