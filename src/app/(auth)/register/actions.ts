@@ -82,7 +82,17 @@ export async function registerCompany(
       ownerEmail: email,
       approveUrl: `${APP_URL}/api/admin/company/approve?token=${approvalToken}`,
       rejectUrl: `${APP_URL}/api/admin/company/reject?token=${approvalToken}`,
-    }).catch(() => null)
+    }).catch((err) => {
+      console.error("[register] Failed to send admin approval email:", {
+        to: adminEmail,
+        from: process.env.RESEND_FROM_EMAIL ?? "(not set)",
+        apiKeySet: !!process.env.RESEND_API_KEY,
+        apiKeyPrefix: process.env.RESEND_API_KEY?.slice(0, 8) ?? "(not set)",
+        error: String(err),
+      })
+    })
+  } else {
+    console.warn("[register] ADMIN_EMAIL not set — approval email skipped")
   }
 
   return { success: true, email }
