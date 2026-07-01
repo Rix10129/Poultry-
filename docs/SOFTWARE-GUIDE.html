@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poultry Vet System — Complete Software Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; line-height: 1.65; background: white; }
+  .page { max-width: 780px; margin: 0 auto; padding: 48px 44px; }
+
+  /* ── Cover ── */
+  .cover { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; page-break-after: always; }
+  .cover-logo { font-size: 56px; margin-bottom: 20px; }
+  .cover-brand { font-size: 32px; font-weight: 800; color: #1e3a5f; letter-spacing: -1px; }
+  .cover-sub { font-size: 15px; color: #64748b; margin-top: 6px; }
+  .cover-line { width: 80px; height: 4px; background: #2563eb; border-radius: 2px; margin: 24px auto; }
+  .cover-title { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+  .cover-desc { font-size: 14px; color: #64748b; max-width: 420px; margin: 0 auto; line-height: 1.6; }
+  .cover-meta { margin-top: 48px; font-size: 12px; color: #94a3b8; }
+  .cover-badges { display: flex; justify-content: center; gap: 10px; margin-top: 32px; flex-wrap: wrap; }
+  .c-badge { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 99px; padding: 5px 14px; font-size: 12px; color: #475569; font-weight: 600; }
+
+  /* ── TOC ── */
+  .toc-page { page-break-after: always; padding-top: 40px; }
+  .toc-title { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
+  .toc-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f8fafc; }
+  .toc-icon { font-size: 18px; width: 28px; text-align: center; }
+  .toc-name { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; }
+  .toc-dots { flex: 1; border-bottom: 1px dotted #cbd5e1; margin: 0 8px; margin-bottom: 3px; }
+  .toc-pg { font-size: 12px; color: #94a3b8; }
+
+  /* ── Section ── */
+  .section { page-break-before: always; padding-top: 40px; margin-bottom: 40px; }
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #e2e8f0; }
+  .section-icon { font-size: 28px; width: 50px; height: 50px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-meta { flex: 1; }
+  .section-name { font-size: 20px; font-weight: 800; color: #0f172a; }
+  .section-path { font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 2px; }
+
+  /* ── Purpose box ── */
+  .purpose { background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 13px 16px; margin-bottom: 18px; }
+  .purpose strong { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #1d4ed8; display: block; margin-bottom: 4px; }
+  .purpose p { font-size: 13px; color: #1e3a5f; line-height: 1.6; }
+
+  /* ── Feature list ── */
+  h3 { font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px; }
+  .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .feat { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 13px; }
+  .feat .feat-title { font-weight: 700; font-size: 12px; color: #0f172a; margin-bottom: 2px; }
+  .feat p { font-size: 12px; color: #64748b; }
+
+  /* ── How to use steps ── */
+  .steps { counter-reset: step; }
+  .step { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-start; }
+  .step::before { counter-increment: step; content: counter(step); background: #1e3a5f; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .step p { font-size: 13px; color: #374151; }
+  .step p strong { color: #0f172a; }
+
+  /* ── Tip / note boxes ── */
+  .tip { background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 12px 0; font-size: 12px; color: #166534; }
+  .note { background: #fffbeb; border-left: 3px solid #f59e0b; border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 12px 0; font-size: 12px; color: #92400e; }
+  .tip strong, .note strong { display: block; margin-bottom: 2px; }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0 16px; }
+  th { background: #1e3a5f; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: top; }
+  td:first-child { font-weight: 600; color: #0f172a; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── Inline badge ── */
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-red { background: #fee2e2; color: #b91c1c; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 60px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+
+  @media print {
+    .page { padding: 24px 28px; max-width: 100%; }
+    .cover { min-height: auto; padding: 60px 0; }
+    .section { page-break-before: always; }
+    .toc-page { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ══════════════════════════════════════════════════
+     COVER PAGE
+══════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">🐔</div>
+  <div class="cover-brand">Poultry Vet System</div>
+  <div class="cover-sub">Distribution &amp; Retail Management Software</div>
+  <div class="cover-line"></div>
+  <div class="cover-title">Complete Software Guide</div>
+  <div class="cover-desc">
+    A full walkthrough of every section — what it does, why you need it, and exactly how to use it.
+  </div>
+  <div class="cover-badges">
+    <span class="c-badge">📦 Inventory</span>
+    <span class="c-badge">🧾 Sales &amp; Purchases</span>
+    <span class="c-badge">👥 Customers</span>
+    <span class="c-badge">📊 13 Reports</span>
+    <span class="c-badge">💰 Accounts</span>
+    <span class="c-badge">🔔 Smart Alerts</span>
+  </div>
+  <div class="cover-meta">
+    Version 1.0 &nbsp;·&nbsp; Poultry Vet Distribution System<br>
+    Confidential — For authorised users only
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TABLE OF CONTENTS
+══════════════════════════════════════════════════ -->
+<div class="toc-page">
+  <div class="toc-title">Table of Contents</div>
+
+  <div class="toc-item"><span class="toc-icon">🏠</span><span class="toc-name">1. Dashboard</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">🧾</span><span class="toc-name">2. Sales &amp; Invoicing</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">↩️</span><span class="toc-name">3. Sales Returns</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">🛒</span><span class="toc-name">4. Purchases</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">↩️</span><span class="toc-name">5. Purchase Returns</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">📦</span><span class="toc-name">6. Inventory</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">🔔</span><span class="toc-name">7. Alerts (Expiry &amp; Low Stock)</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">👥</span><span class="toc-name">8. Customers</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">🏭</span><span class="toc-name">9. Suppliers</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">💰</span><span class="toc-name">10. Accounts &amp; Ledger</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">📄</span><span class="toc-name">11. Vouchers (Journal Entries)</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">🏦</span><span class="toc-name">12. PDC Cheques</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">💸</span><span class="toc-name">13. Expenses</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">📊</span><span class="toc-name">14. Reports (all 13 reports)</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">👤</span><span class="toc-name">15. Users &amp; Roles</span><span class="toc-dots"></span></div>
+  <div class="toc-item"><span class="toc-icon">⚙️</span><span class="toc-name">16. Settings</span><span class="toc-dots"></span></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     1. DASHBOARD
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🏠</div>
+    <div class="section-meta">
+      <div class="section-name">1. Dashboard</div>
+      <div class="section-path">Menu → Home (the first page after login)</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>The Dashboard is your daily summary page. The moment you log in, you see the most important numbers for your business without having to search anywhere — like a quick health check for your shop.</p>
+  </div>
+
+  <h3>What You See</h3>
+  <div class="feat-grid">
+    <div class="feat"><div class="feat-title">Today's Sales</div><p>Total amount billed today and how many invoices were made</p></div>
+    <div class="feat"><div class="feat-title">This Month's Sales</div><p>Running total for the current month — good to compare against last month</p></div>
+    <div class="feat"><div class="feat-title">Total Receivables</div><p>How much money customers owe you right now, in total</p></div>
+    <div class="feat"><div class="feat-title">Alerts Count</div><p>Number of products about to expire or running low on stock</p></div>
+  </div>
+
+  <h3>Recent Invoices</h3>
+  <p style="color:#475569; margin-bottom:8px;">The last 5 sales invoices are shown with customer name, amount, and payment status — <span class="badge badge-green">Paid</span>, <span class="badge badge-yellow">Partial</span>, or <span class="badge badge-red">Unpaid</span>. Click any invoice to open it.</p>
+
+  <div class="tip"><strong>💡 Start here every morning</strong>Check your receivables and alerts each day. If the alerts number is red, check the Alerts section first.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     2. SALES
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🧾</div>
+    <div class="section-meta">
+      <div class="section-name">2. Sales &amp; Invoicing</div>
+      <div class="section-path">Menu → Sales</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Every time you sell medicines or products to a customer, you create a Sales Invoice here. This records what was sold, to whom, at what price, and how much has been paid. It is the core of your business records.</p>
+  </div>
+
+  <h3>How to Create a New Invoice</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Sales</strong> in the menu → click <strong>New Invoice</strong></p></div>
+    <div class="step"><p>Select the <strong>customer</strong> from the dropdown (or leave blank for walk-in cash customers)</p></div>
+    <div class="step"><p>Choose the <strong>salesman</strong> who made this sale</p></div>
+    <div class="step"><p>Click <strong>Add Item</strong> → search for the product → select the <strong>batch</strong> (batch tracks expiry dates) → enter <strong>quantity</strong> and <strong>price</strong></p></div>
+    <div class="step"><p>Add as many products as needed. The total updates automatically.</p></div>
+    <div class="step"><p>Enter how much the customer <strong>paid now</strong>. If they paid everything, enter the full amount. If on credit, enter 0 or the partial payment.</p></div>
+    <div class="step"><p>Click <strong>Save Invoice</strong>. The stock reduces automatically.</p></div>
+  </div>
+
+  <h3>Invoice List</h3>
+  <p style="color:#475569; margin-bottom:10px;">Sales → main page shows all invoices. You can search by invoice number. Each row shows the customer, date, amount, and payment status.</p>
+
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="badge badge-green">Paid</span></td><td>Customer has paid the full amount</td></tr>
+    <tr><td><span class="badge badge-yellow">Partial</span></td><td>Customer paid some amount — remaining is outstanding</td></tr>
+    <tr><td><span class="badge badge-red">Unpaid</span></td><td>Nothing paid yet — full amount is outstanding</td></tr>
+  </table>
+
+  <div class="tip"><strong>💡 Recording a payment later</strong>Open any invoice → click <strong>Record Payment</strong> to add a payment when the customer pays their dues.</div>
+  <div class="note"><strong>⚠ Important</strong>When you save an invoice, stock is deducted automatically from the selected batch. You don't need to manually adjust inventory.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     3. SALES RETURNS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">↩️</div>
+    <div class="section-meta">
+      <div class="section-name">3. Sales Returns</div>
+      <div class="section-path">Menu → Sales → Returns</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>When a customer returns goods — because the product was damaged, expired, or incorrect — you record it here. The return automatically adds the items back to your stock and reduces the customer's outstanding balance.</p>
+  </div>
+
+  <h3>How to Process a Return</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Sales → Returns → New Return</strong></p></div>
+    <div class="step"><p>Select the original <strong>sale invoice</strong> that the items are being returned from</p></div>
+    <div class="step"><p>Select the items being returned and enter the quantity</p></div>
+    <div class="step"><p>Enter the <strong>reason</strong> for return</p></div>
+    <div class="step"><p>Save — the stock is added back and the customer balance is adjusted</p></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     4. PURCHASES
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🛒</div>
+    <div class="section-meta">
+      <div class="section-name">4. Purchases</div>
+      <div class="section-path">Menu → Purchases</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Every time you buy medicines or products from a supplier, you record it here. This adds the items to your stock, tracks what you owe to suppliers, and gives you purchase history for reports.</p>
+  </div>
+
+  <h3>How to Record a Purchase</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Purchases → New Purchase</strong></p></div>
+    <div class="step"><p>Select the <strong>supplier</strong> who sold you the goods</p></div>
+    <div class="step"><p>Enter the <strong>supplier's invoice/bill number</strong> and date</p></div>
+    <div class="step"><p>Add each product: select the product → enter <strong>batch number, expiry date, quantity, and purchase price</strong></p></div>
+    <div class="step"><p>Enter how much you <strong>paid now</strong> (if any — or 0 if all on credit)</p></div>
+    <div class="step"><p>Save — stock is added with the correct batch and expiry information</p></div>
+  </div>
+
+  <div class="tip"><strong>💡 Always enter the batch number and expiry date</strong>This is how the system tracks which items are expiring soon. Without this, the expiry alert system won't work.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     5. PURCHASE RETURNS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">↩️</div>
+    <div class="section-meta">
+      <div class="section-name">5. Purchase Returns</div>
+      <div class="section-path">Menu → Purchases → Returns</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>When you return goods back to a supplier — because of damage, wrong item, or expired stock — record it here. The stock is deducted and your payable balance with that supplier is reduced.</p>
+  </div>
+
+  <h3>How to Record a Purchase Return</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Purchases → Returns → New Return</strong></p></div>
+    <div class="step"><p>Select the original <strong>purchase bill</strong> you are returning items from</p></div>
+    <div class="step"><p>Select items and quantities being returned</p></div>
+    <div class="step"><p>Save — your payable to the supplier is reduced automatically</p></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     6. INVENTORY
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">📦</div>
+    <div class="section-meta">
+      <div class="section-name">6. Inventory</div>
+      <div class="section-path">Menu → Inventory</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Inventory is your product catalogue and stock tracker. Every medicine and product you sell must be added here first. The system tracks exactly how many units you have of each product, organized by batch and expiry date.</p>
+  </div>
+
+  <h3>Adding a New Product</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Inventory → Add Product</strong></p></div>
+    <div class="step"><p>Enter <strong>Product Name</strong> (e.g. "Tylosin 100ml"), <strong>Category</strong> (e.g. Antibiotics), and <strong>Unit</strong> (e.g. Bottle, Strip, Kg)</p></div>
+    <div class="step"><p>Set the <strong>Reorder Level</strong> — when stock falls to this number, you get an alert to reorder</p></div>
+    <div class="step"><p>Set the <strong>Sale Price</strong> (your selling price to customers)</p></div>
+    <div class="step"><p>Save the product. Then add stock by creating a <strong>Purchase</strong>.</p></div>
+  </div>
+
+  <h3>Understanding Batches</h3>
+  <p style="color:#475569; margin-bottom:8px;">Each time you buy stock, it is stored as a separate <strong>batch</strong> with its own batch number and expiry date. This means you always know exactly which items are expiring soon.</p>
+
+  <div class="feat-grid">
+    <div class="feat"><div class="feat-title">Stock Adjustments</div><p>Inventory → Adjustments — use this to correct stock if there's a count difference between your physical stock and the system</p></div>
+    <div class="feat"><div class="feat-title">Reorder List</div><p>Inventory → Reorder — shows all products that have reached or fallen below the reorder level you set</p></div>
+  </div>
+
+  <div class="note"><strong>⚠ Don't manually add stock here</strong>Stock increases automatically when you record a Purchase. Stock decreases when you create a Sale. Only use Adjustments if there's a discrepancy in physical stock count.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     7. ALERTS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🔔</div>
+    <div class="section-meta">
+      <div class="section-name">7. Alerts</div>
+      <div class="section-path">Menu → Alerts</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>This is one of the most valuable sections — it automatically warns you about two critical business risks: products that are about to expire (before you accidentally sell them), and products running low on stock (before you run out during a sale).</p>
+  </div>
+
+  <h3>Expiry Alerts</h3>
+  <table>
+    <tr><th>Alert Level</th><th>Meaning</th><th>Action to Take</th></tr>
+    <tr><td><span class="badge badge-red">Expired</span></td><td>Expiry date has passed — items cannot be sold</td><td>Immediately remove from shelf and return to supplier or destroy</td></tr>
+    <tr><td><span class="badge badge-red">Critical — &lt;30 days</span></td><td>Expires within 30 days</td><td>Sell first (oldest stock first) or return to supplier</td></tr>
+    <tr><td><span class="badge badge-yellow">Warning — 31–60 days</span></td><td>Expiring in 1–2 months</td><td>Push these products in sales, offer discount if needed</td></tr>
+    <tr><td><span class="badge badge-green">Caution — 61–90 days</span></td><td>Expiring in 2–3 months</td><td>Monitor, plan ahead, don't order more of this product</td></tr>
+  </table>
+
+  <h3>Low Stock Alerts</h3>
+  <p style="color:#475569; margin-bottom:8px;">Shows every product where current stock is at or below the Reorder Level you set. Review this weekly to place purchase orders before you run out.</p>
+
+  <div class="tip"><strong>💡 Check alerts every morning</strong>This section takes 2 minutes to review and can save you from selling expired medicines (legal risk) or losing a sale because you ran out of stock.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     8. CUSTOMERS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">👥</div>
+    <div class="section-meta">
+      <div class="section-name">8. Customers</div>
+      <div class="section-path">Menu → Customers</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Manage all your customers — farms, clinics, shops — in one place. Track who owes you money, view their full purchase history, and see their account statement at any time.</p>
+  </div>
+
+  <h3>Adding a New Customer</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Customers → Add Customer</strong></p></div>
+    <div class="step"><p>Enter <strong>name, phone, address, area/route</strong>, and assigned <strong>salesman</strong></p></div>
+    <div class="step"><p>If they already owe you money from before (old balance), enter it as <strong>Opening Balance</strong></p></div>
+    <div class="step"><p>Set a <strong>credit limit</strong> if you want the system to warn you when they exceed it</p></div>
+    <div class="step"><p>Save — the customer is now available when creating invoices</p></div>
+  </div>
+
+  <h3>Customer Account Statement</h3>
+  <p style="color:#475569; margin-bottom:8px;">Go to any customer → click <strong>Statement</strong> to see every transaction with them: all invoices, all payments, and their current outstanding balance. You can print this and give it to the customer.</p>
+
+  <div class="feat-grid">
+    <div class="feat"><div class="feat-title">Outstanding Balance</div><p>The total amount this customer owes you right now</p></div>
+    <div class="feat"><div class="feat-title">Transaction History</div><p>Every sale and payment — with dates and amounts — in one list</p></div>
+    <div class="feat"><div class="feat-title">Area / Route</div><p>Group customers by area for the Area-wise report and salesman assignment</p></div>
+    <div class="feat"><div class="feat-title">Credit Limit</div><p>System warns if a new invoice would exceed this customer's credit limit</p></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     9. SUPPLIERS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🏭</div>
+    <div class="section-meta">
+      <div class="section-name">9. Suppliers</div>
+      <div class="section-path">Menu → Suppliers</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Manage all the companies and people you buy from — pharmaceutical companies, distributors, importers. Track how much you owe each supplier and see the full history of what you bought from them.</p>
+  </div>
+
+  <h3>Adding a New Supplier</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Suppliers → Add Supplier</strong></p></div>
+    <div class="step"><p>Enter <strong>company name, contact person, phone, and address</strong></p></div>
+    <div class="step"><p>If you already owe them money from before, enter as <strong>Opening Balance</strong></p></div>
+    <div class="step"><p>Save — the supplier is now available when creating Purchases</p></div>
+  </div>
+
+  <p style="color:#475569; margin-top:10px;">Click any supplier to see their full purchase history and your current payable balance with them.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     10. ACCOUNTS & LEDGER
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">💰</div>
+    <div class="section-meta">
+      <div class="section-name">10. Accounts &amp; Ledger</div>
+      <div class="section-path">Menu → Accounts</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>The Chart of Accounts is the backbone of your accounting system. It tracks all money flowing in and out of your business across five types: Assets, Liabilities, Equity, Revenue, and Expenses. This section is for advanced accounting — your accountant will use it most.</p>
+  </div>
+
+  <h3>Account Types Explained</h3>
+  <table>
+    <tr><th>Type</th><th>What It Tracks</th><th>Examples</th></tr>
+    <tr><td><span class="badge badge-blue">Asset</span></td><td>What your business owns</td><td>Cash, Bank Account, Stock, Receivables</td></tr>
+    <tr><td><span class="badge badge-yellow">Liability</span></td><td>What your business owes</td><td>Supplier Payables, Bank Loan</td></tr>
+    <tr><td><span class="badge badge-green">Equity</span></td><td>Owner's share</td><td>Capital, Retained Earnings</td></tr>
+    <tr><td><span class="badge badge-green">Revenue</span></td><td>Money coming in</td><td>Sales Income, Discount Received</td></tr>
+    <tr><td><span class="badge badge-red">Expense</span></td><td>Money going out</td><td>Rent, Salaries, Transport</td></tr>
+  </table>
+
+  <p style="color:#475569; margin-top:8px;">Click any account to see its full ledger — every transaction that affected this account, with dates, amounts, and running balance.</p>
+
+  <div class="tip"><strong>💡 Accounts are created for you</strong>The system comes with standard accounts already set up. You generally don't need to add new accounts unless your accountant requests it.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     11. VOUCHERS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">📄</div>
+    <div class="section-meta">
+      <div class="section-name">11. Vouchers (Journal Entries)</div>
+      <div class="section-path">Menu → Accounts → Vouchers</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Vouchers are used to record transactions that are not covered by sales or purchases — such as cash transfers, bank deposits, salary payments, or corrections. Every voucher records a debit and credit to keep the accounts balanced.</p>
+  </div>
+
+  <h3>Common Voucher Types</h3>
+  <div class="feat-grid">
+    <div class="feat"><div class="feat-title">Payment Voucher</div><p>Money going OUT — paying a supplier, paying salary, paying rent</p></div>
+    <div class="feat"><div class="feat-title">Receipt Voucher</div><p>Money coming IN — customer paying their dues in cash</p></div>
+    <div class="feat"><div class="feat-title">Journal Voucher</div><p>Corrections or adjustments between accounts — usually done by accountant</p></div>
+    <div class="feat"><div class="feat-title">Bank Transfer</div><p>Moving money between your cash and bank accounts</p></div>
+  </div>
+
+  <div class="note"><strong>⚠ Vouchers are for your accountant</strong>If you are not familiar with double-entry accounting (debit/credit), let your accountant handle this section. Incorrect vouchers can affect your reports.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     12. PDC CHEQUES
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">🏦</div>
+    <div class="section-meta">
+      <div class="section-name">12. PDC Cheques (Post-Dated Cheques)</div>
+      <div class="section-path">Menu → Accounts → PDC</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>In Pakistan's poultry business, customers often give post-dated cheques (PDC) as payment — cheques dated in the future. This section tracks all such cheques so you never forget to deposit them on the right date.</p>
+  </div>
+
+  <h3>How to Record a PDC</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Accounts → PDC → Add PDC</strong></p></div>
+    <div class="step"><p>Select the <strong>customer</strong> and their <strong>invoice</strong></p></div>
+    <div class="step"><p>Enter the <strong>cheque number, bank name, cheque amount, and cheque date</strong></p></div>
+    <div class="step"><p>Save — the cheque is tracked with status <span class="badge badge-yellow">Pending</span></p></div>
+  </div>
+
+  <h3>Cheque Statuses</h3>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="badge badge-yellow">Pending</span></td><td>Cheque received but not yet deposited — waiting for cheque date</td></tr>
+    <tr><td><span class="badge badge-green">Deposited</span></td><td>Cheque was deposited into your bank account successfully</td></tr>
+    <tr><td><span class="badge badge-red">Bounced</span></td><td>Cheque was returned by the bank — customer needs to pay another way</td></tr>
+  </table>
+
+  <div class="tip"><strong>💡 Check PDC list before the start of each week</strong>The list shows cheques by date. Any cheques due this week should be deposited in the bank.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     13. EXPENSES
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">💸</div>
+    <div class="section-meta">
+      <div class="section-name">13. Expenses</div>
+      <div class="section-path">Menu → Expenses</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Record all your business running costs here — rent, salaries, electricity, transport, fuel, repairs. Without tracking expenses, you cannot know your true profit.</p>
+  </div>
+
+  <h3>How to Record an Expense</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Expenses → Add Expense</strong></p></div>
+    <div class="step"><p>Select the <strong>category</strong> (Rent, Salary, Transport, etc.)</p></div>
+    <div class="step"><p>Enter the <strong>amount, date, and a short description</strong></p></div>
+    <div class="step"><p>Save — this expense will appear in your P&amp;L report and reduce your net profit</p></div>
+  </div>
+
+  <div class="tip"><strong>💡 Record expenses regularly</strong>Add expenses weekly or daily. If you wait too long, you forget small costs. All expenses feed into the Profit &amp; Loss report automatically.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     14. REPORTS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">📊</div>
+    <div class="section-meta">
+      <div class="section-name">14. Reports</div>
+      <div class="section-path">Menu → Reports</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Reports turn your daily data into business intelligence. Every number you entered — sales, purchases, payments, expenses — is summarized here in 13 different ways to help you make better decisions.</p>
+  </div>
+
+  <!-- Sales Report -->
+  <h3>📈 Sales Report</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> All sales within any date range — filter by customer, salesman, or date. See total sales, payments received, and outstanding amounts.<br><strong>When to use:</strong> Weekly review, month-end closing, checking how much a specific customer bought.</p>
+
+  <!-- Purchase Report -->
+  <h3>🛒 Purchase Report</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> All purchases from suppliers within a date range — how much you bought and from whom.<br><strong>When to use:</strong> Calculating cost of goods, comparing supplier prices, checking your buying patterns.</p>
+
+  <!-- Stock Valuation -->
+  <h3>📦 Stock Valuation</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> Current stock quantity for every product — its purchase value (what it cost you) and sale value (what you can sell it for).<br><strong>When to use:</strong> Monthly stock count, calculating the total value of your inventory for your accountant.</p>
+
+  <!-- Recovery Report -->
+  <h3>💳 Customer Recovery Report</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> All customers who owe you money, ranked from highest to lowest outstanding balance.<br><strong>When to use:</strong> Daily — identify which customers to call for payment collection. This is your receivables list.</p>
+
+  <!-- Aging Report -->
+  <h3>⏱ Aging Report</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> Customer balances grouped by age of debt — 0–30 days, 31–60 days, 61–90 days, 90+ days.<br><strong>When to use:</strong> Identifying customers who haven't paid for a long time. The older the debt, the harder to recover. Act on 60+ day debts immediately.</p>
+
+  <!-- Collection Report -->
+  <h3>💰 Collection Report</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> How much cash was collected each day, broken down by salesman.<br><strong>When to use:</strong> Daily cash reconciliation — verifying that salesmen submitted the correct cash at end of day.</p>
+
+  <!-- Salesman Performance -->
+  <h3>👤 Salesman Performance</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> For each salesman: total sales, total collection, and recovery percentage.<br><strong>When to use:</strong> Monthly review — reward high performers, follow up with low performers. A salesman with high sales but low collection is a risk.</p>
+
+  <!-- Area Report -->
+  <h3>📍 Area-wise Report</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> Sales and outstanding amounts grouped by the area/route of customers.<br><strong>When to use:</strong> Planning salesman routes, identifying which areas are most profitable or have most overdue amounts.</p>
+
+  <!-- Sales Targets -->
+  <h3>🎯 Sales Targets</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> Set a monthly sales target for each salesman and see progress as a percentage bar.<br><strong>When to use:</strong> Motivating your sales team, tracking who is on target vs lagging mid-month.</p>
+
+  <!-- Trial Balance -->
+  <h3>⚖ Trial Balance</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> All accounts with their total debit and credit amounts — used to verify the books are balanced.<br><strong>When to use:</strong> Give this to your accountant at month-end. If debits equal credits, the books are correct.</p>
+
+  <!-- P&L Statement -->
+  <h3>📉 Profit &amp; Loss Statement (P&amp;L)</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> Your total revenue, minus cost of goods sold, minus all expenses = net profit or loss for any period.<br><strong>When to use:</strong> Monthly and yearly. This is the most important report — it tells you if your business is making money.</p>
+
+  <div class="feat-grid" style="margin-top:4px;">
+    <div class="feat"><div class="feat-title">Revenue</div><p>Total sales amount</p></div>
+    <div class="feat"><div class="feat-title">Cost of Goods Sold</div><p>What the products you sold cost you to buy</p></div>
+    <div class="feat"><div class="feat-title">Gross Profit</div><p>Revenue minus cost of goods</p></div>
+    <div class="feat"><div class="feat-title">Net Profit</div><p>Gross profit minus all business expenses</p></div>
+  </div>
+
+  <!-- Balance Sheet -->
+  <h3>📋 Balance Sheet</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> A snapshot of your financial position — what you own (assets), what you owe (liabilities), and your net worth (equity).<br><strong>When to use:</strong> For bank loans, for your accountant, or for year-end tax filing.</p>
+
+  <!-- PDC Register -->
+  <h3>🏦 PDC Register</h3>
+  <p style="color:#475569; margin-bottom:8px;"><strong>What it shows:</strong> All post-dated cheques — pending, deposited, and bounced.<br><strong>When to use:</strong> Beginning of each week to see which cheques are due for deposit.</p>
+
+  <div class="tip"><strong>💡 Print any report as PDF</strong>All reports have a Print button. Use this to save as PDF or print on paper for your records or bank.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     15. USERS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">👤</div>
+    <div class="section-meta">
+      <div class="section-name">15. Users &amp; Roles</div>
+      <div class="section-path">Menu → Users</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Add staff members and control what each person can see and do in the system. A salesman should only see sales; an accountant should see accounts. The Owner has full access to everything.</p>
+  </div>
+
+  <h3>User Roles</h3>
+  <table>
+    <tr><th>Role</th><th>What They Can Access</th><th>Best For</th></tr>
+    <tr><td>Owner</td><td>Everything — full access with no restrictions</td><td>Business owner, manager</td></tr>
+    <tr><td>Manager</td><td>All sections except company settings and user management</td><td>Shop manager</td></tr>
+    <tr><td>Salesman</td><td>Sales, customers, and their own performance report</td><td>Field salesmen, counter staff</td></tr>
+    <tr><td>Accountant</td><td>Accounts, vouchers, all reports, expenses</td><td>Bookkeeper, accountant</td></tr>
+  </table>
+
+  <h3>Adding a Staff Member</h3>
+  <div class="steps">
+    <div class="step"><p>Click <strong>Users → Add User</strong></p></div>
+    <div class="step"><p>Enter their <strong>name, email address</strong>, and select their <strong>role</strong></p></div>
+    <div class="step"><p>They will receive login details at their email address</p></div>
+    <div class="step"><p>They log in at the same address as you — each person has their own login</p></div>
+  </div>
+
+  <div class="note"><strong>⚠ Keep your Owner password safe</strong>Only share the Owner account with trusted people. If a staff member leaves, you can deactivate their account without affecting anyone else.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     16. SETTINGS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon">⚙️</div>
+    <div class="section-meta">
+      <div class="section-name">16. Settings</div>
+      <div class="section-path">Menu → Settings</div>
+    </div>
+  </div>
+
+  <div class="purpose">
+    <strong>Purpose</strong>
+    <p>Configure your company details, invoice numbering, and preferences. Set this up once when you first start — most settings don't need to change after that.</p>
+  </div>
+
+  <table>
+    <tr><th>Setting</th><th>What It Does</th></tr>
+    <tr><td>Company Name</td><td>Appears on all printed invoices and reports</td></tr>
+    <tr><td>Logo</td><td>Your company logo on invoices (optional)</td></tr>
+    <tr><td>Phone / Address</td><td>Contact info printed on invoices</td></tr>
+    <tr><td>Invoice Prefix</td><td>Format of invoice numbers (e.g. INV-001, PV-001)</td></tr>
+    <tr><td>Currency</td><td>Pakistani Rupee (PKR) by default</td></tr>
+    <tr><td>Tax Settings</td><td>Configure GST or sales tax if applicable</td></tr>
+  </table>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>Poultry Vet Distribution System &nbsp;·&nbsp; Software Guide v1.0 &nbsp;·&nbsp; Confidential</p>
+  <p style="margin-top:4px;">For support, contact your system provider.</p>
+</div>
+
+</div>
+</body>
+</html>
