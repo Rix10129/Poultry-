@@ -1,0 +1,45 @@
+services:
+
+  # ── PostgreSQL database (data stored on your PC) ──────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: poultry_vet
+      POSTGRES_USER: poultry
+      POSTGRES_PASSWORD: poultry2024secure
+    volumes:
+      # Data is saved here even after restart — never lost
+      - poultry_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poultry -d poultry_vet"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  # ── Poultry Vet App ───────────────────────────────────────────────────────
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://poultry:poultry2024secure@db:5432/poultry_vet"
+      NEXTAUTH_URL: "http://localhost:3000"
+      # Change this to any long random string — keep it secret
+      NEXTAUTH_SECRET: "local-offline-secret-change-me-please-12345"
+      NODE_ENV: production
+      PRISMA_CLIENT_ENGINE_TYPE: wasm
+      # ── Optional: email features (password reset, reports) ──
+      # RESEND_API_KEY: "re_your_key_here"
+      # RESEND_FROM_EMAIL: "onboarding@resend.dev"
+      # ADMIN_EMAIL: "your@email.com"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  poultry_db_data:
+    name: poultry_vet_database
