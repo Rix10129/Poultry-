@@ -8,7 +8,8 @@ import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle } from "lucide-react"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
+import { addToSalesQueue } from "@/lib/offline-db"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [savedOffline, setSavedOffline] = useState(false)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -158,6 +160,34 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
+    // When offline, queue locally instead of calling the server
+    if (!navigator.onLine) {
+      try {
+        await addToSalesQueue({
+          customerId,
+          invoiceDate,
+          dueDate,
+          paymentMode,
+          paidAmount: String(paid),
+          discountAmount: String(disc),
+          notes,
+          linesJson: JSON.stringify(lines.map((l) => ({
+            productId: l.productId,
+            batchId: l.batchId,
+            quantity: l.quantity,
+            salePrice: l.salePrice,
+            discount: l.discount,
+            taxRate: l.taxRate,
+          }))),
+        })
+        setSavedOffline(true)
+      } catch {
+        setError("Could not save offline — please try again")
+      }
+      setSubmitting(false)
+      return
+    }
+
     const fd = new FormData()
     fd.set("customerId", customerId)
     fd.set("invoiceDate", invoiceDate)
@@ -186,6 +216,44 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
       setError("Unexpected error — please try again")
       setSubmitting(false)
     }
+  }
+
+  if (savedOffline) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+          <WifiOff className="h-7 w-7 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Invoice saved offline</h2>
+          <p className="text-sm text-slate-500 mt-1 max-w-sm">
+            Your invoice has been saved on this device. It will sync to the server automatically when your internet connection returns.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 px-4 py-2 rounded-lg">
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+          Saved — look for the sync indicator in the top bar when reconnected
+        </div>
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            onClick={() => {
+              setSavedOffline(false)
+              setLines([])
+              setCustomerId("")
+              setInvoiceDate(new Date().toISOString().split("T")[0])
+              setDueDate("")
+              setPaymentMode("CASH")
+              setPaidAmount("")
+              setDiscountAmount("")
+              setNotes("")
+            }}
+          >
+            Create another
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

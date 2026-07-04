@@ -5,6 +5,7 @@ import Link from "next/link"
 import { signOut } from "next-auth/react"
 import type { Session } from "next-auth"
 import { Bell, ChevronDown, LogOut, User } from "lucide-react"
+import { SyncIndicator } from "@/components/sync-indicator"
 
 const roleBadge: Record<string, string> = {
   OWNER:    "bg-purple-100 text-purple-700 border-purple-200",
@@ -33,6 +34,7 @@ export function Topbar({ session, alertCount = 0 }: TopbarProps) {
       <span className="text-sm font-semibold text-slate-800">{user.companyName}</span>
 
       <div className="flex items-center gap-2">
+        <SyncIndicator />
         {/* Alert bell */}
         <Link
           href="/alerts"
