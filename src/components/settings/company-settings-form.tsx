@@ -1,10 +1,12 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef, useState } from "react"
 import { updateCompany } from "@/app/(dashboard)/settings/actions"
 import { Button } from "@/components/ui/button"
+import { Upload, X } from "lucide-react"
 
 const CURRENCIES = ["PKR", "USD", "AED", "SAR", "GBP", "EUR", "INR"]
+const MAX_SIZE_MB = 2
 
 interface Props {
   company: {
@@ -21,9 +23,41 @@ interface Props {
 
 export function CompanySettingsForm({ company }: Props) {
   const [state, formAction, pending] = useActionState(updateCompany, null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<string | null>(company.logoUrl)
+  const [logoBase64, setLogoBase64] = useState<string>(company.logoUrl ?? "")
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setFileError(`Image must be under ${MAX_SIZE_MB} MB`)
+      return
+    }
+    setFileError(null)
+
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string
+      setPreview(result)
+      setLogoBase64(result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function removeLogo() {
+    setPreview(null)
+    setLogoBase64("")
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
   return (
     <form action={formAction} className="space-y-5">
+      {/* Hidden field carries the base64/URL value to the server action */}
+      <input type="hidden" name="logoUrl" value={logoBase64} />
+
       {state && "error" in state && (
         <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {state.error}
@@ -118,29 +152,62 @@ export function CompanySettingsForm({ company }: Props) {
           />
         </div>
 
+        {/* Logo upload */}
         <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Logo URL</label>
-          <input
-            name="logoUrl"
-            type="url"
-            defaultValue={company.logoUrl ?? ""}
-            placeholder="https://yourcompany.com/logo.png"
-            className="w-full h-9 px-3 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-slate-400 mt-1">
-            Paste a direct link to your logo image. Recommended: 200×200px PNG with transparent background.
-            Upload your image to <span className="font-medium">imgur.com</span> or <span className="font-medium">imgbb.com</span> for a free permanent link.
-          </p>
-          {company.logoUrl && (
-            <div className="mt-3 flex items-center gap-3">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Company Logo</label>
+
+          {preview ? (
+            <div className="flex items-center gap-4">
               <img
-                src={company.logoUrl}
-                alt="Current logo"
-                className="h-10 object-contain border border-slate-200 rounded-lg p-1"
+                src={preview}
+                alt="Company logo"
+                className="h-16 w-auto object-contain border border-slate-200 rounded-lg p-2 bg-slate-50"
               />
-              <span className="text-xs text-slate-400">Current logo</span>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Replace logo
+                </button>
+                <button
+                  type="button"
+                  onClick={removeLogo}
+                  className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Remove logo
+                </button>
+              </div>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-colors text-slate-400 hover:text-blue-500"
+            >
+              <Upload className="h-6 w-6 mb-1.5" />
+              <span className="text-sm font-medium">Click to upload logo</span>
+              <span className="text-xs mt-0.5">PNG, JPG, SVG — max {MAX_SIZE_MB} MB</span>
+            </button>
           )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          {fileError && (
+            <p className="text-xs text-red-600 mt-1">{fileError}</p>
+          )}
+          <p className="text-xs text-slate-400 mt-1.5">
+            The logo appears on printed invoices and PDFs. Recommended: square PNG with transparent background.
+          </p>
         </div>
       </div>
 
