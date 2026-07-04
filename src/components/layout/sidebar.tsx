@@ -26,6 +26,7 @@ import {
   MapPin,
   Quote,
   CalendarClock,
+  WifiOff,
 } from "lucide-react"
 
 const navSections = [
@@ -43,6 +44,7 @@ const navSections = [
       { href: "/inventory/reorder",         label: "Reorder Sheet",   icon: AlertTriangle, alert: false },
       { href: "/inventory/adjustments/new", label: "Stock Adjustment", icon: ClipboardList, alert: false },
       { href: "/sales",                     label: "Sales",           icon: ShoppingCart,  alert: false },
+      { href: "/sales/offline",             label: "Offline Invoice", icon: WifiOff,       alert: false },
       { href: "/purchases",                 label: "Purchases",       icon: Truck,         alert: false },
       { href: "/expenses",                  label: "Expenses",        icon: Receipt,       alert: false },
     ],

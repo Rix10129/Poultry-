@@ -14,7 +14,7 @@ export interface QueuedSale {
 }
 
 const DB_NAME = "pvs-offline"
-const DB_VERSION = 1
+const DB_VERSION = 2  // v2 adds kv_cache store for offline customer/product data
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -25,11 +25,38 @@ function openDB(): Promise<IDBDatabase> {
         const store = db.createObjectStore("sales_queue", { keyPath: "id" })
         store.createIndex("status", "status", { unique: false })
       }
+      if (!db.objectStoreNames.contains("kv_cache")) {
+        db.createObjectStore("kv_cache", { keyPath: "key" })
+      }
     }
     req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result)
     req.onerror = (e) => reject((e.target as IDBOpenDBRequest).error)
   })
 }
+
+// ── KV cache — stores customers + products for offline invoice creation ────────
+
+export async function kvSet(key: string, value: unknown): Promise<void> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("kv_cache", "readwrite")
+    const req = tx.objectStore("kv_cache").put({ key, value, savedAt: Date.now() })
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function kvGet<T>(key: string): Promise<T | null> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("kv_cache", "readonly")
+    const req = tx.objectStore("kv_cache").get(key)
+    req.onsuccess = () => resolve(req.result?.value ?? null)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+// ── Sales queue ───────────────────────────────────────────────────────────────
 
 export async function addToSalesQueue(
   sale: Omit<QueuedSale, "id" | "queuedAt" | "status">
