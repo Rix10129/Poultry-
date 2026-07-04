@@ -5,7 +5,7 @@
 //   RSC requests     → Network-first, fall back to cache (enables offline client-nav)
 //   /api/*           → Network-only (never cache sensitive data)
 
-const CACHE_VER = 'pvs-v4'
+const CACHE_VER = 'pvs-v5'
 const STATIC_CACHE = CACHE_VER + '-static'
 const PAGE_CACHE = CACHE_VER + '-pages'
 
@@ -13,11 +13,17 @@ const PAGE_CACHE = CACHE_VER + '-pages'
 // These give the user an offline app even before they've visited each page.
 const PRECACHE_PAGES = [
   '/',
+  '/offline',
+  '/sales',
   '/sales/new',
   '/sales/offline',
+  '/purchases',
+  '/expenses',
   '/customers',
+  '/suppliers',
   '/inventory',
-  '/offline',
+  '/accounts',
+  '/reports',
 ]
 
 // ── Install ───────────────────────────────────────────────────────────────────
@@ -116,7 +122,17 @@ self.addEventListener('fetch', (event) => {
           }
           return res
         })
-        .catch(() => caches.match(cacheKey))
+        .catch(async () => {
+          const cached = await caches.match(cacheKey)
+          if (cached) return cached
+          // Never return undefined — send the offline page so the user sees
+          // something useful instead of a blank screen.
+          const offline = await caches.match('/offline')
+          return offline || new Response('Offline', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' },
+          })
+        })
     )
     return
   }
