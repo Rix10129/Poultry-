@@ -98,6 +98,18 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
   const pathname = usePathname()
   const isManager = role === "OWNER" || role === "ADMIN"
 
+  // Find the single most-specific nav item that matches the current path.
+  // Without this, a parent like "/inventory" would also highlight when
+  // a child like "/inventory/adjustments/new" is active.
+  const allItems = navSections.flatMap((s) => s.items)
+  const activeHref = allItems.reduce((best, item) => {
+    const matches =
+      item.href === "/"
+        ? pathname === "/"
+        : pathname === item.href || pathname.startsWith(item.href + "/")
+    return matches && item.href.length > best.length ? item.href : best
+  }, "")
+
   return (
     <aside className="w-60 bg-slate-900 flex flex-col border-r border-slate-800 shrink-0 h-full print:hidden">
       {/* Logo */}
@@ -133,10 +145,7 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
             <ul className="space-y-0.5">
               {section.items.filter((item) => !(item as any).adminOnly || isManager).map((item) => {
                 const Icon = item.icon
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname === item.href || pathname.startsWith(item.href + "/")
+                const isActive = item.href === activeHref
                 const badge = item.alert ? alertCount : 0
 
                 return (
