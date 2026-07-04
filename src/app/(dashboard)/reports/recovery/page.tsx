@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
+import { logAudit } from "@/lib/audit"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Customer Recovery" }
@@ -28,6 +29,14 @@ export default async function RecoveryReportPage({
 
   const { type, area, all } = await searchParams
   const showAll = all === "1"
+
+  logAudit({
+    companyId,
+    userId: (session.user as any).id,
+    userName: (session.user as any).name ?? "",
+    action: "VIEW_REPORT",
+    detail: "Customer Recovery Report",
+  })
 
   const customers = await db.customer.findMany({
     where: {

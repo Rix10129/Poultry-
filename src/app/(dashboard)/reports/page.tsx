@@ -5,7 +5,7 @@ import Link from "next/link"
 import {
   TrendingUp, ShoppingCart, Package, Users, Scale, ArrowRight,
   Clock, Wallet, FileText, UserCheck, MapPin, Receipt, Target,
-  LineChart, BarChart2, Landmark,
+  LineChart, BarChart2, Landmark, ShieldCheck,
 } from "lucide-react"
 
 export const metadata = { title: "Reports" }
@@ -115,6 +115,13 @@ const REPORT_CARDS = [
     href: "/reports/fbr-tax",
     icon: Landmark,
     color: "bg-amber-50 text-amber-600 border-amber-200",
+  },
+  {
+    title: "Activity Audit Log",
+    description: "Who viewed what and when — logins, customer list views, report access, and all critical actions. Owner/Admin only.",
+    href: "/reports/audit",
+    icon: ShieldCheck,
+    color: "bg-slate-50 text-slate-700 border-slate-200",
   },
 ]
 

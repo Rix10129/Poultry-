@@ -167,6 +167,7 @@ model User {
   phone               String?
   isActive            Boolean   @default(true)
   emailVerified       Boolean   @default(true)
+  activeSessionId     String?
   verificationToken   String?   @unique
   passwordResetToken  String?   @unique
   passwordResetExpiry DateTime?
@@ -603,11 +604,11 @@ model AuditLog {
   id        String   @id @default(cuid())
   companyId String
   userId    String
-  action    String   // CREATE | UPDATE | DELETE
-  entity    String   // e.g. "Product", "SaleInvoice"
-  entityId  String
-  oldValues Json?
-  newValues Json?
+  userName  String
+  action    String
+  entity    String?
+  entityId  String?
+  detail    String?
   ipAddress String?
   createdAt DateTime @default(now())
 
@@ -615,7 +616,7 @@ model AuditLog {
   user    User    @relation(fields: [userId], references: [id])
 
   @@index([companyId, createdAt])
-  @@index([entity, entityId])
+  @@index([userId])
 }
 
 model FailedLogin {

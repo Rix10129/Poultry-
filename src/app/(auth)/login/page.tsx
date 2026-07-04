@@ -1,14 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("reason") === "session_replaced") {
+      setNotice("You were signed out because this account was logged in from another device.")
+    }
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -55,6 +63,15 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
           <h2 className="text-xl font-semibold text-white mb-6">Sign in to your account</h2>
+
+          {notice && (
+            <div className="mb-5 flex items-center gap-2 px-3.5 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-amber-400">{notice}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

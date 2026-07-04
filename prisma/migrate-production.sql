@@ -289,3 +289,41 @@ ALTER TABLE "SupplierPaymentSchedule" DROP CONSTRAINT IF EXISTS "SupplierPayment
 ALTER TABLE "SupplierPaymentSchedule" ADD CONSTRAINT "SupplierPaymentSchedule_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "SupplierPaymentSchedule" DROP CONSTRAINT IF EXISTS "SupplierPaymentSchedule_purchaseOrderId_fkey";
 ALTER TABLE "SupplierPaymentSchedule" ADD CONSTRAINT "SupplierPaymentSchedule_purchaseOrderId_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- ─── Phase 6: Audit Log + Single-Session Security ─────────────────────────────
+-- Run this in Neon SQL Editor. Safe to run multiple times.
+
+-- Single-session tracking column on User
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "activeSessionId" TEXT;
+
+-- Audit Log table (rebuild idempotently — extends/replaces any prior stub)
+CREATE TABLE IF NOT EXISTS "AuditLog" (
+  "id"        TEXT          NOT NULL,
+  "companyId" TEXT          NOT NULL,
+  "userId"    TEXT          NOT NULL,
+  "userName"  TEXT          NOT NULL,
+  "action"    TEXT          NOT NULL,
+  "entity"    TEXT,
+  "entityId"  TEXT,
+  "detail"    TEXT,
+  "ipAddress" TEXT,
+  "createdAt" TIMESTAMP(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- Add missing columns if the table existed before without them
+ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userName"  TEXT NOT NULL DEFAULT '';
+ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "detail"    TEXT;
+ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "entity"    TEXT;
+ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "entityId"  TEXT;
+
+CREATE INDEX IF NOT EXISTS "AuditLog_companyId_createdAt_idx" ON "AuditLog"("companyId", "createdAt");
+CREATE INDEX IF NOT EXISTS "AuditLog_userId_idx"              ON "AuditLog"("userId");
+
+ALTER TABLE "AuditLog" DROP CONSTRAINT IF EXISTS "AuditLog_companyId_fkey";
+ALTER TABLE "AuditLog" ADD  CONSTRAINT "AuditLog_companyId_fkey"
+  FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "AuditLog" DROP CONSTRAINT IF EXISTS "AuditLog_userId_fkey";
+ALTER TABLE "AuditLog" ADD  CONSTRAINT "AuditLog_userId_fkey"
+  FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
