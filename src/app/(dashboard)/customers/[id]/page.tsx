@@ -7,6 +7,7 @@ import { ChevronLeft, Pencil, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PaymentForm } from "@/components/customers/payment-form"
+import { WhatsAppReminderButton } from "@/components/customers/whatsapp-reminder-button"
 import { DeleteButton } from "@/components/ui/delete-button"
 import { deleteCustomer } from "@/app/(dashboard)/customers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
@@ -157,6 +158,12 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <WhatsAppReminderButton
+            customerName={customer.name}
+            customerPhone={customer.phone ?? undefined}
+            companyName={(session.user as any)?.companyName ?? ""}
+            balance={outstanding}
+          />
           <PaymentForm customerId={id} unpaidInvoices={unpaidInvoices} />
           <Link href={`/customers/${id}/statement`}>
             <Button variant="outline" size="sm">

@@ -5,7 +5,7 @@ import Link from "next/link"
 import {
   TrendingUp, ShoppingCart, Package, Users, Scale, ArrowRight,
   Clock, Wallet, FileText, UserCheck, MapPin, Receipt, Target,
-  LineChart, BarChart2,
+  LineChart, BarChart2, Landmark,
 } from "lucide-react"
 
 export const metadata = { title: "Reports" }
@@ -108,6 +108,13 @@ const REPORT_CARDS = [
     href: "/reports/balance-sheet",
     icon: BarChart2,
     color: "bg-sky-50 text-sky-600 border-sky-200",
+  },
+  {
+    title: "FBR Tax Summary",
+    description: "Monthly GST summary — output tax on sales, input tax on purchases, and net payable for FBR/IRIS filing.",
+    href: "/reports/fbr-tax",
+    icon: Landmark,
+    color: "bg-amber-50 text-amber-600 border-amber-200",
   },
 ]
 

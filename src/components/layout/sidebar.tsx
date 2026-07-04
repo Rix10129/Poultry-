@@ -23,6 +23,9 @@ import {
   LineChart,
   BarChart2,
   ClipboardList,
+  MapPin,
+  Quote,
+  CalendarClock,
 } from "lucide-react"
 
 const navSections = [
@@ -47,8 +50,16 @@ const navSections = [
   {
     title: "People",
     items: [
-      { href: "/customers", label: "Customers", icon: Users,     alert: false },
-      { href: "/suppliers", label: "Suppliers", icon: Building2, alert: false },
+      { href: "/customers",          label: "Customers",     icon: Users,         alert: false },
+      { href: "/suppliers",          label: "Suppliers",     icon: Building2,     alert: false },
+      { href: "/suppliers/schedule", label: "Pay Schedule",  icon: CalendarClock, alert: false },
+    ],
+  },
+  {
+    title: "Sales",
+    items: [
+      { href: "/quotations", label: "Quotations", icon: Quote,  alert: false },
+      { href: "/routes",     label: "Routes",     icon: MapPin, alert: false },
     ],
   },
   {
