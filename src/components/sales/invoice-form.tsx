@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -66,6 +67,7 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ products, customers }: InvoiceFormProps) {
+  const router = useRouter()
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [customerId, setCustomerId] = useState("")
@@ -143,6 +145,32 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
   const balance = net - paid
 
+  function buildLinesJson() {
+    return JSON.stringify(lines.map((l) => ({
+      productId: l.productId,
+      batchId: l.batchId,
+      quantity: l.quantity,
+      unit: l.unit,
+      salePrice: l.salePrice,
+      discount: l.discount,
+      taxRate: l.taxRate,
+    })))
+  }
+
+  async function saveOffline() {
+    await addToSalesQueue({
+      customerId,
+      invoiceDate,
+      dueDate,
+      paymentMode,
+      paidAmount: String(paid),
+      discountAmount: String(disc),
+      notes,
+      linesJson: buildLinesJson(),
+    })
+    setSavedOffline(true)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (lines.length === 0) { setError("Add at least one product"); return }
@@ -160,34 +188,21 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
-    // When offline, queue locally instead of calling the server
+    // If the browser already knows we're offline, skip the server call entirely
     if (!navigator.onLine) {
       try {
-        await addToSalesQueue({
-          customerId,
-          invoiceDate,
-          dueDate,
-          paymentMode,
-          paidAmount: String(paid),
-          discountAmount: String(disc),
-          notes,
-          linesJson: JSON.stringify(lines.map((l) => ({
-            productId: l.productId,
-            batchId: l.batchId,
-            quantity: l.quantity,
-            salePrice: l.salePrice,
-            discount: l.discount,
-            taxRate: l.taxRate,
-          }))),
-        })
-        setSavedOffline(true)
+        await saveOffline()
       } catch {
         setError("Could not save offline — please try again")
+        setSubmitting(false)
       }
-      setSubmitting(false)
       return
     }
 
+    // Try the server. Three outcomes:
+    //   1. Server redirect (success) — Next.js navigates, execution ends
+    //   2. Validation error returned — show it
+    //   3. Network error (TypeError: Failed to fetch) — fall back to offline queue
     const fd = new FormData()
     fd.set("customerId", customerId)
     fd.set("invoiceDate", invoiceDate)
@@ -196,14 +211,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     fd.set("paidAmount", String(paid))
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
-    fd.set("linesJson", JSON.stringify(lines.map(l => ({
-      productId: l.productId,
-      batchId: l.batchId,
-      quantity: l.quantity,
-      salePrice: l.salePrice,
-      discount: l.discount,
-      taxRate: l.taxRate,
-    }))))
+    fd.set("linesJson", buildLinesJson())
 
     try {
       const result = await createInvoice(null, fd)
@@ -211,8 +219,31 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         setError(result.error)
         setSubmitting(false)
       }
-      // On success the server redirects — execution stops here
-    } catch {
+      // On success redirect() is called server-side — Next.js navigates away
+    } catch (err: any) {
+      // Next.js redirect() throws a special error internally — re-throw it so the
+      // router can handle the navigation (otherwise the catch swallows it and the
+      // user sees "Unexpected error" even after a successful create).
+      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+
+      // True network failure: navigator.onLine can lie (device has WiFi but no
+      // internet), so we check the error type and fall back to the offline queue.
+      const isNetworkError =
+        err instanceof TypeError ||
+        err?.name === "TypeError" ||
+        err?.message?.toLowerCase().includes("fetch") ||
+        err?.message?.toLowerCase().includes("network")
+
+      if (isNetworkError) {
+        try {
+          await saveOffline()
+        } catch {
+          setError("No connection and could not save offline — please try again")
+          setSubmitting(false)
+        }
+        return
+      }
+
       setError("Unexpected error — please try again")
       setSubmitting(false)
     }
