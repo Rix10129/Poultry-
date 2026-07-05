@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { PrintButton } from "@/components/sales/print-button"
 import { DeleteButton } from "@/components/ui/delete-button"
+import { WhatsAppShareButton } from "@/components/sales/whatsapp-share-button"
 import { deleteInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -80,6 +81,16 @@ export default async function InvoiceDetailPage({ params }: Props) {
               Return
             </Button>
           </Link>
+          <WhatsAppShareButton
+            invoiceNumber={invoice.invoiceNumber}
+            invoiceDate={formatDate(invoice.invoiceDate)}
+            netAmount={invoice.netAmount.toString()}
+            paidAmount={invoice.paidAmount.toString()}
+            customerName={invoice.customer?.name}
+            customerPhone={invoice.customer?.phone ?? undefined}
+            companyName={company?.name ?? ""}
+            isPaid={isPaid}
+          />
           <PrintButton />
           <DeleteButton
             action={deleteInvoice}

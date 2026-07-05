@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CompanySettingsForm } from "@/components/settings/company-settings-form"
 import { ReportDownloadButton } from "@/components/settings/report-download-button"
+import { ImportBackupForm } from "@/components/settings/import-backup-form"
 import Link from "next/link"
 import { Download } from "lucide-react"
 
@@ -94,21 +95,34 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* Data Export — owner only */}
+      {/* Data Export + Import — owner only */}
       {isOwner && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="text-base font-semibold text-slate-900 mb-1">Export All Data</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            Download a full JSON backup of all your company data — customers, suppliers, products,
-            invoices, purchases, and expenses. Use this for data portability or offline backup.
-          </p>
-          <Link
-            href="/api/export"
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            Export JSON Backup
-          </Link>
+        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900 mb-1">Export All Data</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Download a full JSON backup of all your company data — customers, suppliers, products,
+              invoices, purchases, and expenses. Save this file somewhere safe (email it to yourself,
+              Google Drive, USB drive). You can use it to restore your data if anything is ever lost.
+            </p>
+            <Link
+              href="/api/export"
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Export JSON Backup
+            </Link>
+          </div>
+
+          <div className="border-t border-slate-100 pt-5">
+            <h2 className="text-base font-semibold text-slate-900 mb-1">Restore from Backup</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Upload a previously exported JSON backup file to restore your customers, suppliers,
+              products, and current stock. Records that already exist will be skipped automatically
+              — it is safe to run this on an active account.
+            </p>
+            <ImportBackupForm />
+          </div>
         </div>
       )}
     </div>

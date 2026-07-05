@@ -51,6 +51,13 @@ export const authOptions: NextAuthOptions = {
         // Clear failure history on successful login
         await db.failedLogin.deleteMany({ where: { email } }).catch(() => null)
 
+        // Single-session: rotate the active session ID — any previous session is now invalid
+        const activeSessionId = crypto.randomUUID()
+        await db.user.update({
+          where: { id: user.id },
+          data: { activeSessionId },
+        }).catch(() => null)
+
         return {
           id: user.id,
           email: user.email,
@@ -58,6 +65,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           companyId: user.companyId,
           companyName: user.company.name,
+          activeSessionId,
         }
       },
     }),
@@ -69,6 +77,7 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role
         token.companyId = (user as any).companyId
         token.companyName = (user as any).companyName
+        token.activeSessionId = (user as any).activeSessionId
       }
       return token
     },
@@ -78,6 +87,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).role = token.role
         ;(session.user as any).companyId = token.companyId
         ;(session.user as any).companyName = token.companyName
+        ;(session.user as any).activeSessionId = token.activeSessionId
       }
       return session
     },

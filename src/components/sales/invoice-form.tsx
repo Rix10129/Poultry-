@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,7 +9,8 @@ import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle } from "lucide-react"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
+import { addToSalesQueue } from "@/lib/offline-db"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,6 +67,7 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ products, customers }: InvoiceFormProps) {
+  const router = useRouter()
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [customerId, setCustomerId] = useState("")
@@ -76,6 +79,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [savedOffline, setSavedOffline] = useState(false)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -141,6 +145,32 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
   const balance = net - paid
 
+  function buildLinesJson() {
+    return JSON.stringify(lines.map((l) => ({
+      productId: l.productId,
+      batchId: l.batchId,
+      quantity: l.quantity,
+      unit: l.unit,
+      salePrice: l.salePrice,
+      discount: l.discount,
+      taxRate: l.taxRate,
+    })))
+  }
+
+  async function saveOffline() {
+    await addToSalesQueue({
+      customerId,
+      invoiceDate,
+      dueDate,
+      paymentMode,
+      paidAmount: String(paid),
+      discountAmount: String(disc),
+      notes,
+      linesJson: buildLinesJson(),
+    })
+    setSavedOffline(true)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (lines.length === 0) { setError("Add at least one product"); return }
@@ -158,6 +188,21 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
+    // If the browser already knows we're offline, skip the server call entirely
+    if (!navigator.onLine) {
+      try {
+        await saveOffline()
+      } catch {
+        setError("Could not save offline — please try again")
+        setSubmitting(false)
+      }
+      return
+    }
+
+    // Try the server. Three outcomes:
+    //   1. Server redirect (success) — Next.js navigates, execution ends
+    //   2. Validation error returned — show it
+    //   3. Network error (TypeError: Failed to fetch) — fall back to offline queue
     const fd = new FormData()
     fd.set("customerId", customerId)
     fd.set("invoiceDate", invoiceDate)
@@ -166,14 +211,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     fd.set("paidAmount", String(paid))
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
-    fd.set("linesJson", JSON.stringify(lines.map(l => ({
-      productId: l.productId,
-      batchId: l.batchId,
-      quantity: l.quantity,
-      salePrice: l.salePrice,
-      discount: l.discount,
-      taxRate: l.taxRate,
-    }))))
+    fd.set("linesJson", buildLinesJson())
 
     try {
       const result = await createInvoice(null, fd)
@@ -181,11 +219,72 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         setError(result.error)
         setSubmitting(false)
       }
-      // On success the server redirects — execution stops here
-    } catch {
+      // On success redirect() is called server-side — Next.js navigates away
+    } catch (err: any) {
+      // Next.js redirect() throws a special error internally — re-throw it so the
+      // router can handle the navigation (otherwise the catch swallows it and the
+      // user sees "Unexpected error" even after a successful create).
+      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+
+      // True network failure: navigator.onLine can lie (device has WiFi but no
+      // internet), so we check the error type and fall back to the offline queue.
+      const isNetworkError =
+        err instanceof TypeError ||
+        err?.name === "TypeError" ||
+        err?.message?.toLowerCase().includes("fetch") ||
+        err?.message?.toLowerCase().includes("network")
+
+      if (isNetworkError) {
+        try {
+          await saveOffline()
+        } catch {
+          setError("No connection and could not save offline — please try again")
+          setSubmitting(false)
+        }
+        return
+      }
+
       setError("Unexpected error — please try again")
       setSubmitting(false)
     }
+  }
+
+  if (savedOffline) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+          <WifiOff className="h-7 w-7 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Invoice saved offline</h2>
+          <p className="text-sm text-slate-500 mt-1 max-w-sm">
+            Your invoice has been saved on this device. It will sync to the server automatically when your internet connection returns.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 px-4 py-2 rounded-lg">
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+          Saved — look for the sync indicator in the top bar when reconnected
+        </div>
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            onClick={() => {
+              setSavedOffline(false)
+              setLines([])
+              setCustomerId("")
+              setInvoiceDate(new Date().toISOString().split("T")[0])
+              setDueDate("")
+              setPaymentMode("CASH")
+              setPaidAmount("")
+              setDiscountAmount("")
+              setNotes("")
+            }}
+          >
+            Create another
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

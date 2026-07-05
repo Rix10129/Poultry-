@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
+import { OfflineBanner } from "@/components/offline-banner"
 
 async function getAlertCount(companyId: string): Promise<number> {
   const now = new Date()
@@ -30,8 +31,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
 
-  const companyId = (session.user as any)?.companyId as string | undefined
-  const role = (session.user as any)?.role as string | undefined
+  const user = session.user as any
+  const companyId = user?.companyId as string | undefined
+  const role = user?.role as string | undefined
+
+  // Single-session enforcement: if someone logged in elsewhere, boot this session
+  if (user?.id && user?.activeSessionId) {
+    const dbUser = await db.user.findFirst({
+      where: { id: user.id },
+      select: { activeSessionId: true },
+    })
+    if (dbUser?.activeSessionId && dbUser.activeSessionId !== user.activeSessionId) {
+      redirect("/login?reason=session_replaced")
+    }
+  }
 
   const [alertCount, company] = await Promise.all([
     companyId ? getAlertCount(companyId) : Promise.resolve(0),
@@ -50,6 +63,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar session={session} alertCount={alertCount} />
+        <OfflineBanner />
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>

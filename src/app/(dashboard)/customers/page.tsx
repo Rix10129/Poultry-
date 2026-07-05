@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination"
+import { logAudit } from "@/lib/audit"
 
 export const metadata = { title: "Customers" }
 
@@ -38,6 +39,15 @@ export default async function CustomersPage({
 
   const { q, type, page: pageParam } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
+
+  // Audit: track who views the customer list
+  logAudit({
+    companyId,
+    userId: (session.user as any).id,
+    userName: (session.user as any).name ?? "",
+    action: "VIEW_CUSTOMERS",
+    detail: [q && `search="${q}"`, type && `type=${type}`].filter(Boolean).join(", ") || undefined,
+  })
 
   const where = {
     companyId,

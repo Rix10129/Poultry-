@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
-import { writeAuditLog } from "@/lib/audit"
+import { writeAuditLog, logAudit } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -327,6 +327,15 @@ export async function createInvoice(
   } catch (e: any) {
     return { error: e?.message ?? "Failed to create invoice" }
   }
+
+  logAudit({
+    companyId,
+    userId: user.id,
+    userName: user.name ?? "",
+    action: "CREATE_INVOICE",
+    entityId: invoiceId,
+    detail: `Invoice created`,
+  })
 
   revalidatePath("/sales")
   revalidatePath("/inventory")

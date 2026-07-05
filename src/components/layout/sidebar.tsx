@@ -23,6 +23,10 @@ import {
   LineChart,
   BarChart2,
   ClipboardList,
+  MapPin,
+  Quote,
+  CalendarClock,
+  WifiOff,
 } from "lucide-react"
 
 const navSections = [
@@ -40,6 +44,7 @@ const navSections = [
       { href: "/inventory/reorder",         label: "Reorder Sheet",   icon: AlertTriangle, alert: false },
       { href: "/inventory/adjustments/new", label: "Stock Adjustment", icon: ClipboardList, alert: false },
       { href: "/sales",                     label: "Sales",           icon: ShoppingCart,  alert: false },
+      { href: "/sales/offline",             label: "Offline Invoice", icon: WifiOff,       alert: false },
       { href: "/purchases",                 label: "Purchases",       icon: Truck,         alert: false },
       { href: "/expenses",                  label: "Expenses",        icon: Receipt,       alert: false },
     ],
@@ -47,8 +52,16 @@ const navSections = [
   {
     title: "People",
     items: [
-      { href: "/customers", label: "Customers", icon: Users,     alert: false },
-      { href: "/suppliers", label: "Suppliers", icon: Building2, alert: false },
+      { href: "/customers",          label: "Customers",     icon: Users,         alert: false },
+      { href: "/suppliers",          label: "Suppliers",     icon: Building2,     alert: false },
+      { href: "/suppliers/schedule", label: "Pay Schedule",  icon: CalendarClock, alert: false },
+    ],
+  },
+  {
+    title: "Sales",
+    items: [
+      { href: "/quotations", label: "Quotations", icon: Quote,  alert: false },
+      { href: "/routes",     label: "Routes",     icon: MapPin, alert: false },
     ],
   },
   {
@@ -87,6 +100,18 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
   const pathname = usePathname()
   const isManager = role === "OWNER" || role === "ADMIN"
 
+  // Find the single most-specific nav item that matches the current path.
+  // Without this, a parent like "/inventory" would also highlight when
+  // a child like "/inventory/adjustments/new" is active.
+  const allItems = navSections.flatMap((s) => s.items)
+  const activeHref = allItems.reduce((best, item) => {
+    const matches =
+      item.href === "/"
+        ? pathname === "/"
+        : pathname === item.href || pathname.startsWith(item.href + "/")
+    return matches && item.href.length > best.length ? item.href : best
+  }, "")
+
   return (
     <aside className="w-60 bg-slate-900 flex flex-col border-r border-slate-800 shrink-0 h-full print:hidden">
       {/* Logo */}
@@ -122,10 +147,7 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
             <ul className="space-y-0.5">
               {section.items.filter((item) => !(item as any).adminOnly || isManager).map((item) => {
                 const Icon = item.icon
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname === item.href || pathname.startsWith(item.href + "/")
+                const isActive = item.href === activeHref
                 const badge = item.alert ? alertCount : 0
 
                 return (
