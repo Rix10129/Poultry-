@@ -5,7 +5,7 @@
 //   RSC requests     → Network-first, fall back to cache (enables offline client-nav)
 //   /api/*           → Network-only (never cache sensitive data)
 
-const CACHE_VER = 'pvs-v5'
+const CACHE_VER = 'pvs-v6'
 const STATIC_CACHE = CACHE_VER + '-static'
 const PAGE_CACHE = CACHE_VER + '-pages'
 
