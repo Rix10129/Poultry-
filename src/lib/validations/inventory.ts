@@ -5,7 +5,7 @@ import { z } from "zod"
 export const productSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   genericName: z.string().optional(),
-  categoryId: z.string().min.optional(),
+  categoryId: z.string().min(1, "Category is required"),
   supplierId: z.string().optional(),
   species: z.string().min(1, "Species is required"),
   unit: z.string().min(1, "Unit is required"),
