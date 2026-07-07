@@ -11,14 +11,12 @@ import { createProduct, updateProduct } from "@/app/(dashboard)/inventory/action
 const SPECIES = ["BROILER", "LAYER", "CATTLE", "SHEEP", "GOAT", "FISH", "GENERAL"]
 const UNITS = ["CARTON", "VIAL", "ML", "TABLET", "SACHET", "KG", "GRAM", "LITER", "PIECE"]
 
-type CategoryOption = { id: string; name: string }
 type SupplierOption = { id: string; name: string }
 
 type ProductData = {
   id: string
   name: string
   genericName: string | null
-  categoryId: string | null
   supplierId: string | null
   species: string
   unit: string
@@ -32,7 +30,6 @@ type ProductData = {
 }
 
 interface ProductFormProps {
-  categories: CategoryOption[]
   suppliers: SupplierOption[]
   product?: ProductData
 }
@@ -41,7 +38,7 @@ function capitalize(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase()
 }
 
-export function ProductForm({ categories, suppliers, product }: ProductFormProps) {
+export function ProductForm({ suppliers, product }: ProductFormProps) {
   const action = product ? updateProduct.bind(null, product.id) : createProduct
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -65,15 +62,6 @@ export function ProductForm({ categories, suppliers, product }: ProductFormProps
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="categoryId">Category *</Label>
-          <Select id="categoryId" name="categoryId" defaultValue={product?.categoryId ?? ""} required>
-            <option value="">Select category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
-        </div>
         <div className="space-y-1.5">
           <Label htmlFor="supplierId">Default Supplier</Label>
           <Select id="supplierId" name="supplierId" defaultValue={product?.supplierId ?? ""}>

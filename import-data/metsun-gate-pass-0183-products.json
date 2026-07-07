@@ -1,0 +1,347 @@
+{
+  "data": {
+    "suppliers": [
+      {
+        "id": "supplier-metsun-pharma",
+        "name": "Metsun Pharma",
+        "phone": null,
+        "email": null,
+        "address": "Rawalpindi / Multan shipment - Gate Pass 0183",
+        "taxNumber": null,
+        "openingBalance": 0
+      }
+    ],
+    "products": [
+      {
+        "name": "Met Supermint Plus",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2350,
+        "purchasePrice": 2350,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "SMP-001", "expiryDate": "2028-12-31", "purchasePrice": 2350, "salePrice": 2350, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Met C Plus Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 3350,
+        "purchasePrice": 3350,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "MCP-002", "expiryDate": "2028-12-31", "purchasePrice": 3350, "salePrice": 3350, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Vit C 95 Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 3350,
+        "purchasePrice": 3350,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "VC-002", "expiryDate": "2028-12-31", "purchasePrice": 3350, "salePrice": 3350, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Vit EB Complex",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2615,
+        "purchasePrice": 2615,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 21 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "EBC-002", "expiryDate": "2028-12-31", "purchasePrice": 2615, "salePrice": 2615, "quantity": 252 }
+        ]
+      },
+      {
+        "name": "Mintasun",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2240,
+        "purchasePrice": 2240,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "MSL-003", "expiryDate": "2028-12-31", "purchasePrice": 2240, "salePrice": 2240, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Met E-Z",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2575,
+        "purchasePrice": 2575,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "MEZ-002", "expiryDate": "2028-12-31", "purchasePrice": 2575, "salePrice": 2575, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Met Liva Plus",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2890,
+        "purchasePrice": 2890,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "MLP-004", "expiryDate": "2028-12-31", "purchasePrice": 2890, "salePrice": 2890, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Ex Liv",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 1860,
+        "purchasePrice": 1860,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "EXL-005", "expiryDate": "2028-12-31", "purchasePrice": 1860, "salePrice": 1860, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Puritox 5L",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 10000,
+        "purchasePrice": 10000,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 15 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "PTL-003", "expiryDate": "2028-12-31", "purchasePrice": 10000, "salePrice": 10000, "quantity": 60 }
+        ]
+      },
+      {
+        "name": "Electrosun",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 1300,
+        "purchasePrice": 1300,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "ESL-002", "expiryDate": "2028-12-31", "purchasePrice": 1300, "salePrice": 1300, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Met Dek Pro",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 1750,
+        "purchasePrice": 1750,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "MDP-003", "expiryDate": "2028-12-31", "purchasePrice": 1750, "salePrice": 1750, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Sun Copp Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2950,
+        "purchasePrice": 2950,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "SCP-005", "expiryDate": "2028-12-31", "purchasePrice": 2950, "salePrice": 2950, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Met Flush Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 1600,
+        "purchasePrice": 1600,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "MFP-002", "expiryDate": "2028-12-31", "purchasePrice": 1600, "salePrice": 1600, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Renocare Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2140,
+        "purchasePrice": 2140,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "RCP-001", "expiryDate": "2028-12-31", "purchasePrice": 2140, "salePrice": 2140, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Turmet C Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 2310,
+        "purchasePrice": 2310,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity appears as 5 plus additional handwritten quantity; imported stock uses printed unit count 60. Verify expiry, price, and final quantity before selling.",
+        "batches": [
+          { "batchNumber": "TMC-001", "expiryDate": "2028-12-31", "purchasePrice": 2310, "salePrice": 2310, "quantity": 60 }
+        ]
+      },
+      {
+        "name": "Electro Oro Plus",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 1400,
+        "purchasePrice": 1400,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 16 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "EOP-002", "expiryDate": "2028-12-31", "purchasePrice": 1400, "salePrice": 1400, "quantity": 192 }
+        ]
+      },
+      {
+        "name": "Ex Renal Powder",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 3040,
+        "purchasePrice": 3040,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 13 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "EXR-001", "expiryDate": "2028-12-31", "purchasePrice": 3040, "salePrice": 3040, "quantity": 156 }
+        ]
+      },
+      {
+        "name": "Lyzomet",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 4000,
+        "purchasePrice": 4000,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 25 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "LZM-004", "expiryDate": "2028-12-31", "purchasePrice": 4000, "salePrice": 4000, "quantity": 300 }
+        ]
+      },
+      {
+        "name": "Bromax 10%",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 3450,
+        "purchasePrice": 3450,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 17 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "BML-001", "expiryDate": "2028-12-31", "purchasePrice": 3450, "salePrice": 3450, "quantity": 204 }
+        ]
+      },
+      {
+        "name": "Broncovent Plus",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 3700,
+        "purchasePrice": 3700,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 37 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "BVP-005", "expiryDate": "2028-12-31", "purchasePrice": 3700, "salePrice": 3700, "quantity": 444 }
+        ]
+      },
+      {
+        "name": "Ambrosal Forte",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 4190,
+        "purchasePrice": 4190,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 12 cartons. Verify expiry and price before selling.",
+        "batches": [
+          { "batchNumber": "AF-002", "expiryDate": "2028-12-31", "purchasePrice": 4190, "salePrice": 4190, "quantity": 144 }
+        ]
+      },
+      {
+        "name": "Acidomet",
+        "genericName": null,
+        "supplierId": "supplier-metsun-pharma",
+        "species": "GENERAL",
+        "unit": "PIECE",
+        "salePrice": 24500,
+        "purchasePrice": 24500,
+        "reorderLevel": 10,
+        "taxRate": 0,
+        "description": "Imported from Metsun Pharma Gate Pass 0183 dated 2026-06-24. Gate pass quantity: 12 cartons. Unit column shows 300L. Verify expiry, price, and final unit before selling.",
+        "batches": [
+          { "batchNumber": "ADM-002", "expiryDate": "2028-12-31", "purchasePrice": 24500, "salePrice": 24500, "quantity": 300 }
+        ]
+      }
+    ]
+  }
+}
