@@ -94,41 +94,22 @@ interface InvoiceFormProps {
   initialInvoice?: InitialInvoice
 }
 
-function initialLinesFromInvoice(initialInvoice: InitialInvoice | undefined, products: ProductOption[]): LineItem[] {
-  return (initialInvoice?.lines ?? []).map((line) => ({
-    key: crypto.randomUUID(),
-    productId: line.productId,
-    productName: line.productName,
-    unit: line.unit,
-    batchId: line.batchId,
-    batchNumber: line.batchNumber,
-    expiryDate: line.expiryDate,
-    maxQty: products.flatMap((p) => p.batches).find((b) => b.id === line.batchId)?.quantity ?? line.quantity,
-    quantity: line.quantity,
-    salePrice: parseFloat(line.salePrice) || 0,
-    discount: parseFloat(line.discount) || 0,
-    taxRate: parseFloat(line.taxRate) || 0,
-  }))
-}
-
-export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
-  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
+export function InvoiceForm({ products, customers }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
-  const [productDropdownOpen, setProductDropdownOpen] = useState(false)
   const [productSearch, setProductSearch] = useState("")
-  const productDropdownRef = useRef<HTMLDivElement>(null)
-  const productSearchRef = useRef<HTMLInputElement>(null)
-  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
-  const [invoiceDate, setInvoiceDate] = useState(() => initialInvoice?.invoiceDate ?? new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState(initialInvoice?.dueDate ?? "")
-  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
-  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
-  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
-  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
+  const [customerId, setCustomerId] = useState("")
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState("")
+  const [paymentMode, setPaymentMode] = useState("CASH")
+  const [paidAmount, setPaidAmount] = useState("")
+  const [discountAmount, setDiscountAmount] = useState("")
+  const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
-  const [confirmDependentEdit, setConfirmDependentEdit] = useState(false)
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(false)
+  const productSearchRef = useRef<HTMLInputElement>(null)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -143,8 +124,10 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   const selectedAddProduct = availableProducts.find((p) => p.id === addProductId)
 
   function addLine() {
-    if (!addProductId) return
-    const product = products.find(p => p.id === addProductId)
+    const matchedProduct = products.find(p => p.name.toLowerCase() === productSearch.trim().toLowerCase())
+    const productId = addProductId || matchedProduct?.id || ""
+    if (!productId) return
+    const product = products.find(p => p.id === productId)
     if (!product) return
 
     // FEFO: pick the first batch (sorted by expiryDate ASC) with available stock
@@ -176,7 +159,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
 
     setLines(prev => [...prev, line])
     setAddProductId("")
-    setProductDropdownOpen(false)
     setProductSearch("")
     requestAnimationFrame(() => productSearchRef.current?.focus())
     setError(null)
@@ -346,6 +328,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
               setDueDate("")
               setPaymentMode("CASH")
               setPaidAmount("")
+              setProductSearch("")
               setDiscountAmount("")
               setNotes("")
             }}
@@ -358,187 +341,48 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4 pb-36 md:pb-28">
       {error && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+        <div className="sticky top-2 z-30 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 shadow-sm">
           <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {mode === "update" && initialInvoice?.hasDependentRecords && initialInvoice.canOverrideSafeguards && (
-        <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <input
-            type="checkbox"
-            checked={confirmDependentEdit}
-            onChange={(e) => setConfirmDependentEdit(e.target.checked)}
-            className="mt-1"
-          />
-          <span>
-            I understand this invoice has dependent payments or returns and explicitly approve recalculating its stock and accounting values.
-          </span>
-        </label>
-      )}
-
-      {mode === "update" && initialInvoice?.hasDependentRecords && !initialInvoice.canOverrideSafeguards && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This invoice has dependent payments or returns. Only an Owner or Admin can explicitly confirm edits.
-        </div>
-      )}
-
-      {/* Header row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="col-span-2 space-y-1.5">
-          <Label>Customer</Label>
-          <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
-            <option value="">Walk-in / Cash Sale</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Invoice Date</Label>
-          <Input
-            type="date"
-            value={invoiceDate}
-            onChange={e => setInvoiceDate(e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Due Date</Label>
-          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-        </div>
-      </div>
-
-      {/* Line items */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-900">
-            Items
-            {lines.length > 0 && (
-              <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
-            )}
-          </h3>
-          <div className="flex items-center gap-2">
-            <div
-              ref={productDropdownRef}
-              className="relative w-56"
-              onBlur={(e) => {
-                if (!productDropdownRef.current?.contains(e.relatedTarget as Node | null)) {
-                  setProductDropdownOpen(false)
-                }
-              }}
-            >
-              <button
-                type="button"
-                className="flex h-9 w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-900 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onClick={() => {
-                  setProductDropdownOpen((open) => {
-                    const nextOpen = !open
-                    if (nextOpen) requestAnimationFrame(() => productSearchRef.current?.focus())
-                    return nextOpen
-                  })
-                }}
-              >
-                <span className={selectedAddProduct ? "truncate" : "truncate text-slate-400"}>
-                  {selectedAddProduct?.name ?? "Select product…"}
-                </span>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${productDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-              {productDropdownOpen && (
-                <div className="absolute right-0 z-20 mt-1 max-h-72 w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
-                  <div className="border-b border-slate-100 p-2">
-                    <Input
-                      ref={productSearchRef}
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      placeholder="Search products…"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="max-h-56 overflow-auto py-1">
-                    {availableProducts.length === 0 ? (
-                      <div className="px-3 py-2 text-slate-400">No products in stock</div>
-                    ) : filteredProducts.length === 0 ? (
-                      <div className="px-3 py-2 text-slate-400">No matching products</div>
-                    ) : (
-                      filteredProducts.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className="block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
-                          onClick={() => {
-                            setAddProductId(p.id)
-                            setProductSearch("")
-                            setProductDropdownOpen(false)
-                          }}
-                        >
-                          {p.name}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
+      {/* Compact sticky invoice header */}
+      <div className="sticky top-0 z-20 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.4fr_0.8fr]">
+            <div className="space-y-1">
+              <Label>Customer</Label>
+              <Select value={customerId} onChange={e => setCustomerId(e.target.value)} className="h-9">
+                <option value="">Walk-in / Cash Sale</option>
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
             </div>
-            <Button type="button" size="sm" onClick={addLine} disabled={!addProductId}>
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
+            <div className="space-y-1">
+              <Label>Invoice Date</Label>
+              <Input
+                type="date"
+                value={invoiceDate}
+                onChange={e => setInvoiceDate(e.target.value)}
+                required
+                className="h-9"
+              />
+            </div>
           </div>
-        </div>
-
-        {lines.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
-            <p className="text-sm text-slate-400">Select a product above and click Add</p>
-            <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left px-3 py-2.5 font-medium text-slate-600">Product / Batch</th>
-                  <th className="text-right px-3 py-2.5 font-medium text-slate-600">Avail</th>
-                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-24">Qty</th>
-                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-32">Unit Price</th>
-                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-20">Disc%</th>
-                  <th className="text-right px-3 py-2.5 font-medium text-slate-600">Total</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {lines.map(line => (
-                  <LineRow
-                    key={line.key}
-                    line={line}
-                    updateLine={updateLine}
-                    removeLine={(key) => setLines(prev => prev.filter(l => l.key !== key))}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Payment + summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Payment */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Payment</h3>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Payment Mode</Label>
-              <Select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Payment</Label>
+              <Select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} className="h-9">
                 <option value="CASH">Cash</option>
                 <option value="BANK">Bank Transfer</option>
                 <option value="CHEQUE">Cheque</option>
-                <option value="CREDIT">Credit (on account)</option>
+                <option value="CREDIT">Credit</option>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Amount Received</Label>
+            <div className="space-y-1">
+              <Label>Paid</Label>
               <Input
                 type="number"
                 min="0"
@@ -546,154 +390,205 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
                 value={paidAmount}
                 onChange={e => setPaidAmount(e.target.value)}
                 placeholder="0.00"
+                className="h-9 text-right"
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Input
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-slate-900">Summary</h3>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
-            <SumRow label="Subtotal" value={formatCurrency(subtotal)} />
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Invoice Discount</span>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={discountAmount}
-                onChange={e => setDiscountAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-28 text-right h-7 text-sm py-1"
-              />
-            </div>
-            {taxTotal > 0.001 && <SumRow label="Tax" value={formatCurrency(taxTotal)} />}
-            <div className="border-t border-slate-200 pt-2">
-              <SumRow label="Net Amount" value={formatCurrency(net)} bold />
-            </div>
-            <SumRow label="Received" value={formatCurrency(paid)} />
-            <div
-              className={`flex justify-between font-bold ${
-                balance > 0.001
-                  ? "text-red-600"
-                  : balance < -0.001
-                  ? "text-green-600"
-                  : "text-slate-900"
-              }`}
-            >
-              <span>
-                {balance > 0.001 ? "Balance Due" : balance < -0.001 ? "Change Due" : "Settled ✓"}
-              </span>
-              <span>{Math.abs(balance) < 0.001 ? "—" : formatCurrency(Math.abs(balance))}</span>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Keyboard-friendly add item flow */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="product-search">Add item</Label>
+              <span className="text-xs text-slate-400">Press Enter to add, then keep typing</span>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                ref={productSearchRef}
+                id="product-search"
+                list="available-products"
+                value={productSearch}
+                onChange={e => {
+                  const value = e.target.value
+                  setProductSearch(value)
+                  setAddProductId(products.find(p => p.name === value)?.id || "")
+                }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    addLine()
+                  }
+                }}
+                placeholder="Search product by name…"
+                className="h-9"
+                autoComplete="off"
+              />
+              <datalist id="available-products">
+                {availableProducts.map(p => <option key={p.id} value={p.name} />)}
+              </datalist>
+              <Button type="button" size="sm" onClick={addLine} disabled={!addProductId && !products.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase())} className="h-9 shrink-0">
+                <Plus className="h-4 w-4" />
+                Add item
+              </Button>
+            </div>
+          </div>
+          <div className="text-sm text-slate-500 md:text-right">
+            <span className="font-medium text-slate-900">{lines.length}</span> lines · FEFO batch auto-selected
+          </div>
+        </div>
+      </div>
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting || (mode === "update" && !!initialInvoice?.hasDependentRecords && (!initialInvoice.canOverrideSafeguards || !confirmDependentEdit))}>
-          {mode === "update" ? "Update Invoice" : "Create Invoice"}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => history.back()}>
-          Cancel
-        </Button>
+      {/* Line items */}
+      <div className="space-y-3">
+        {lines.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
+            <p className="text-sm text-slate-400">Search for a product, press Enter, and continue adding items.</p>
+            <p className="text-xs text-slate-300 mt-1">Designed for fast entry of 10–30 invoice lines.</p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden rounded-xl border border-slate-200 md:block md:max-h-[55vh] md:overflow-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-2 py-2 font-medium text-slate-600">Product / Batch</th>
+                    <th className="text-right px-2 py-2 font-medium text-slate-600">Avail</th>
+                    <th className="text-right px-2 py-2 font-medium text-slate-600 w-20">Qty</th>
+                    <th className="text-right px-2 py-2 font-medium text-slate-600 w-28">Price</th>
+                    <th className="text-right px-2 py-2 font-medium text-slate-600 w-20">Disc%</th>
+                    <th className="text-right px-2 py-2 font-medium text-slate-600">Total</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {lines.map(line => <LineRow key={line.key} line={line} updateLine={updateLine} removeLine={() => setLines(prev => prev.filter(l => l.key !== line.key))} />)}
+                </tbody>
+              </table>
+            </div>
+            <div className="space-y-2 md:hidden">
+              {lines.map(line => <LineCard key={line.key} line={line} updateLine={updateLine} removeLine={() => setLines(prev => prev.filter(l => l.key !== line.key))} />)}
+            </div>
+          </>
+        )}
+      </div>
+
+      <details className="rounded-xl border border-slate-200 bg-white p-3" open={moreDetailsOpen} onToggle={e => setMoreDetailsOpen(e.currentTarget.open)}>
+        <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-900">
+          More details
+          <ChevronDown className={`h-4 w-4 transition-transform ${moreDetailsOpen ? "rotate-180" : ""}`} />
+        </summary>
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Due Date</Label>
+            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Invoice Discount</Label>
+            <Input type="number" min="0" step="0.01" value={discountAmount} onChange={e => setDiscountAmount(e.target.value)} placeholder="0.00" />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Notes</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" />
+          </div>
+        </div>
+      </details>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:left-auto md:right-4 md:bottom-4 md:w-[min(920px,calc(100vw-2rem))] md:rounded-2xl md:border">
+        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:grid-cols-7">
+          <SummaryPill label="Items" value={String(lines.length)} />
+          <SummaryPill label="Subtotal" value={formatCurrency(subtotal)} />
+          <SummaryPill label="Discount" value={formatCurrency(disc)} />
+          <SummaryPill label="Tax" value={formatCurrency(taxTotal)} />
+          <SummaryPill label="Net" value={formatCurrency(net)} strong />
+          <SummaryPill label="Paid" value={formatCurrency(paid)} />
+          <SummaryPill label={balance > 0.001 ? "Balance" : balance < -0.001 ? "Change" : "Balance"} value={Math.abs(balance) < 0.001 ? "—" : formatCurrency(Math.abs(balance))} tone={balance > 0.001 ? "danger" : balance < -0.001 ? "success" : "default"} strong />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting} className="flex-1">
+            Create Invoice
+          </Button>
+          <Button type="button" variant="outline" onClick={() => history.back()} className="shrink-0">
+            Cancel
+          </Button>
+        </div>
       </div>
     </form>
   )
 }
 
-function LineRow({
-  line,
-  updateLine,
-  removeLine,
-}: {
-  line: LineItem
-  updateLine: (key: string, patch: Partial<LineItem>) => void
-  removeLine: (key: string) => void
-}) {
+function LineRow({ line, updateLine, removeLine }: { line: LineItem; updateLine: (key: string, patch: Partial<LineItem>) => void; removeLine: () => void }) {
   const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
   const overQty = line.quantity > line.maxQty
-
   return (
     <tr className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
-      <td className="px-3 py-2.5">
-        <p className="font-medium text-slate-900">{line.productName}</p>
+      <td className="px-2 py-2">
+        <p className="font-medium text-slate-900 leading-tight">{line.productName}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-            {line.batchNumber}
-          </span>
+          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{line.batchNumber}</span>
           <ExpiryBadge expiryDate={line.expiryDate} />
         </div>
       </td>
-      <td className="px-3 py-2.5 text-right text-xs text-slate-400">{line.maxQty}</td>
-      <td className="px-3 py-2.5">
-        <Input
-          type="number"
-          min="1"
-          max={line.maxQty}
-          value={line.quantity}
-          onChange={e =>
-            updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
-          }
-          className={`text-right ${overQty ? "border-red-400 focus:ring-red-400" : ""}`}
-        />
-      </td>
-      <td className="px-3 py-2.5">
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={line.salePrice}
-          onChange={e =>
-            updateLine(line.key, { salePrice: parseFloat(e.target.value) || 0 })
-          }
-          className="text-right"
-        />
-      </td>
-      <td className="px-3 py-2.5">
-        <Input
-          type="number"
-          min="0"
-          max="100"
-          step="0.01"
-          value={line.discount}
-          onChange={e =>
-            updateLine(line.key, { discount: parseFloat(e.target.value) || 0 })
-          }
-          className="text-right"
-        />
-      </td>
-      <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
-        {formatCurrency(lineTotal)}
-      </td>
-      <td className="px-3 py-2.5">
-        <button
-          type="button"
-          onClick={() => removeLine(line.key)}
-          className="text-slate-300 hover:text-red-500 transition-colors p-1"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </td>
+      <td className="px-2 py-2 text-right text-xs text-slate-400">{line.maxQty}</td>
+      <td className="px-2 py-2"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></td>
+      <td className="px-2 py-2"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></td>
+      <td className="px-2 py-2"><LineNumberInput value={line.discount} min="0" max="100" step="0.01" onChange={value => updateLine(line.key, { discount: parseFloat(value) || 0 })} /></td>
+      <td className="px-2 py-2 text-right font-semibold text-slate-900">{formatCurrency(lineTotal)}</td>
+      <td className="px-2 py-2"><RemoveButton onClick={removeLine} /></td>
     </tr>
   )
 }
 
-function SumRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function LineCard({ line, updateLine, removeLine }: { line: LineItem; updateLine: (key: string, patch: Partial<LineItem>) => void; removeLine: () => void }) {
+  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+  const overQty = line.quantity > line.maxQty
   return (
-    <div className={`flex justify-between ${bold ? "font-semibold text-slate-900" : "text-slate-600"}`}>
-      <span>{label}</span>
-      <span>{value}</span>
+    <div className={`rounded-xl border p-3 ${overQty ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-medium text-slate-900">{line.productName}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{line.batchNumber}</span>
+            <ExpiryBadge expiryDate={line.expiryDate} />
+            <span className="text-xs text-slate-400">Avail {line.maxQty}</span>
+          </div>
+        </div>
+        <RemoveButton onClick={removeLine} />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Field label="Qty"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></Field>
+        <Field label="Price"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></Field>
+        <Field label="Disc%"><LineNumberInput value={line.discount} min="0" max="100" step="0.01" onChange={value => updateLine(line.key, { discount: parseFloat(value) || 0 })} /></Field>
+      </div>
+      <div className="mt-2 text-right text-sm font-semibold text-slate-900">{formatCurrency(lineTotal)}</div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="space-y-1 text-xs text-slate-500"><span>{label}</span>{children}</label>
+}
+
+function LineNumberInput({ value, onChange, min, max, step, error }: { value: number; onChange: (value: string) => void; min?: string | number; max?: string | number; step?: string; error?: boolean }) {
+  return <Input type="number" min={min} max={max} step={step} value={value} onChange={e => onChange(e.target.value)} className={`h-8 text-right ${error ? "border-red-400 focus:ring-red-400" : ""}`} />
+}
+
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="text-slate-300 hover:text-red-500 transition-colors p-1" aria-label="Remove item">
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+  )
+}
+
+function SummaryPill({ label, value, strong, tone = "default" }: { label: string; value: string; strong?: boolean; tone?: "default" | "danger" | "success" }) {
+  const toneClass = tone === "danger" ? "text-red-600" : tone === "success" ? "text-green-600" : "text-slate-900"
+  return (
+    <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+      <div className="text-[11px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className={`${strong ? "font-bold" : "font-semibold"} ${toneClass}`}>{value}</div>
     </div>
   )
 }
