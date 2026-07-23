@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -91,10 +91,10 @@ interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
   mode?: "create" | "update"
-  initialInvoice?: InitialInvoice
 }
 
-export function InvoiceForm({ products, customers }: InvoiceFormProps) {
+export function InvoiceForm({ products, customers, mode = "create" }: InvoiceFormProps) {
+  const formMode = mode
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
@@ -229,14 +229,14 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setError(null)
 
     // Invoice updates are accounting/stock mutations and must be handled online.
-    if (mode === "update" && !navigator.onLine) {
+    if (formMode === "update" && !navigator.onLine) {
       setError("Invoice editing requires an internet connection")
       setSubmitting(false)
       return
     }
 
     // If the browser already knows we're offline, skip the server call entirely
-    if (mode === "create" && !navigator.onLine) {
+    if (formMode === "create" && !navigator.onLine) {
       try {
         await saveOffline()
       } catch {
@@ -286,7 +286,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
         (err instanceof Error && err.message.toLowerCase().includes("network"))
 
-      if (mode === "create" && isNetworkError) {
+      if (formMode === "create" && isNetworkError) {
         try {
           await saveOffline()
         } catch {
