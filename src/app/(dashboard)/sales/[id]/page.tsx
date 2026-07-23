@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, RotateCcw } from "lucide-react"
+import { ChevronLeft, Pencil, RotateCcw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
@@ -75,6 +75,12 @@ export default async function InvoiceDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/sales/${invoice.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+          </Link>
           <Link href={`/sales/returns/new?invoiceId=${invoice.id}`}>
             <Button variant="outline" size="sm">
               <RotateCcw className="h-4 w-4" />
