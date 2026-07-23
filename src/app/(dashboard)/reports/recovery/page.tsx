@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 import { logAudit } from "@/lib/audit"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Customer Recovery" }
 
@@ -86,6 +87,7 @@ export default async function RecoveryReportPage({
             {rows.length} customer{rows.length !== 1 ? "s" : ""} with outstanding balance
           </p>
         </div>
+        <ReportExportControls report="recovery" />
       </div>
 
       {/* Filters */}

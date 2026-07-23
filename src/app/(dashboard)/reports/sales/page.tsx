@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Sales Report" }
 
@@ -85,6 +86,7 @@ export default async function SalesReportPage({
             </p>
           </div>
         </div>
+        <ReportExportControls report="sales" />
       </div>
 
       {/* Filters */}
