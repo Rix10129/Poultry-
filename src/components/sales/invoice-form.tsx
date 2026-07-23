@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,8 +10,8 @@ import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
-import { addToSalesQueue } from "@/lib/offline-db"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, FilePenLine } from "lucide-react"
+import { addToSalesQueue, getInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "@/lib/offline-db"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,7 +68,8 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const router = useRouter()
+  const searchParams = useSearchParams()
+  const resumeDraftId = searchParams.get("draftId")
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [customerId, setCustomerId] = useState("")
@@ -80,6 +82,34 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
+  const [draftId, setDraftId] = useState<string | null>(resumeDraftId)
+  const [draftSaved, setDraftSaved] = useState(false)
+
+
+  useEffect(() => {
+    if (!resumeDraftId) return
+
+    getInvoiceDraft(resumeDraftId)
+      .then((draft) => {
+        if (!draft) {
+          setError("Draft not found or expired")
+          return
+        }
+
+        setDraftId(draft.id)
+        setCustomerId(draft.customerId)
+        setInvoiceDate(draft.invoiceDate)
+        setDueDate(draft.dueDate)
+        setPaymentMode(draft.paymentMode)
+        setPaidAmount(draft.paidAmount)
+        setDiscountAmount(draft.discountAmount)
+        setNotes(draft.notes)
+
+        const parsedLines = JSON.parse(draft.linesJson) as LineItem[]
+        setLines(parsedLines.map((line) => ({ ...line, key: line.key || crypto.randomUUID() })))
+      })
+      .catch(() => setError("Could not load invoice draft"))
+  }, [resumeDraftId])
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -171,6 +201,28 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSavedOffline(true)
   }
 
+  async function handleSaveDraft() {
+    try {
+      const id = await saveInvoiceDraft({
+        id: draftId ?? undefined,
+        customerId,
+        invoiceDate,
+        dueDate,
+        paymentMode,
+        paidAmount: String(paid),
+        discountAmount: String(disc),
+        notes,
+        linesJson: JSON.stringify(lines),
+      })
+      setDraftId(id)
+      setDraftSaved(true)
+      setError(null)
+      window.setTimeout(() => setDraftSaved(false), 3000)
+    } catch {
+      setError("Could not save draft on this device")
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (lines.length === 0) { setError("Add at least one product"); return }
@@ -220,19 +272,23 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         setSubmitting(false)
       }
       // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const maybeError = err as { digest?: string; name?: string; message?: string }
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+      if (maybeError.digest?.startsWith("NEXT_REDIRECT")) {
+        if (draftId) await removeInvoiceDraft(draftId)
+        throw err
+      }
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        err?.name === "TypeError" ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
+        maybeError.name === "TypeError" ||
+        maybeError.message?.toLowerCase().includes("fetch") ||
+        maybeError.message?.toLowerCase().includes("network")
 
       if (isNetworkError) {
         try {
@@ -289,6 +345,13 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {draftSaved && (
+        <div className="flex items-start gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-green-700">Draft saved on this device for 30 days.</p>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
           <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
@@ -517,9 +580,16 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         </div>
       </div>
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
           Create Invoice
+        </Button>
+        <Button type="button" variant="secondary" onClick={handleSaveDraft}>
+          <FilePenLine className="h-4 w-4" />
+          Save Draft
+        </Button>
+        <Button type="button" variant="outline" asChild>
+          <Link href="/sales/drafts">Resume Drafts</Link>
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>
           Cancel
