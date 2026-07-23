@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
-import { createInvoice } from "@/app/(dashboard)/sales/actions"
+import { createInvoice, updateInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, ChevronDown } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
@@ -60,9 +60,38 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+export type InitialInvoiceLine = {
+  productId: string
+  productName: string
+  unit: string
+  batchId: string
+  batchNumber: string
+  expiryDate: string
+  quantity: number
+  salePrice: string
+  discount: string
+  taxRate: string
+}
+
+export type InitialInvoice = {
+  id: string
+  customerId: string | null
+  invoiceDate: string
+  dueDate: string | null
+  paymentMode: string
+  paidAmount: string
+  discountAmount: string
+  notes: string | null
+  lines: InitialInvoiceLine[]
+  hasDependentRecords?: boolean
+  canOverrideSafeguards?: boolean
+}
+
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  mode?: "create" | "update"
+  initialInvoice?: InitialInvoice
 }
 
 export function InvoiceForm({ products, customers }: InvoiceFormProps) {
@@ -87,6 +116,12 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     () => products.filter(p => p.batches.some(b => batchAvailable(b.id, b.quantity, lines) > 0)),
     [products, lines]
   )
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase()
+    if (!query) return availableProducts
+    return availableProducts.filter((p) => p.name.toLowerCase().includes(query))
+  }, [availableProducts, productSearch])
+  const selectedAddProduct = availableProducts.find((p) => p.id === addProductId)
 
   function addLine() {
     const matchedProduct = products.find(p => p.name.toLowerCase() === productSearch.trim().toLowerCase())
@@ -193,8 +228,15 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
+    // Invoice updates are accounting/stock mutations and must be handled online.
+    if (mode === "update" && !navigator.onLine) {
+      setError("Invoice editing requires an internet connection")
+      setSubmitting(false)
+      return
+    }
+
     // If the browser already knows we're offline, skip the server call entirely
-    if (!navigator.onLine) {
+    if (mode === "create" && !navigator.onLine) {
       try {
         await saveOffline()
       } catch {
@@ -217,9 +259,13 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
     fd.set("linesJson", buildLinesJson())
+    if (mode === "update" && initialInvoice) {
+      fd.set("id", initialInvoice.id)
+      if (confirmDependentEdit) fd.set("confirmDependentEdit", "1")
+    }
 
     try {
-      const result = await createInvoice(null, fd)
+      const result = mode === "update" ? await updateInvoice(null, fd) : await createInvoice(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)
@@ -240,7 +286,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
         (err instanceof Error && err.message.toLowerCase().includes("network"))
 
-      if (isNetworkError) {
+      if (mode === "create" && isNetworkError) {
         try {
           await saveOffline()
         } catch {
