@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -140,19 +140,17 @@ interface InvoiceFormProps {
   initialInvoice?: InvoiceFormInitialInvoice
 }
 
-export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
-  const formMode = mode
-  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
+export function InvoiceForm({ products, customers }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
-  const productSearchRef = useRef<HTMLInputElement>(null)
-  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
-  const [invoiceDate, setInvoiceDate] = useState(() => dateInputValue(initialInvoice?.invoiceDate) || new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState(() => dateInputValue(initialInvoice?.dueDate))
-  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
-  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
-  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
-  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
+  const [customerId, setCustomerId] = useState("")
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState("")
+  const [paymentMode, setPaymentMode] = useState("CASH")
+  const [paidAmount, setPaidAmount] = useState("")
+  const [discountAmount, setDiscountAmount] = useState("")
+  const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
@@ -168,6 +166,12 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     const query = productSearch.trim().toLowerCase()
     if (!query) return availableProducts
     return availableProducts.filter((p) => p.name.toLowerCase().includes(query))
+  }, [availableProducts, productSearch])
+
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase()
+    if (!query) return availableProducts
+    return availableProducts.filter((product) => product.name.toLowerCase().includes(query))
   }, [availableProducts, productSearch])
 
   function addLine() {
@@ -207,7 +211,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     setLines(prev => [...prev, line])
     setAddProductId("")
     setProductSearch("")
-    productSearchRef.current?.focus()
     setError(null)
   }
 
@@ -323,16 +326,16 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      const redirectDigest = err instanceof Error && "digest" in err ? String(err.digest) : ""
-      if (redirectDigest.startsWith("NEXT_REDIRECT")) throw err
+      const errorWithDigest = err as { digest?: string; name?: string; message?: string }
+      if (errorWithDigest.digest?.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        (err instanceof Error && err.name === "TypeError") ||
-        (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
-        (err instanceof Error && err.message.toLowerCase().includes("network"))
+        errorWithDigest.name === "TypeError" ||
+        errorWithDigest.message?.toLowerCase().includes("fetch") ||
+        errorWithDigest.message?.toLowerCase().includes("network")
 
       if (formMode === "create" && isNetworkError) {
         try {
@@ -397,8 +400,8 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         </div>
       )}
 
-      {/* Header row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Invoice details */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="col-span-2 space-y-1.5">
           <Label>Customer</Label>
           <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
@@ -430,18 +433,17 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
               <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
             )}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(11rem,1fr)_minmax(13rem,1fr)_auto] gap-2 w-full md:w-auto">
             <Input
-              ref={productSearchRef}
               value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
+              onChange={(event) => setProductSearch(event.target.value)}
               placeholder="Search product…"
-              className="w-48 text-sm"
+              aria-label="Search products"
             />
             <Select
               value={addProductId}
               onChange={e => setAddProductId(e.target.value)}
-              className="w-56 text-sm"
+              className="text-sm"
             >
               <option value="">Select product…</option>
               {filteredProducts.map(p => (
