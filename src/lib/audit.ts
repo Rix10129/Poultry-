@@ -7,6 +7,7 @@ export type AuditAction =
   | "VIEW_CUSTOMER"
   | "VIEW_REPORT"
   | "CREATE_INVOICE"
+  | "UPDATE_INVOICE"
   | "DELETE_INVOICE"
   | "CREATE_PURCHASE"
   | "CREATE_QUOTATION"
