@@ -3,43 +3,137 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, FileText, RotateCcw } from "lucide-react"
+import { Download, Plus, FileText, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination"
+import { PaymentMode, Prisma } from "@prisma/client"
 
 export const metadata = { title: "Sales" }
 
 const PAGE_SIZE = 50
 
+type SalesSearchParams = {
+  q?: string
+  page?: string
+  from?: string
+  to?: string
+  customerId?: string
+  paymentMode?: string
+  status?: string
+  userId?: string
+}
+
+const PAYMENT_MODES = Object.values(PaymentMode)
+const STATUS_FILTERS = ["all", "paid", "partial", "unpaid"] as const
+type StatusFilter = (typeof STATUS_FILTERS)[number]
+
+function getDateRange(from?: string, to?: string) {
+  const fromDate = from ? new Date(`${from}T00:00:00`) : undefined
+  const toDate = to ? new Date(`${to}T23:59:59.999`) : undefined
+
+  return {
+    fromDate: fromDate && !Number.isNaN(fromDate.getTime()) ? fromDate : undefined,
+    toDate: toDate && !Number.isNaN(toDate.getTime()) ? toDate : undefined,
+  }
+}
+
+function buildSalesBaseUrl(filters: Omit<SalesSearchParams, "page">, pathname = "/sales") {
+  const params = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value && value !== "all") params.set(key, value)
+  }
+
+  const query = params.toString()
+  return query ? `${pathname}?${query}` : pathname
+}
+
+function matchesStatus(net: number, paid: number, status: StatusFilter) {
+  const balance = net - paid
+
+  if (status === "paid") return balance <= 0.001
+  if (status === "partial") return balance > 0.001 && paid > 0.001
+  if (status === "unpaid") return balance > 0.001 && paid <= 0.001
+
+  return true
+}
+
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<SalesSearchParams>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const companyId = (session.user as { companyId: string }).companyId
 
-  const { q, page: pageParam } = await searchParams
+  const {
+    q,
+    page: pageParam,
+    from,
+    to,
+    customerId,
+    paymentMode,
+    status: statusParam,
+    userId,
+  } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
+  const selectedPaymentMode = PAYMENT_MODES.includes(paymentMode as PaymentMode)
+    ? (paymentMode as PaymentMode)
+    : undefined
+  const selectedStatus = STATUS_FILTERS.includes(statusParam as StatusFilter)
+    ? (statusParam as StatusFilter)
+    : "all"
+  const { fromDate, toDate } = getDateRange(from, to)
 
-  const where = {
+  const where: Prisma.SaleInvoiceWhereInput = {
     companyId,
-    ...(q ? { invoiceNumber: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(q ? { invoiceNumber: { contains: q, mode: "insensitive" } } : {}),
+    ...(fromDate || toDate
+      ? {
+          invoiceDate: {
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {}),
+          },
+        }
+      : {}),
+    ...(customerId ? { customerId } : {}),
+    ...(selectedPaymentMode ? { paymentMode: selectedPaymentMode } : {}),
+    ...(userId ? { userId } : {}),
   }
 
-  const [invoices, total] = await Promise.all([
+  const [allMatchingInvoices, customers, users] = await Promise.all([
     db.saleInvoice.findMany({
       where,
       include: { customer: { select: { name: true } } },
       orderBy: { invoiceDate: "desc" },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
     }),
-    db.saleInvoice.count({ where }),
+    db.customer.findMany({
+      where: { companyId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    db.user.findMany({
+      where: { companyId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ])
+
+  const filteredInvoices = allMatchingInvoices.filter((inv) =>
+    matchesStatus(
+      parseFloat(inv.netAmount.toString()),
+      parseFloat(inv.paidAmount.toString()),
+      selectedStatus
+    )
+  )
+  const total = filteredInvoices.length
+  const invoices = filteredInvoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const filterValues = { q, from, to, customerId, paymentMode: selectedPaymentMode, status: selectedStatus, userId }
+  const baseUrl = buildSalesBaseUrl(filterValues)
+  const exportUrl = buildSalesBaseUrl(filterValues, "/api/export/sales")
 
   return (
     <div className="space-y-6">
@@ -51,6 +145,12 @@ export default async function SalesPage({
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href={exportUrl}>
+            <Button variant="outline">
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          </Link>
           <Link href="/sales/returns">
             <Button variant="outline">
               <RotateCcw className="h-4 w-4" />
@@ -66,19 +166,53 @@ export default async function SalesPage({
         </div>
       </div>
 
-      <form method="GET" className="flex gap-3">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search by invoice number…"
-          className="h-9 w-64 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <Button type="submit" variant="outline" size="sm">Search</Button>
-        {q && (
-          <Link href="/sales">
-            <Button variant="ghost" size="sm">Clear</Button>
-          </Link>
-        )}
+      <form method="GET" className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Search by invoice number…"
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            name="customerId"
+            defaultValue={customerId ?? ""}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All customers</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+          <input name="from" type="date" defaultValue={from} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input name="to" type="date" defaultValue={to} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select name="paymentMode" defaultValue={selectedPaymentMode ?? ""} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All payment modes</option>
+            {PAYMENT_MODES.map((mode) => (
+              <option key={mode} value={mode}>{mode.toLowerCase().replace("_", " ")}</option>
+            ))}
+          </select>
+          <select name="status" defaultValue={selectedStatus} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">All statuses</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+          <select name="userId" defaultValue={userId ?? ""} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All salespeople</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <Button type="submit" variant="outline" size="sm">Filter</Button>
+            {baseUrl !== "/sales" && (
+              <Link href="/sales">
+                <Button variant="ghost" size="sm">Clear</Button>
+              </Link>
+            )}
+          </div>
+        </div>
       </form>
 
       {invoices.length === 0 ? (
@@ -163,7 +297,7 @@ export default async function SalesPage({
             page={page}
             total={total}
             pageSize={PAGE_SIZE}
-            baseUrl={q ? `/sales?q=${encodeURIComponent(q)}` : "/sales"}
+            baseUrl={baseUrl}
           />
         </div>
       )}
