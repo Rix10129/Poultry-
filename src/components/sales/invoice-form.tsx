@@ -229,11 +229,12 @@ export function InvoiceForm({ products, customers, initialValues, mode = initial
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
+      const error = err instanceof Error ? err : null
       const isNetworkError =
         err instanceof TypeError ||
-        err?.name === "TypeError" ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
+        error?.name === "TypeError" ||
+        error?.message.toLowerCase().includes("fetch") ||
+        error?.message.toLowerCase().includes("network")
 
       if (isNetworkError) {
         try {

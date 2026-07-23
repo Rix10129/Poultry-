@@ -1,6 +1,11 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) throw new Error("RESEND_API_KEY is not configured")
+  return new Resend(apiKey)
+}
+
 const FROM = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"
 const APP_URL = (process.env.NEXTAUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")
 
@@ -27,7 +32,7 @@ export async function sendVerificationEmail(
   token: string
 ): Promise<void> {
   const url = `${APP_URL}/verify-email?token=${token}`
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: "Verify your email — Poultry Vet System",
@@ -57,7 +62,7 @@ export async function sendAdminApprovalRequest(opts: {
   approveUrl: string
   rejectUrl: string
 }): Promise<void> {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to: opts.to,
     subject: `[Action Required] New company registration: ${opts.companyName}`,
@@ -96,7 +101,7 @@ export async function sendApprovalConfirmationEmail(
   companyName: string
 ): Promise<void> {
   const loginUrl = `${APP_URL}/login`
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: `Your ${companyName} account is approved — Poultry Vet System`,
@@ -120,7 +125,7 @@ export async function sendRejectionEmail(
   name: string,
   companyName: string
 ): Promise<void> {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: `Registration update — Poultry Vet System`,
@@ -139,7 +144,7 @@ export async function sendPasswordResetEmail(
   companyName: string
 ): Promise<void> {
   const url = `${APP_URL}/reset-password?token=${token}`
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: `Reset your password — ${companyName}`,
