@@ -36,6 +36,31 @@ export type CustomerOption = {
   type: string
 }
 
+
+type InitialInvoiceLine = {
+  productId: string
+  productName: string
+  unit: string
+  batchId: string
+  batchNumber: string
+  expiryDate: string
+  quantity: number
+  salePrice: string
+  discount: string
+  taxRate: string
+}
+
+type InitialInvoice = {
+  customerId?: string | null
+  invoiceDate?: string
+  dueDate?: string | null
+  paymentMode?: string
+  paidAmount?: string
+  discountAmount?: string
+  notes?: string | null
+  lines?: InitialInvoiceLine[]
+}
+
 type LineItem = {
   key: string
   productId: string
@@ -58,6 +83,27 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
   return Math.max(0, batchTotal - used)
 }
 
+
+function initialLinesFromInvoice(initialInvoice: InitialInvoice | undefined, products: ProductOption[]): LineItem[] {
+  return (initialInvoice?.lines ?? []).map((line) => ({
+    key: crypto.randomUUID(),
+    productId: line.productId,
+    productName: line.productName,
+    unit: line.unit,
+    batchId: line.batchId,
+    batchNumber: line.batchNumber,
+    expiryDate: line.expiryDate,
+    maxQty: products.flatMap((p) => p.batches).find((batch) => batch.id === line.batchId)?.quantity ?? line.quantity,
+    quantity: line.quantity,
+    salePrice: parseFloat(line.salePrice) || 0,
+    discount: parseFloat(line.discount) || 0,
+    taxRate: parseFloat(line.taxRate) || 0,
+  }))
+}
+
+function dateInputValue(value: string | null | undefined) {
+  return value ? value.split("T")[0] : ""
+}
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export type InitialInvoiceLine = {
@@ -91,20 +137,20 @@ interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
   mode?: "create" | "update"
+  initialInvoice?: InitialInvoice
 }
 
-export function InvoiceForm({ products, customers, mode = "create" }: InvoiceFormProps) {
+export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
   const formMode = mode
-  const [lines, setLines] = useState<LineItem[]>([])
+  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
   const [addProductId, setAddProductId] = useState("")
-  const [productSearch, setProductSearch] = useState("")
-  const [customerId, setCustomerId] = useState("")
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState("")
-  const [paymentMode, setPaymentMode] = useState("CASH")
-  const [paidAmount, setPaidAmount] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
+  const [invoiceDate, setInvoiceDate] = useState(() => dateInputValue(initialInvoice?.invoiceDate) || new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState(() => dateInputValue(initialInvoice?.dueDate))
+  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
+  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
