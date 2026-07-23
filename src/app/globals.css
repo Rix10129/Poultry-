@@ -8,8 +8,6 @@
   --border: #e2e8f0;
   --muted: #64748b;
   --heading: #0f172a;
-  --font-geist-sans: Arial, Helvetica, sans-serif;
-  --font-geist-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 [data-theme="dark"] {
