@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Package } from "lucide-react"
+import { ChevronLeft, FileSpreadsheet, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -17,7 +17,7 @@ export default async function StockValuationPage({
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const companyId = (session.user as { companyId?: string }).companyId
 
   const { categoryId, species, zero } = await searchParams
   const showZero = zero === "1"
@@ -28,7 +28,7 @@ export default async function StockValuationPage({
         companyId,
         isActive: true,
         ...(categoryId ? { categoryId } : {}),
-        ...(species ? { species: species as any } : {}),
+        ...(species ? { species } : {}),
       },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
       include: {
@@ -82,16 +82,24 @@ export default async function StockValuationPage({
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center gap-3">
-        <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Stock Valuation</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {rows.length} product{rows.length !== 1 ? "s" : ""} · {grandQty} units in stock
-          </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Stock Valuation</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {rows.length} product{rows.length !== 1 ? "s" : ""} · {grandQty} units in stock
+            </p>
+          </div>
         </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/api/reports/stock/download">
+            <FileSpreadsheet className="h-4 w-4" />
+            Export Excel
+          </Link>
+        </Button>
       </div>
 
       {/* Filters */}

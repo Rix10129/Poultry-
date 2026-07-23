@@ -12,6 +12,27 @@ function fmtDate(d: Date) {
   return d.toLocaleDateString("en-GB")
 }
 
+function daysUntil(date: Date, now = new Date()) {
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(date)
+  end.setHours(0, 0, 0, 0)
+  return Math.ceil((end.getTime() - start.getTime()) / 86400_000)
+}
+
+function stockStatus(quantity: number, reorderLevel: number) {
+  if (quantity <= 0) return "OUT OF STOCK"
+  if (quantity <= reorderLevel) return "LOW STOCK"
+  return "IN STOCK"
+}
+
+function expiryStatus(days: number) {
+  if (days < 0) return "EXPIRED"
+  if (days <= 30) return "EXPIRING <30D"
+  if (days <= 90) return "EXPIRING <90D"
+  return "OK"
+}
+
 function addTitle(sheet: ExcelJS.Worksheet, company: string, title: string) {
   const r1 = sheet.addRow([company])
   r1.getCell(1).font = { bold: true, size: 14, color: { argb: NAVY } }
@@ -56,6 +77,119 @@ function setWidths(sheet: ExcelJS.Worksheet, widths: number[]) {
   widths.forEach((w, i) => { sheet.getColumn(i + 1).width = w })
 }
 
+
+type DecimalLike = { toString(): string }
+
+type StockProduct = {
+  name: string
+  species: string
+  unit: string
+  salePrice: DecimalLike
+  reorderLevel: number
+  category?: { name: string } | null
+  batches: {
+    batchNumber: string
+    expiryDate: Date
+    quantity: number
+    purchasePrice: DecimalLike
+    salePrice: DecimalLike
+  }[]
+}
+
+function addStockWorksheet(sheet: ExcelJS.Worksheet, companyName: string, products: StockProduct[]) {
+  addTitle(sheet, companyName, "Stock Batch Export")
+  addHeaders(sheet, [
+    "Product Name",
+    "Category/Species",
+    "Unit",
+    "Batch Number",
+    "Expiry Date",
+    "Days to Expiry",
+    "Available Qty",
+    "Purchase Price",
+    "Sale Price",
+    "Purchase Value",
+    "Sale Value",
+    "Reorder Level",
+    "Stock Status",
+    "Expiry Status",
+  ])
+
+  let totalQty = 0
+  let totalPurchaseValue = 0
+  let totalSaleValue = 0
+  let rowIndex = 0
+
+  products.forEach((product) => {
+    product.batches.forEach((batch) => {
+      const quantity = batch.quantity
+      const purchasePrice = parseFloat(batch.purchasePrice.toString())
+      const salePrice = parseFloat(batch.salePrice.toString())
+      const purchaseValue = quantity * purchasePrice
+      const saleValue = quantity * salePrice
+      const days = daysUntil(batch.expiryDate)
+      totalQty += quantity
+      totalPurchaseValue += purchaseValue
+      totalSaleValue += saleValue
+
+      const row = sheet.addRow([
+        product.name,
+        [product.category?.name, product.species].filter(Boolean).join(" / ") || "—",
+        product.unit,
+        batch.batchNumber,
+        fmtDate(batch.expiryDate),
+        days,
+        quantity,
+        purchasePrice,
+        salePrice,
+        purchaseValue,
+        saleValue,
+        product.reorderLevel,
+        stockStatus(quantity, product.reorderLevel),
+        expiryStatus(days),
+      ])
+      styleRow(row, rowIndex)
+      if (quantity <= product.reorderLevel) row.getCell(13).font = { bold: true, color: { argb: RED } }
+      if (days <= 30) row.getCell(14).font = { bold: true, color: { argb: days < 0 ? RED : "FFCA8A04" } }
+      rowIndex += 1
+    })
+  })
+
+  totalRow(sheet, ["", "", "", "", "", "TOTAL", totalQty, "", "", totalPurchaseValue, totalSaleValue, "", "", ""])
+  setWidths(sheet, [30, 22, 12, 18, 14, 14, 14, 14, 12, 16, 14, 14, 16, 16])
+}
+
+export async function generateStockReport(companyId: string, companyName: string): Promise<Buffer> {
+  const products = await db.product.findMany({
+    where: { companyId, isActive: true },
+    include: {
+      category: { select: { name: true } },
+      batches: {
+        where: { quantity: { gt: 0 } },
+        orderBy: { expiryDate: "asc" },
+        select: {
+          batchNumber: true,
+          expiryDate: true,
+          quantity: true,
+          purchasePrice: true,
+          salePrice: true,
+        },
+      },
+    },
+    orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
+  })
+
+  const wb = new ExcelJS.Workbook()
+  wb.creator = "Poultry Vet System"
+  wb.created = new Date()
+
+  const sheet = wb.addWorksheet("Stock Batches")
+  addStockWorksheet(sheet, companyName, products)
+
+  const buf = await wb.xlsx.writeBuffer()
+  return Buffer.from(buf)
+}
+
 export async function generateReport(
   companyId: string,
   companyName: string,
@@ -81,7 +215,14 @@ export async function generateReport(
       include: {
         batches: {
           where: { quantity: { gt: 0 } },
-          select: { quantity: true, expiryDate: true, purchasePrice: true },
+          orderBy: { expiryDate: "asc" },
+          select: {
+            batchNumber: true,
+            quantity: true,
+            expiryDate: true,
+            purchasePrice: true,
+            salePrice: true,
+          },
         },
         category: { select: { name: true } },
       },
@@ -178,7 +319,12 @@ export async function generateReport(
   })
   setWidths(s3, [4, 36, 18, 12, 14, 14, 12, 13, 13, 12])
 
-  // ── Sheet 4: Receivables ────────────────────────────────────────────────────
+
+  // ── Sheet 4: Stock Batches ──────────────────────────────────────────────────
+  const stockSheet = wb.addWorksheet("Stock Batches")
+  addStockWorksheet(stockSheet, companyName, products)
+
+  // ── Sheet 5: Receivables ────────────────────────────────────────────────────
   const s4 = wb.addWorksheet("Receivables")
   addTitle(s4, companyName, "Customer Outstanding Balances")
   addHeaders(s4, ["#", "Customer", "Type", "Area", "Invoiced", "Paid", "Outstanding", "Credit Limit", "Status"])
