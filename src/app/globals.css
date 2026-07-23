@@ -115,11 +115,78 @@ body {
 
 @media print {
   @page {
-    margin: 0;
-    size: A4;
+    margin: 8mm;
+    size: A4 portrait;
   }
+
+  html,
   body {
+    width: 210mm;
+    min-height: 297mm;
+    background: #ffffff !important;
+    color: #0f172a !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .invoice-print-compact {
+    width: 100%;
+    max-width: 194mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    font-size: 10px !important;
+    line-height: 1.18 !important;
+  }
+
+  .invoice-print-compact .invoice-print-header {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .invoice-print-compact .invoice-print-table {
+    border-collapse: collapse !important;
+    table-layout: fixed;
+    width: 100% !important;
+  }
+
+  .invoice-print-compact .invoice-print-table thead {
+    display: table-header-group;
+  }
+
+  .invoice-print-compact .invoice-print-table tfoot {
+    display: table-footer-group;
+  }
+
+  .invoice-print-compact .invoice-print-table tr,
+  .invoice-print-compact .invoice-print-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .invoice-print-compact .invoice-print-table th,
+  .invoice-print-compact .invoice-print-table td {
+    padding-top: 2.5px !important;
+    padding-bottom: 2.5px !important;
+    vertical-align: top;
+  }
+
+  .invoice-print-compact .invoice-print-table th:first-child,
+  .invoice-print-compact .invoice-print-table td:first-child {
+    width: 7mm;
+  }
+
+  .invoice-print-compact .invoice-print-table th:nth-child(2),
+  .invoice-print-compact .invoice-print-table td:nth-child(2) {
+    width: 60mm;
+  }
+
+  .invoice-print-compact .invoice-print-table th:nth-child(3),
+  .invoice-print-compact .invoice-print-table td:nth-child(3) {
+    width: 22mm;
+  }
+
+  .invoice-print-compact .invoice-print-totals {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
