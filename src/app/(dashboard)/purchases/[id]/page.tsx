@@ -75,6 +75,7 @@ export default async function PurchaseDetailPage({ params }: Props) {
             </Button>
           </Link>
           <PrintButton />
+          <Link href={`/purchases/${id}/edit`}><Button size="sm" variant="outline">Edit</Button></Link>
           <DeleteButton
             action={deletePurchase}
             id={po.id}

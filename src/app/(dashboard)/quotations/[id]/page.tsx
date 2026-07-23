@@ -69,6 +69,7 @@ export default async function QuotationDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link href={`/quotations/${id}/edit`}><Button size="sm" variant="outline">Edit</Button></Link>
           {/* Status transitions */}
           {transitions.map((next) => (
             <form key={next} action={updateQuotationStatus}>

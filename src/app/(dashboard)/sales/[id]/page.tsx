@@ -92,6 +92,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
             isPaid={isPaid}
           />
           <PrintButton />
+          <Link href={`/sales/${id}/edit`}><Button size="sm" variant="outline">Edit</Button></Link>
           <DeleteButton
             action={deleteInvoice}
             id={invoice.id}

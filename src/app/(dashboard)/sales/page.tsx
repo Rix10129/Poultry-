@@ -122,6 +122,7 @@ export default async function SalesPage({
                       >
                         {inv.invoiceNumber}
                       </Link>
+                      <Link href={`/sales/${inv.id}/edit`} className="ml-2 text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(inv.invoiceDate)}</td>
                     <td className="px-4 py-3 text-slate-700">

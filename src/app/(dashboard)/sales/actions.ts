@@ -342,3 +342,54 @@ export async function createInvoice(
   revalidatePath("/alerts")
   redirect(`/sales/${invoiceId}`)
 }
+
+export async function updateInvoice(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const role = user.role as string
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+  const customerId = (formData.get("customerId") as string) || null
+  const invoiceDate = (formData.get("invoiceDate") as string) || new Date().toISOString()
+  const dueDate = (formData.get("dueDate") as string) || null
+  const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
+  const paidAmount = Math.max(0, parseFloat(formData.get("paidAmount") as string) || 0)
+  const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
+  const notes = (formData.get("notes") as string) || null
+  const linesJson = formData.get("linesJson") as string
+  if (!id) return { error: "Invoice ID missing" }
+  if (!VALID_PAYMENT_MODES.includes(paymentModeRaw as any)) return { error: "Invalid payment mode" }
+  let lines: LineInput[]
+  try { lines = JSON.parse(linesJson) } catch { return { error: "Invalid line data" } }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one line item" }
+  try {
+    await db.$transaction(async (tx) => {
+      const invoice = await tx.saleInvoice.findFirst({ where: { id, companyId }, include: { items: true, payments: true, returns: true } })
+      if (!invoice) throw new Error("Invoice not found")
+      const hasPosted = invoice.payments.length > 0 || invoice.returns.length > 0 || Number(invoice.paidAmount) > 0
+      if (hasPosted && role !== "OWNER" && role !== "ADMIN") throw new Error("Only managers can edit invoices after payment or return activity")
+      if (invoice.returns.length > 0) throw new Error("Cannot edit invoices after returns")
+      for (const item of invoice.items) await tx.productBatch.update({ where: { id: item.batchId }, data: { quantity: { increment: item.quantity } } })
+      await tx.stockMovement.deleteMany({ where: { reference: invoice.invoiceNumber } })
+      await tx.saleInvoiceItem.deleteMany({ where: { invoiceId: id } })
+      let totalAmount = 0, taxAmount = 0
+      for (const line of lines) { const base = line.quantity * line.salePrice * (1 - line.discount / 100); totalAmount += base; taxAmount += base * line.taxRate / 100 }
+      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      await tx.saleInvoice.update({ where: { id }, data: { customerId, invoiceDate: new Date(invoiceDate), dueDate: dueDate ? new Date(dueDate) : null, totalAmount, discountAmount, taxAmount, netAmount, paidAmount: Math.min(paidAmount, netAmount + 0.001), paymentMode: paymentModeRaw as PaymentMode, isCashSale: !customerId, notes } })
+      for (const line of lines) {
+        const batch = await tx.productBatch.findFirst({ where: { id: line.batchId, companyId, productId: line.productId } })
+        if (!batch) throw new Error("Batch not found")
+        if (batch.quantity < line.quantity) throw new Error(`Insufficient stock: ${batch.quantity} available`)
+        await tx.productBatch.update({ where: { id: line.batchId }, data: { quantity: { decrement: line.quantity } } })
+        await tx.saleInvoiceItem.create({ data: { invoiceId: id, productId: line.productId, batchId: line.batchId, quantity: line.quantity, salePrice: line.salePrice, discount: line.discount, taxRate: line.taxRate, totalAmount: line.quantity * line.salePrice * (1 - line.discount / 100) } })
+        await tx.stockMovement.create({ data: { companyId, productId: line.productId, batchId: line.batchId, type: MovementType.SALE, quantity: -line.quantity, reference: invoice.invoiceNumber, notes: `Sale ${invoice.invoiceNumber} edited` } })
+      }
+    })
+  } catch (e: any) { return { error: e?.message ?? "Failed to update invoice" } }
+  logAudit({ companyId, userId: user.id, userName: user.name ?? "", action: "UPDATE_INVOICE", entityId: id, detail: "Invoice updated" })
+  revalidatePath("/sales"); revalidatePath("/inventory"); revalidatePath(`/sales/${id}`); redirect(`/sales/${id}`)
+}

@@ -53,7 +53,7 @@ export default async function ExpenseDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Link href="/expenses" className="text-slate-400 hover:text-slate-600 transition-colors">
           <ChevronLeft className="h-5 w-5" />
         </Link>
@@ -63,6 +63,7 @@ export default async function ExpenseDetailPage({ params }: Props) {
             {expense.expenseDate.toLocaleDateString("en-PK", { day: "2-digit", month: "long", year: "numeric" })}
           </p>
         </div>
+        <Link href={`/expenses/${expense.id}/edit`} className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</Link>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">

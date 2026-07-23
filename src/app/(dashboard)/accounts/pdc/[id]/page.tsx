@@ -7,6 +7,7 @@ import { ChevronLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { PDCStatusForm } from "@/components/accounts/pdc-status-form"
 import { DeleteButton } from "@/components/ui/delete-button"
+import { Button } from "@/components/ui/button"
 import { deletePDC } from "@/app/(dashboard)/accounts/pdc/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -144,6 +145,7 @@ export default async function PDCDetailPage({ params }: Props) {
       {/* Delete */}
       <div className="bg-white rounded-xl border border-red-200 p-5">
         <p className="text-sm text-slate-500 mb-3">Remove this cheque record permanently.</p>
+        <Link href={`/accounts/pdc/${id}/edit`}><Button size="sm" variant="outline">Edit</Button></Link>
         <DeleteButton
           action={deletePDC}
           id={cheque.id}

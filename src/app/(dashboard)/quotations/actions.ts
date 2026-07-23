@@ -177,3 +177,39 @@ export async function deleteQuotation(
   revalidatePath("/quotations")
   redirect("/quotations")
 }
+
+export async function updateQuotation(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const role = user.role as string
+  if (role !== "OWNER" && role !== "ADMIN") return { error: "Access denied" }
+  const companyId = user.companyId as string
+  const id = formData.get("id") as string
+  const customerId = (formData.get("customerId") as string) || null
+  const quoteDate = (formData.get("quoteDate") as string) || new Date().toISOString()
+  const validUntil = (formData.get("validUntil") as string) || null
+  const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
+  const notes = (formData.get("notes") as string) || null
+  const linesJson = formData.get("linesJson") as string
+  let lines: LineInput[]
+  try { lines = JSON.parse(linesJson) } catch { return { error: "Invalid line data" } }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one item" }
+  try {
+    await db.$transaction(async (tx) => {
+      const quote = await tx.quotation.findFirst({ where: { id, companyId }, select: { status: true } })
+      if (!quote) throw new Error("Quotation not found")
+      if (quote.status === "ACCEPTED") throw new Error("Accepted quotations cannot be edited")
+      let totalAmount = 0, taxAmount = 0
+      for (const line of lines) { const base = line.quantity * line.salePrice * (1 - line.discount / 100); totalAmount += base; taxAmount += base * line.taxRate / 100 }
+      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      await tx.quotation.update({ where: { id }, data: { customerId, quoteDate: new Date(quoteDate), validUntil: validUntil ? new Date(validUntil) : null, totalAmount, discountAmount, taxAmount, netAmount, notes } })
+      await tx.quotationItem.deleteMany({ where: { quotationId: id } })
+      for (const line of lines) await tx.quotationItem.create({ data: { quotationId: id, productId: line.productId, quantity: line.quantity, unit: line.unit, salePrice: line.salePrice, discount: line.discount, taxRate: line.taxRate, totalAmount: line.quantity * line.salePrice * (1 - line.discount / 100) } })
+    })
+  } catch (e: any) { return { error: e?.message ?? "Failed to update quotation" } }
+  revalidatePath("/quotations"); revalidatePath(`/quotations/${id}`); redirect(`/quotations/${id}`)
+}

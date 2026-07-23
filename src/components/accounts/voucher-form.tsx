@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
-import { createVoucher } from "@/app/(dashboard)/accounts/actions"
+import { createVoucher, updateVoucher } from "@/app/(dashboard)/accounts/actions"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle } from "lucide-react"
 
@@ -35,16 +35,18 @@ const VOUCHER_TYPES = [
 interface Props {
   accounts: AccountOption[]
   defaultType?: string
+  initialValues?: { id: string; voucherType: string; entryDate: string; description: string; reference: string; lines: VoucherLine[] }
+  mode?: "create" | "edit"
 }
 
-export function VoucherForm({ accounts, defaultType = "JOURNAL" }: Props) {
-  const [lines, setLines] = useState<VoucherLine[]>([
+export function VoucherForm({ accounts, defaultType = "JOURNAL", initialValues, mode = initialValues ? "edit" : "create" }: Props) {
+  const [lines, setLines] = useState<VoucherLine[]>(initialValues?.lines ?? [
     { key: crypto.randomUUID(), debitAccountId: "", creditAccountId: "", amount: 0, description: "" },
   ])
-  const [voucherType, setVoucherType] = useState(defaultType)
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [description, setDescription] = useState("")
-  const [reference, setReference] = useState("")
+  const [voucherType, setVoucherType] = useState(initialValues?.voucherType ?? defaultType)
+  const [entryDate, setEntryDate] = useState(() => initialValues?.entryDate ?? new Date().toISOString().split("T")[0])
+  const [description, setDescription] = useState(initialValues?.description ?? "")
+  const [reference, setReference] = useState(initialValues?.reference ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -118,7 +120,8 @@ export function VoucherForm({ accounts, defaultType = "JOURNAL" }: Props) {
     )
 
     try {
-      const result = await createVoucher(null, fd)
+      if (initialValues) fd.set("id", initialValues.id)
+      const result = await (mode === "edit" ? updateVoucher : createVoucher)(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)

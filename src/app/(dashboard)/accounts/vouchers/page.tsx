@@ -150,6 +150,7 @@ export default async function DayBookPage({
                     >
                       {entry.voucherNumber}
                     </Link>
+                    <Link href={`/accounts/vouchers/${entry.id}/edit`} className="ml-2 text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                   </td>
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                     {formatDate(entry.entryDate)}

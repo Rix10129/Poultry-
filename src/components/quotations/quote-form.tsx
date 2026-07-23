@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
-import { createQuotation } from "@/app/(dashboard)/quotations/actions"
+import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotations/actions"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle } from "lucide-react"
 
@@ -25,6 +25,8 @@ type CustomerOption = {
 interface QuoteFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  initialValues?: { id: string; customerId: string; quoteDate: string; validUntil: string; discountAmount: string; notes: string; lines: LineItem[] }
+  mode?: "create" | "edit"
 }
 
 type LineItem = {
@@ -38,14 +40,14 @@ type LineItem = {
   taxRate: number
 }
 
-export function QuoteForm({ products, customers }: QuoteFormProps) {
-  const [lines, setLines] = useState<LineItem[]>([])
+export function QuoteForm({ products, customers, initialValues, mode = initialValues ? "edit" : "create" }: QuoteFormProps) {
+  const [lines, setLines] = useState<LineItem[]>(initialValues?.lines ?? [])
   const [addProductId, setAddProductId] = useState("")
-  const [customerId, setCustomerId] = useState("")
-  const [quoteDate, setQuoteDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [validUntil, setValidUntil] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [customerId, setCustomerId] = useState(initialValues?.customerId ?? "")
+  const [quoteDate, setQuoteDate] = useState(() => initialValues?.quoteDate ?? new Date().toISOString().split("T")[0])
+  const [validUntil, setValidUntil] = useState(initialValues?.validUntil ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialValues?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialValues?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -112,7 +114,8 @@ export function QuoteForm({ products, customers }: QuoteFormProps) {
     )
 
     try {
-      const result = await createQuotation(null, fd)
+      if (initialValues) fd.set("id", initialValues.id)
+      const result = await (mode === "edit" ? updateQuotation : createQuotation)(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)
@@ -273,7 +276,7 @@ export function QuoteForm({ products, customers }: QuoteFormProps) {
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          Create Quotation
+          {mode === "edit" ? "Save Changes" : "Create Quotation"}
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>Cancel</Button>
       </div>
