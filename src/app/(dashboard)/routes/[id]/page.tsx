@@ -65,6 +65,7 @@ export default async function RouteDetailPage({ params }: Props) {
             </p>
           </div>
         </div>
+        <Link href={`/routes/${id}/edit`} className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</Link>
         <DeleteButton
           action={deleteRoute}
           id={id}

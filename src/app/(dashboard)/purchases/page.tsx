@@ -121,6 +121,7 @@ export default async function PurchasesPage({
                       >
                         {po.poNumber}
                       </Link>
+                      <Link href={`/purchases/${po.id}/edit`} className="ml-2 text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(po.orderDate)}</td>
                     <td className="px-4 py-3 text-slate-700">{po.supplier.name}</td>

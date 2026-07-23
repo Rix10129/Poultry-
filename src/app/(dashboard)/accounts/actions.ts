@@ -191,3 +191,41 @@ export async function createVoucher(
   revalidatePath("/accounts/vouchers")
   redirect(`/accounts/vouchers/${entryId}`)
 }
+
+export async function updateVoucher(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Access denied" }
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+  const voucherTypeRaw = (formData.get("voucherType") as string) || "JOURNAL"
+  const entryDate = (formData.get("entryDate") as string) || new Date().toISOString()
+  const description = (formData.get("description") as string)?.trim()
+  const reference = (formData.get("reference") as string)?.trim() || null
+  const linesJson = formData.get("linesJson") as string
+  if (!id) return { error: "Voucher ID missing" }
+  if (!VALID_VOUCHER_TYPES.includes(voucherTypeRaw as any)) return { error: "Invalid voucher type" }
+  if (!description) return { error: "Description is required" }
+  let lines: LineInput[]
+  try { lines = JSON.parse(linesJson) } catch { return { error: "Invalid line data" } }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one line" }
+  for (const line of lines) {
+    if (!line.debitAccountId && !line.creditAccountId) return { error: "Each line must have at least a debit or credit account" }
+    if (!line.amount || line.amount <= 0) return { error: "Each line must have a positive amount" }
+  }
+  const totalAmount = lines.reduce((s, l) => s + l.amount, 0)
+  try {
+    await db.$transaction(async (tx) => {
+      const existing = await tx.journalEntry.findFirst({ where: { id, companyId } })
+      if (!existing) throw new Error("Voucher not found")
+      await tx.journalEntry.update({ where: { id }, data: { voucherType: voucherTypeRaw as VoucherType, entryDate: new Date(entryDate), description, totalAmount, reference } })
+      await tx.journalLine.deleteMany({ where: { journalEntryId: id } })
+      for (const line of lines) await tx.journalLine.create({ data: { journalEntryId: id, debitAccountId: line.debitAccountId || null, creditAccountId: line.creditAccountId || null, amount: line.amount, description: line.description || null } })
+    })
+  } catch (e: any) { return { error: e?.message ?? "Failed to update voucher" } }
+  revalidatePath("/accounts"); revalidatePath("/accounts/vouchers"); revalidatePath(`/accounts/vouchers/${id}`); redirect(`/accounts/vouchers/${id}`)
+}

@@ -186,6 +186,7 @@ export default async function ExpensesPage({ searchParams }: Props) {
                     <Link href={`/expenses/${e.id}`} className="hover:text-blue-600 hover:underline">
                       {e.description}
                     </Link>
+                    <Link href={`/expenses/${e.id}/edit`} className="ml-2 text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">{e.user.name}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-900">

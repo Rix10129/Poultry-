@@ -113,3 +113,33 @@ export async function deletePDC(
   revalidatePath("/accounts/pdc")
   redirect("/accounts/pdc")
 }
+
+export async function updatePDC(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Access denied" }
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+  const type = (formData.get("type") as string) as PDCType
+  const customerId = (formData.get("customerId") as string) || null
+  const supplierId = (formData.get("supplierId") as string) || null
+  const chequeNumber = (formData.get("chequeNumber") as string)?.trim()
+  const bankName = (formData.get("bankName") as string)?.trim() || null
+  const chequeDateStr = formData.get("chequeDate") as string
+  const amount = parseFloat(formData.get("amount") as string)
+  const notes = (formData.get("notes") as string)?.trim() || null
+  if (!id) return { error: "Cheque ID missing" }
+  if (!VALID_TYPES.includes(type)) return { error: "Invalid type" }
+  if (!chequeNumber) return { error: "Cheque number is required" }
+  if (!chequeDateStr) return { error: "Cheque date is required" }
+  if (!amount || amount <= 0) return { error: "Amount must be greater than 0" }
+  const existing = await db.pDCCheque.findFirst({ where: { id, companyId }, select: { status: true } })
+  if (!existing) return { error: "Cheque not found" }
+  if (existing.status !== "PENDING") return { error: "Only pending cheques can be edited" }
+  await db.pDCCheque.update({ where: { id }, data: { type, customerId: type === "RECEIVABLE" ? customerId : null, supplierId: type === "PAYABLE" ? supplierId : null, chequeNumber, bankName, chequeDate: new Date(chequeDateStr), amount, notes } })
+  revalidatePath("/accounts/pdc"); revalidatePath(`/accounts/pdc/${id}`); redirect(`/accounts/pdc/${id}`)
+}

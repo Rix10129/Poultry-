@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
-import { createInvoice } from "@/app/(dashboard)/sales/actions"
+import { createInvoice, updateInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
@@ -64,19 +63,20 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  initialValues?: { id: string; customerId: string; invoiceDate: string; dueDate: string; paymentMode: string; paidAmount: string; discountAmount: string; notes: string; lines: LineItem[] }
+  mode?: "create" | "edit"
 }
 
-export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const router = useRouter()
-  const [lines, setLines] = useState<LineItem[]>([])
+export function InvoiceForm({ products, customers, initialValues, mode = initialValues ? "edit" : "create" }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>(initialValues?.lines ?? [])
   const [addProductId, setAddProductId] = useState("")
-  const [customerId, setCustomerId] = useState("")
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState("")
-  const [paymentMode, setPaymentMode] = useState("CASH")
-  const [paidAmount, setPaidAmount] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [customerId, setCustomerId] = useState(initialValues?.customerId ?? "")
+  const [invoiceDate, setInvoiceDate] = useState(() => initialValues?.invoiceDate ?? new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState(initialValues?.dueDate ?? "")
+  const [paymentMode, setPaymentMode] = useState(initialValues?.paymentMode ?? "CASH")
+  const [paidAmount, setPaidAmount] = useState(initialValues?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialValues?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialValues?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
@@ -214,17 +214,18 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     fd.set("linesJson", buildLinesJson())
 
     try {
-      const result = await createInvoice(null, fd)
+      if (initialValues) fd.set("id", initialValues.id)
+      const result = await (mode === "edit" ? updateInvoice : createInvoice)(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)
       }
       // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+      if (err instanceof Error && "digest" in err && typeof err.digest === "string" && err.digest.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
@@ -519,7 +520,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          Create Invoice
+          {mode === "edit" ? "Save Changes" : "Create Invoice"}
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>
           Cancel

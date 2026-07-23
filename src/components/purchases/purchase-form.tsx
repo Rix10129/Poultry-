@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
-import { createPurchase } from "@/app/(dashboard)/purchases/actions"
+import { createPurchase, updatePurchaseOrder } from "@/app/(dashboard)/purchases/actions"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle } from "lucide-react"
 
@@ -46,16 +46,18 @@ interface PurchaseFormProps {
   products: ProductOption[]
   suppliers: SupplierOption[]
   defaultSupplierId?: string
+  initialValues?: { id: string; supplierId: string; orderDate: string; paidAmount: string; discountAmount: string; notes: string; lines: LineItem[] }
+  mode?: "create" | "edit"
 }
 
-export function PurchaseForm({ products, suppliers, defaultSupplierId = "" }: PurchaseFormProps) {
-  const [lines, setLines] = useState<LineItem[]>([])
+export function PurchaseForm({ products, suppliers, defaultSupplierId = "", initialValues, mode = initialValues ? "edit" : "create" }: PurchaseFormProps) {
+  const [lines, setLines] = useState<LineItem[]>(initialValues?.lines ?? [])
   const [addProductId, setAddProductId] = useState("")
-  const [supplierId, setSupplierId] = useState(defaultSupplierId)
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [paidAmount, setPaidAmount] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [supplierId, setSupplierId] = useState(initialValues?.supplierId ?? defaultSupplierId)
+  const [orderDate, setOrderDate] = useState(() => initialValues?.orderDate ?? new Date().toISOString().split("T")[0])
+  const [paidAmount, setPaidAmount] = useState(initialValues?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialValues?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialValues?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -149,7 +151,8 @@ export function PurchaseForm({ products, suppliers, defaultSupplierId = "" }: Pu
     )
 
     try {
-      const result = await createPurchase(null, fd)
+      if (initialValues) fd.set("id", initialValues.id)
+      const result = await (mode === "edit" ? updatePurchaseOrder : createPurchase)(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)

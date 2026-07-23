@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType } from "@prisma/client"
+import { logAudit } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -312,4 +313,47 @@ export async function createPurchase(
   revalidatePath("/inventory")
   revalidatePath("/alerts")
   redirect(`/purchases/${purchaseId}`)
+}
+
+export async function updatePurchaseOrder(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Access denied" }
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+  const supplierId = (formData.get("supplierId") as string)?.trim()
+  const orderDate = (formData.get("orderDate") as string) || new Date().toISOString()
+  const paidAmount = Math.max(0, parseFloat(formData.get("paidAmount") as string) || 0)
+  const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
+  const notes = (formData.get("notes") as string)?.trim() || null
+  const linesJson = formData.get("linesJson") as string
+  let lines: LineInput[]
+  try { lines = JSON.parse(linesJson) } catch { return { error: "Invalid line data" } }
+  if (!id || !supplierId) return { error: "Purchase and supplier are required" }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one line item" }
+  try {
+    await db.$transaction(async (tx) => {
+      const po = await tx.purchaseOrder.findFirst({ where: { id, companyId }, include: { items: { include: { batch: true } }, payments: true, returns: true } })
+      if (!po) throw new Error("Purchase order not found")
+      if (po.payments.length || po.returns.length) throw new Error("Cannot edit purchase orders after payments or returns")
+      for (const item of po.items) if (item.batch && item.batch.initialQuantity !== item.batch.quantity) throw new Error("Cannot edit after stock from this purchase has moved")
+      await tx.stockMovement.deleteMany({ where: { reference: po.poNumber } })
+      for (const item of po.items) if (item.batchId) await tx.productBatch.delete({ where: { id: item.batchId } })
+      let totalAmount = 0, taxAmount = 0
+      for (const line of lines) { const base = line.quantity * line.purchasePrice * (1 - line.discount / 100); totalAmount += base; taxAmount += base * line.taxRate / 100 }
+      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      await tx.purchaseOrder.update({ where: { id }, data: { supplierId, orderDate: new Date(orderDate), totalAmount, discountAmount, taxAmount, netAmount, paidAmount: Math.min(paidAmount, netAmount + 0.001), notes } })
+      for (const line of lines) {
+        const batch = await tx.productBatch.create({ data: { companyId, productId: line.productId, batchNumber: line.batchNumber.trim(), expiryDate: new Date(line.expiryDate), manufactureDate: line.manufactureDate ? new Date(line.manufactureDate) : null, purchasePrice: line.purchasePrice, salePrice: line.salePrice, quantity: line.quantity, initialQuantity: line.quantity } })
+        await tx.purchaseOrderItem.create({ data: { purchaseOrderId: id, productId: line.productId, batchId: batch.id, quantity: line.quantity, purchasePrice: line.purchasePrice, discount: line.discount, taxRate: line.taxRate, totalAmount: line.quantity * line.purchasePrice * (1 - line.discount / 100) } })
+        await tx.stockMovement.create({ data: { companyId, productId: line.productId, batchId: batch.id, type: MovementType.PURCHASE, quantity: line.quantity, reference: po.poNumber, notes: `Purchase ${po.poNumber} edited` } })
+      }
+    })
+  } catch (e: any) { if (e?.code === "P2002") return { error: "A batch with that number already exists" }; return { error: e?.message ?? "Failed to update purchase order" } }
+  logAudit({ companyId, userId: user.id, userName: user.name ?? "", action: "UPDATE_PURCHASE", entityId: id, detail: "Purchase order updated" })
+  revalidatePath("/purchases"); revalidatePath("/inventory"); revalidatePath(`/purchases/${id}`); redirect(`/purchases/${id}`)
 }

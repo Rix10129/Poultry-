@@ -97,6 +97,7 @@ export default async function QuotationsPage() {
                     <Link href={`/quotations/${q.id}`}>
                       <ArrowRight className="h-4 w-4 text-slate-300 hover:text-slate-500" />
                     </Link>
+                    <Link href={`/quotations/${q.id}/edit`} className="text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                   </td>
                 </tr>
               ))}

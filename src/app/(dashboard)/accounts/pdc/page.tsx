@@ -149,6 +149,7 @@ export default async function PDCPage({ searchParams }: Props) {
                       >
                         {c.chequeNumber}
                       </Link>
+                      <Link href={`/accounts/pdc/${c.id}/edit`} className="ml-2 text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                       {isOverdue && <AlertTriangle className="inline ml-1 h-3 w-3 text-red-500" />}
                       {isDueSoon && !isOverdue && <Clock className="inline ml-1 h-3 w-3 text-amber-500" />}
                     </td>

@@ -83,7 +83,7 @@ export default async function VoucherDetailPage({ params }: Props) {
             <p className="text-sm text-slate-500">{formatDate(entry.entryDate)}</p>
           </div>
         </div>
-        <PrintButton />
+        <div className="flex items-center gap-2"><Link href={`/accounts/vouchers/${id}/edit`} className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</Link><PrintButton /></div>
       </div>
 
       {/* Print header */}

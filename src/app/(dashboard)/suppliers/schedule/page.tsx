@@ -108,6 +108,7 @@ export default async function SupplierSchedulePage() {
                     </td>
                     <td className="px-5 py-3 text-slate-700">
                       {s.description}
+                      <Link href={`/suppliers/schedule/${s.id}/edit`} className="ml-2 text-xs text-slate-500 hover:text-blue-600">Edit</Link>
                       {s.notes && <p className="text-xs text-slate-400 mt-0.5">{s.notes}</p>}
                     </td>
                     <td className="px-5 py-3">

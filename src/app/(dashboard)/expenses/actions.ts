@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import { ExpenseCategory, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
 
@@ -75,4 +76,43 @@ export async function deleteExpense(_prev: ActionState, formData: FormData): Pro
   })
 
   redirect("/expenses")
+}
+
+export async function updateExpense(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Access denied" }
+
+  const companyId = user.companyId as string
+  const id = (formData.get("id") as string)?.trim()
+  const category = formData.get("category") as any
+  const description = (formData.get("description") as string)?.trim()
+  const amount = parseFloat(formData.get("amount") as string)
+  const expenseDateStr = formData.get("expenseDate") as string
+  const paymentMode = formData.get("paymentMode") as any
+  const reference = (formData.get("reference") as string)?.trim() || null
+  const notes = (formData.get("notes") as string)?.trim() || null
+
+  if (!id) return { error: "Expense ID missing" }
+  if (!description) return { error: "Description is required" }
+  if (isNaN(amount) || amount <= 0) return { error: "Amount must be greater than 0" }
+  if (!expenseDateStr) return { error: "Expense date is required" }
+
+  try {
+    const res = await db.expense.updateMany({
+      where: { id, companyId },
+      data: { category, description, amount, expenseDate: new Date(expenseDateStr), paymentMode, reference, notes },
+    })
+    if (!res.count) return { error: "Expense not found" }
+  } catch {
+    return { error: "Failed to update expense" }
+  }
+
+  revalidatePath("/expenses")
+  revalidatePath(`/expenses/${id}`)
+  redirect(`/expenses/${id}`)
 }
