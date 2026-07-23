@@ -22,6 +22,7 @@ export type CustomerData = {
 
 interface Props {
   customer?: CustomerData
+  canEditOpeningBalance?: boolean
 }
 
 const TYPE_OPTIONS = [
@@ -31,7 +32,7 @@ const TYPE_OPTIONS = [
   { value: "SUB_DEALER", label: "Sub-Dealer" },
 ]
 
-export function CustomerForm({ customer }: Props) {
+export function CustomerForm({ customer, canEditOpeningBalance = true }: Props) {
   const action = customer ? updateCustomer : createCustomer
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -114,20 +115,22 @@ export function CustomerForm({ customer }: Props) {
             placeholder="0.00"
           />
         </div>
-        {!customer && (
-          <div className="space-y-1.5">
-            <Label htmlFor="openingBalance">Opening Balance (they owe us)</Label>
-            <Input
-              id="openingBalance"
-              name="openingBalance"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue="0"
-              placeholder="0.00"
-            />
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="openingBalance">Opening Balance (they owe us)</Label>
+          <Input
+            id="openingBalance"
+            name="openingBalance"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={customer?.openingBalance ?? "0"}
+            placeholder="0.00"
+            disabled={!canEditOpeningBalance}
+          />
+          <p className="text-xs text-slate-500">
+            Changing opening balance will change outstanding/ledger totals.
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-2">
