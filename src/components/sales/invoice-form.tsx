@@ -366,6 +366,26 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         </div>
       )}
 
+      {mode === "update" && initialInvoice?.hasDependentRecords && initialInvoice.canOverrideSafeguards && (
+        <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <input
+            type="checkbox"
+            checked={confirmDependentEdit}
+            onChange={(e) => setConfirmDependentEdit(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            I understand this invoice has dependent payments or returns and explicitly approve recalculating its stock and accounting values.
+          </span>
+        </label>
+      )}
+
+      {mode === "update" && initialInvoice?.hasDependentRecords && !initialInvoice.canOverrideSafeguards && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          This invoice has dependent payments or returns. Only an Owner or Admin can explicitly confirm edits.
+        </div>
+      )}
+
       {/* Header row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="col-span-2 space-y-1.5">
@@ -488,73 +508,14 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {lines.map(line => {
-                  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
-                  const overQty = line.quantity > line.maxQty
-                  return (
-                    <tr key={line.key} className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
-                      <td className="px-3 py-2.5">
-                        <p className="font-medium text-slate-900">{line.productName}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            {line.batchNumber}
-                          </span>
-                          <ExpiryBadge expiryDate={line.expiryDate} />
-                        </div>
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-xs text-slate-400">{line.maxQty}</td>
-                      <td className="px-3 py-2.5">
-                        <Input
-                          type="number"
-                          min="1"
-                          max={line.maxQty}
-                          value={line.quantity}
-                          onChange={e =>
-                            updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
-                          }
-                          className={`text-right ${overQty ? "border-red-400 focus:ring-red-400" : ""}`}
-                        />
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={line.salePrice}
-                          onChange={e =>
-                            updateLine(line.key, { salePrice: parseFloat(e.target.value) || 0 })
-                          }
-                          className="text-right"
-                        />
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={line.discount}
-                          onChange={e =>
-                            updateLine(line.key, { discount: parseFloat(e.target.value) || 0 })
-                          }
-                          className="text-right"
-                        />
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
-                        {formatCurrency(lineTotal)}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => setLines(prev => prev.filter(l => l.key !== line.key))}
-                          className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {lines.map(line => (
+                  <LineRow
+                    key={line.key}
+                    line={line}
+                    updateLine={updateLine}
+                    removeLine={(key) => setLines(prev => prev.filter(l => l.key !== key))}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -638,25 +599,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         </div>
       </div>
 
-      {mode === "update" && initialInvoice?.hasDependentRecords && initialInvoice.canOverrideSafeguards && (
-        <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <input
-            type="checkbox"
-            checked={confirmDependentEdit}
-            onChange={(e) => setConfirmDependentEdit(e.target.checked)}
-            className="mt-1"
-          />
-          <span>
-            I understand this invoice has dependent payments or returns and explicitly approve recalculating its stock and accounting values.
-          </span>
-        </label>
-      )}
-
-      {mode === "update" && initialInvoice?.hasDependentRecords && !initialInvoice.canOverrideSafeguards && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This invoice has dependent payments or returns. Only an Owner or Admin can explicitly confirm edits.
-        </div>
-      )}
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting || (mode === "update" && !!initialInvoice?.hasDependentRecords && (!initialInvoice.canOverrideSafeguards || !confirmDependentEdit))}>
@@ -667,6 +609,83 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         </Button>
       </div>
     </form>
+  )
+}
+
+function LineRow({
+  line,
+  updateLine,
+  removeLine,
+}: {
+  line: LineItem
+  updateLine: (key: string, patch: Partial<LineItem>) => void
+  removeLine: (key: string) => void
+}) {
+  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+  const overQty = line.quantity > line.maxQty
+
+  return (
+    <tr className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
+      <td className="px-3 py-2.5">
+        <p className="font-medium text-slate-900">{line.productName}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+            {line.batchNumber}
+          </span>
+          <ExpiryBadge expiryDate={line.expiryDate} />
+        </div>
+      </td>
+      <td className="px-3 py-2.5 text-right text-xs text-slate-400">{line.maxQty}</td>
+      <td className="px-3 py-2.5">
+        <Input
+          type="number"
+          min="1"
+          max={line.maxQty}
+          value={line.quantity}
+          onChange={e =>
+            updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
+          }
+          className={`text-right ${overQty ? "border-red-400 focus:ring-red-400" : ""}`}
+        />
+      </td>
+      <td className="px-3 py-2.5">
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={line.salePrice}
+          onChange={e =>
+            updateLine(line.key, { salePrice: parseFloat(e.target.value) || 0 })
+          }
+          className="text-right"
+        />
+      </td>
+      <td className="px-3 py-2.5">
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={line.discount}
+          onChange={e =>
+            updateLine(line.key, { discount: parseFloat(e.target.value) || 0 })
+          }
+          className="text-right"
+        />
+      </td>
+      <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
+        {formatCurrency(lineTotal)}
+      </td>
+      <td className="px-3 py-2.5">
+        <button
+          type="button"
+          onClick={() => removeLine(line.key)}
+          className="text-slate-300 hover:text-red-500 transition-colors p-1"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
+    </tr>
   )
 }
 
