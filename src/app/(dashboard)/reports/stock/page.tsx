@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, FileSpreadsheet, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Species } from "@prisma/client"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -18,9 +19,12 @@ export default async function StockValuationPage({
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as { companyId?: string }).companyId
+  if (!companyId) redirect("/login")
 
   const { categoryId, species, zero } = await searchParams
   const showZero = zero === "1"
+
+  const selectedSpecies = Object.values(Species).includes(species as Species) ? (species as Species) : undefined
 
   const [products, categories] = await Promise.all([
     db.product.findMany({
@@ -28,7 +32,7 @@ export default async function StockValuationPage({
         companyId,
         isActive: true,
         ...(categoryId ? { categoryId } : {}),
-        ...(species ? { species } : {}),
+        ...(selectedSpecies ? { species: selectedSpecies } : {}),
       },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
       include: {
@@ -54,11 +58,11 @@ export default async function StockValuationPage({
     }),
   ])
 
-  const SPECIES_LABELS: Record<string, string> = {
+  const SPECIES_LABELS: Record<Species, string> = {
     BROILER: "Broiler", LAYER: "Layer", CATTLE: "Cattle",
     SHEEP: "Sheep", GOAT: "Goat", FISH: "Fish", GENERAL: "General",
   }
-  const speciesValues = Object.keys(SPECIES_LABELS)
+  const speciesValues = Object.values(Species)
 
   // Compute valuation per product
   const rows = products
