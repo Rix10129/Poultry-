@@ -21,11 +21,10 @@ export default async function EditProductPage({ params }: Props) {
 
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const companyId = session.user.companyId
 
-  const [product, categories, suppliers] = await Promise.all([
+  const [product, suppliers] = await Promise.all([
     db.product.findFirst({ where: { id, companyId, isActive: true } }),
-    db.category.findMany({ where: { companyId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.supplier.findMany({ where: { companyId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ])
   if (!product) notFound()
@@ -35,7 +34,6 @@ export default async function EditProductPage({ params }: Props) {
     id: product.id,
     name: product.name,
     genericName: product.genericName,
-    categoryId: product.categoryId,
     supplierId: product.supplierId,
     species: product.species,
     unit: product.unit,
@@ -61,7 +59,7 @@ export default async function EditProductPage({ params }: Props) {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <ProductForm categories={categories} suppliers={suppliers} product={serialized} />
+        <ProductForm suppliers={suppliers} product={serialized} />
       </div>
     </div>
   )

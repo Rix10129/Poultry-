@@ -9,10 +9,11 @@ import { productSchema, batchSchema } from "@/lib/validations/inventory"
 import { MovementType, Species, UnitType } from "@prisma/client"
 
 type ActionState = { error: string } | null
+type InventoryTx = Pick<typeof db, "product" | "productBatch" | "stockMovement">
 
 async function getCompanyId() {
   const session = await getServerSession(authOptions)
-  const companyId = (session?.user as any)?.companyId as string | undefined
+  const companyId = session?.user?.companyId
   if (!companyId) throw new Error("Unauthorized")
   return companyId
 }
@@ -25,6 +26,15 @@ function normalizeFormData(formData: FormData) {
   return raw
 }
 
+function parseProductForm(formData: FormData) {
+  const parsed = productSchema.safeParse(normalizeFormData(formData))
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Validation error")
+  }
+
+  return parsed.data
+}
+
 // ── Products ──────────────────────────────────────────────────────────────────
 
 export async function createProduct(
@@ -34,12 +44,11 @@ export async function createProduct(
   let companyId: string
   try { companyId = await getCompanyId() } catch { return { error: "Not authenticated" } }
 
-  const parsed = productSchema.safeParse(normalizeFormData(formData))
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Validation error" }
-  }
+  let parsed: ReturnType<typeof parseProductForm>
+  try { parsed = parseProductForm(formData) }
+  catch (e: unknown) { return { error: e instanceof Error ? e.message : "Validation error" } }
 
-  const { species, unit, subUnit, ...rest } = parsed.data
+  const { species, unit, subUnit, ...rest } = parsed
 
   try {
     await db.product.create({
@@ -51,8 +60,8 @@ export async function createProduct(
         subUnit: subUnit ? (subUnit as UnitType) : undefined,
       },
     })
-  } catch (e: any) {
-    return { error: e?.message ?? "Failed to create product" }
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : "Failed to create product" }
   }
 
   revalidatePath("/inventory")
@@ -67,12 +76,11 @@ export async function updateProduct(
   let companyId: string
   try { companyId = await getCompanyId() } catch { return { error: "Not authenticated" } }
 
-  const parsed = productSchema.safeParse(normalizeFormData(formData))
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Validation error" }
-  }
+  let parsed: ReturnType<typeof parseProductForm>
+  try { parsed = parseProductForm(formData) }
+  catch (e: unknown) { return { error: e instanceof Error ? e.message : "Validation error" } }
 
-  const { species, unit, subUnit, ...rest } = parsed.data
+  const { species, unit, subUnit, ...rest } = parsed
 
   try {
     await db.product.updateMany({
@@ -84,8 +92,8 @@ export async function updateProduct(
         subUnit: subUnit ? (subUnit as UnitType) : null,
       },
     })
-  } catch (e: any) {
-    return { error: e?.message ?? "Failed to update product" }
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : "Failed to update product" }
   }
 
   revalidatePath("/inventory")
@@ -131,7 +139,7 @@ export async function createBatch(
   if (existing) return { error: `Batch number "${batchNumber}" already exists for this product` }
 
   try {
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: InventoryTx) => {
       const batch = await tx.productBatch.create({
         data: {
           companyId,
@@ -158,8 +166,8 @@ export async function createBatch(
         },
       })
     })
-  } catch (e: any) {
-    return { error: e?.message ?? "Failed to add batch" }
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : "Failed to add batch" }
   }
 
   revalidatePath(`/inventory/${productId}`)

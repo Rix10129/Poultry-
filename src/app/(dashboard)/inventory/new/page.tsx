@@ -11,12 +11,9 @@ export const metadata = { title: "New Product" }
 export default async function NewProductPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const companyId = session.user.companyId
 
-  const [categories, suppliers] = await Promise.all([
-    db.category.findMany({ where: { companyId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    db.supplier.findMany({ where: { companyId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-  ])
+  const suppliers = await db.supplier.findMany({ where: { companyId }, orderBy: { name: "asc" }, select: { id: true, name: true } })
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -31,7 +28,7 @@ export default async function NewProductPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <ProductForm categories={categories} suppliers={suppliers} />
+        <ProductForm suppliers={suppliers} />
       </div>
     </div>
   )

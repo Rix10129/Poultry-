@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,9 +66,9 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const router = useRouter()
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
+  const [productSearch, setProductSearch] = useState("")
   const [customerId, setCustomerId] = useState("")
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState("")
@@ -86,6 +85,12 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     () => products.filter(p => p.batches.some(b => batchAvailable(b.id, b.quantity, lines) > 0)),
     [products, lines]
   )
+
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase()
+    if (!query) return availableProducts
+    return availableProducts.filter((product) => product.name.toLowerCase().includes(query))
+  }, [availableProducts, productSearch])
 
   function addLine() {
     if (!addProductId) return
@@ -121,6 +126,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
     setLines(prev => [...prev, line])
     setAddProductId("")
+    setProductSearch("")
     setError(null)
   }
 
@@ -220,19 +226,20 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         setSubmitting(false)
       }
       // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+      const errorWithDigest = err as { digest?: string; name?: string; message?: string }
+      if (errorWithDigest.digest?.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        err?.name === "TypeError" ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
+        errorWithDigest.name === "TypeError" ||
+        errorWithDigest.message?.toLowerCase().includes("fetch") ||
+        errorWithDigest.message?.toLowerCase().includes("network")
 
       if (isNetworkError) {
         try {
@@ -296,8 +303,8 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         </div>
       )}
 
-      {/* Header row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Invoice details */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="col-span-2 space-y-1.5">
           <Label>Customer</Label>
           <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
@@ -329,14 +336,20 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
               <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
             )}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(11rem,1fr)_minmax(13rem,1fr)_auto] gap-2 w-full md:w-auto">
+            <Input
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.target.value)}
+              placeholder="Search product…"
+              aria-label="Search products"
+            />
             <Select
               value={addProductId}
               onChange={e => setAddProductId(e.target.value)}
-              className="w-56 text-sm"
+              className="text-sm"
             >
               <option value="">Select product…</option>
-              {availableProducts.map(p => (
+              {filteredProducts.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>
