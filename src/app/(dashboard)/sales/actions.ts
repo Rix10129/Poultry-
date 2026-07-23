@@ -22,7 +22,7 @@ export async function deleteInvoice(
 
   let invoiceNumber = ""
   try {
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: any) => {
       const invoice = await tx.saleInvoice.findFirst({
         where: { id, companyId },
         include: { items: true, payments: true },
@@ -341,4 +341,157 @@ export async function createInvoice(
   revalidatePath("/inventory")
   revalidatePath("/alerts")
   redirect(`/sales/${invoiceId}`)
+}
+
+export async function updateInvoice(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+
+  const companyId = user.companyId as string
+  const userId = user.id as string
+  const role = user.role as string
+
+  const id = (formData.get("id") as string)?.trim()
+  const customerId = (formData.get("customerId") as string) || null
+  const invoiceDate = (formData.get("invoiceDate") as string) || new Date().toISOString()
+  const dueDate = (formData.get("dueDate") as string) || null
+  const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
+  const paidAmount = Math.max(0, parseFloat(formData.get("paidAmount") as string) || 0)
+  const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
+  const notes = (formData.get("notes") as string) || null
+  const linesJson = formData.get("linesJson") as string
+  const confirmDependentEdit = formData.get("confirmDependentEdit") === "1"
+
+  if (!id) return { error: "Invoice ID is required" }
+  if (!linesJson) return { error: "No line items provided" }
+  if (!VALID_PAYMENT_MODES.includes(paymentModeRaw as any)) return { error: "Invalid payment mode" }
+
+  let lines: LineInput[]
+  try {
+    lines = JSON.parse(linesJson)
+  } catch {
+    return { error: "Invalid line data" }
+  }
+  if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one line item" }
+
+  let invoiceNumber = ""
+
+  try {
+    await db.$transaction(async (tx: any) => {
+      const invoice = await tx.saleInvoice.findFirst({
+        where: { id, companyId },
+        include: { items: true, payments: true, returns: true },
+      })
+      if (!invoice) throw new Error("Invoice not found")
+
+      const hasDependentRecords = invoice.payments.length > 0 || invoice.returns.length > 0
+      if (hasDependentRecords && !((role === "OWNER" || role === "ADMIN") && confirmDependentEdit)) {
+        throw new Error("Cannot edit — this invoice has recorded payments or sale returns. Owner/Admin confirmation is required.")
+      }
+
+      invoiceNumber = invoice.invoiceNumber
+
+      for (const item of invoice.items) {
+        await tx.productBatch.update({
+          where: { id: item.batchId },
+          data: { quantity: { increment: item.quantity } },
+        })
+      }
+
+      await tx.saleInvoiceItem.deleteMany({ where: { invoiceId: invoice.id } })
+      await tx.stockMovement.deleteMany({ where: { companyId, reference: invoice.invoiceNumber } })
+
+      let totalAmount = 0
+      let taxAmount = 0
+      for (const line of lines) {
+        if (line.quantity < 1) throw new Error("Line quantities must be at least 1")
+        if (line.discount < 0 || line.discount > 100) throw new Error("Line discount must be between 0 and 100")
+        const lineBase = line.quantity * line.salePrice * (1 - line.discount / 100)
+        totalAmount += lineBase
+        taxAmount += lineBase * line.taxRate / 100
+      }
+      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+
+      await tx.saleInvoice.update({
+        where: { id: invoice.id },
+        data: {
+          customerId: customerId || null,
+          invoiceDate: new Date(invoiceDate),
+          dueDate: dueDate ? new Date(dueDate) : null,
+          totalAmount,
+          discountAmount,
+          taxAmount,
+          netAmount,
+          paidAmount: Math.min(paidAmount, netAmount + 0.001),
+          paymentMode: paymentModeRaw as PaymentMode,
+          isCashSale: !customerId,
+          notes: notes || null,
+        },
+      })
+
+      for (const line of lines) {
+        const batch = await tx.productBatch.findFirst({
+          where: { id: line.batchId, companyId, productId: line.productId },
+        })
+        if (!batch) throw new Error("Batch not found")
+        if (batch.quantity < line.quantity) {
+          throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
+        }
+
+        const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+
+        await tx.saleInvoiceItem.create({
+          data: {
+            invoiceId: invoice.id,
+            productId: line.productId,
+            batchId: line.batchId,
+            quantity: line.quantity,
+            salePrice: line.salePrice,
+            discount: line.discount,
+            taxRate: line.taxRate,
+            totalAmount: lineTotal,
+          },
+        })
+
+        await tx.productBatch.update({
+          where: { id: line.batchId },
+          data: { quantity: { decrement: line.quantity } },
+        })
+
+        await tx.stockMovement.create({
+          data: {
+            companyId,
+            productId: line.productId,
+            batchId: line.batchId,
+            type: MovementType.SALE,
+            quantity: -line.quantity,
+            reference: invoice.invoiceNumber,
+            notes: `Sale ${invoice.invoiceNumber} (edited)`,
+          },
+        })
+      }
+    })
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : "Failed to update invoice" }
+  }
+
+  logAudit({
+    companyId,
+    userId,
+    userName: user.name ?? "",
+    action: "UPDATE_INVOICE",
+    entity: "SaleInvoice",
+    entityId: id,
+    detail: `Invoice ${invoiceNumber} updated`,
+  })
+
+  revalidatePath("/sales")
+  revalidatePath(`/sales/${id}`)
+  revalidatePath("/inventory")
+  revalidatePath("/alerts")
+  redirect(`/sales/${id}`)
 }

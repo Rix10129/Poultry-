@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
-import { createInvoice } from "@/app/(dashboard)/sales/actions"
+import { createInvoice, updateInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
@@ -61,25 +60,71 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+export type InitialInvoiceLine = {
+  productId: string
+  productName: string
+  unit: string
+  batchId: string
+  batchNumber: string
+  expiryDate: string
+  quantity: number
+  salePrice: string
+  discount: string
+  taxRate: string
+}
+
+export type InitialInvoice = {
+  id: string
+  customerId: string | null
+  invoiceDate: string
+  dueDate: string | null
+  paymentMode: string
+  paidAmount: string
+  discountAmount: string
+  notes: string | null
+  lines: InitialInvoiceLine[]
+  hasDependentRecords?: boolean
+  canOverrideSafeguards?: boolean
+}
+
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  mode?: "create" | "update"
+  initialInvoice?: InitialInvoice
 }
 
-export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const router = useRouter()
-  const [lines, setLines] = useState<LineItem[]>([])
+function initialLinesFromInvoice(initialInvoice: InitialInvoice | undefined, products: ProductOption[]): LineItem[] {
+  return (initialInvoice?.lines ?? []).map((line) => ({
+    key: crypto.randomUUID(),
+    productId: line.productId,
+    productName: line.productName,
+    unit: line.unit,
+    batchId: line.batchId,
+    batchNumber: line.batchNumber,
+    expiryDate: line.expiryDate,
+    maxQty: products.flatMap((p) => p.batches).find((b) => b.id === line.batchId)?.quantity ?? line.quantity,
+    quantity: line.quantity,
+    salePrice: parseFloat(line.salePrice) || 0,
+    discount: parseFloat(line.discount) || 0,
+    taxRate: parseFloat(line.taxRate) || 0,
+  }))
+}
+
+export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
   const [addProductId, setAddProductId] = useState("")
-  const [customerId, setCustomerId] = useState("")
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState("")
-  const [paymentMode, setPaymentMode] = useState("CASH")
-  const [paidAmount, setPaidAmount] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
+  const [invoiceDate, setInvoiceDate] = useState(() => initialInvoice?.invoiceDate ?? new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState(initialInvoice?.dueDate ?? "")
+  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
+  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
+  const [confirmDependentEdit, setConfirmDependentEdit] = useState(false)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -188,8 +233,15 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
+    // Invoice updates are accounting/stock mutations and must be handled online.
+    if (mode === "update" && !navigator.onLine) {
+      setError("Invoice editing requires an internet connection")
+      setSubmitting(false)
+      return
+    }
+
     // If the browser already knows we're offline, skip the server call entirely
-    if (!navigator.onLine) {
+    if (mode === "create" && !navigator.onLine) {
       try {
         await saveOffline()
       } catch {
@@ -212,29 +264,34 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
     fd.set("linesJson", buildLinesJson())
+    if (mode === "update" && initialInvoice) {
+      fd.set("id", initialInvoice.id)
+      if (confirmDependentEdit) fd.set("confirmDependentEdit", "1")
+    }
 
     try {
-      const result = await createInvoice(null, fd)
+      const result = mode === "update" ? await updateInvoice(null, fd) : await createInvoice(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)
       }
       // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+      const actionError = err as { digest?: string; name?: string; message?: string }
+      if (actionError.digest?.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        err?.name === "TypeError" ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
+        actionError.name === "TypeError" ||
+        actionError.message?.toLowerCase().includes("fetch") ||
+        actionError.message?.toLowerCase().includes("network")
 
-      if (isNetworkError) {
+      if (mode === "create" && isNetworkError) {
         try {
           await saveOffline()
         } catch {
@@ -517,9 +574,29 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         </div>
       </div>
 
+      {mode === "update" && initialInvoice?.hasDependentRecords && initialInvoice.canOverrideSafeguards && (
+        <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <input
+            type="checkbox"
+            checked={confirmDependentEdit}
+            onChange={(e) => setConfirmDependentEdit(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            I understand this invoice has dependent payments or returns and explicitly approve recalculating its stock and accounting values.
+          </span>
+        </label>
+      )}
+
+      {mode === "update" && initialInvoice?.hasDependentRecords && !initialInvoice.canOverrideSafeguards && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          This invoice has dependent payments or returns. Only an Owner or Admin can explicitly confirm edits.
+        </div>
+      )}
+
       <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          Create Invoice
+        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting || (mode === "update" && !!initialInvoice?.hasDependentRecords && (!initialInvoice.canOverrideSafeguards || !confirmDependentEdit))}>
+          {mode === "update" ? "Update Invoice" : "Create Invoice"}
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>
           Cancel
