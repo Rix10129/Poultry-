@@ -115,7 +115,9 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
   const [addProductId, setAddProductId] = useState("")
   const [productDropdownOpen, setProductDropdownOpen] = useState(false)
+  const [productSearch, setProductSearch] = useState("")
   const productDropdownRef = useRef<HTMLDivElement>(null)
+  const productSearchRef = useRef<HTMLInputElement>(null)
   const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
   const [invoiceDate, setInvoiceDate] = useState(() => initialInvoice?.invoiceDate ?? new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState(initialInvoice?.dueDate ?? "")
@@ -133,6 +135,11 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     () => products.filter(p => p.batches.some(b => batchAvailable(b.id, b.quantity, lines) > 0)),
     [products, lines]
   )
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase()
+    if (!query) return availableProducts
+    return availableProducts.filter((p) => p.name.toLowerCase().includes(query))
+  }, [availableProducts, productSearch])
   const selectedAddProduct = availableProducts.find((p) => p.id === addProductId)
 
   function addLine() {
@@ -170,6 +177,8 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     setLines(prev => [...prev, line])
     setAddProductId("")
     setProductDropdownOpen(false)
+    setProductSearch("")
+    requestAnimationFrame(() => productSearchRef.current?.focus())
     setError(null)
   }
 
@@ -284,16 +293,16 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      const actionError = err as { digest?: string; name?: string; message?: string }
-      if (actionError.digest?.startsWith("NEXT_REDIRECT")) throw err
+      const redirectDigest = err instanceof Error && "digest" in err ? String(err.digest) : ""
+      if (redirectDigest.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        actionError.name === "TypeError" ||
-        actionError.message?.toLowerCase().includes("fetch") ||
-        actionError.message?.toLowerCase().includes("network")
+        (err instanceof Error && err.name === "TypeError") ||
+        (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
+        (err instanceof Error && err.message.toLowerCase().includes("network"))
 
       if (mode === "create" && isNetworkError) {
         try {
@@ -403,7 +412,13 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
               <button
                 type="button"
                 className="flex h-9 w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-900 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onClick={() => setProductDropdownOpen((open) => !open)}
+                onClick={() => {
+                  setProductDropdownOpen((open) => {
+                    const nextOpen = !open
+                    if (nextOpen) requestAnimationFrame(() => productSearchRef.current?.focus())
+                    return nextOpen
+                  })
+                }}
               >
                 <span className={selectedAddProduct ? "truncate" : "truncate text-slate-400"}>
                   {selectedAddProduct?.name ?? "Select product…"}
@@ -411,24 +426,38 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
                 <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${productDropdownOpen ? "rotate-180" : ""}`} />
               </button>
               {productDropdownOpen && (
-                <div className="absolute right-0 z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
-                  {availableProducts.length === 0 ? (
-                    <div className="px-3 py-2 text-slate-400">No products in stock</div>
-                  ) : (
-                    availableProducts.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className="block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
-                        onClick={() => {
-                          setAddProductId(p.id)
-                          setProductDropdownOpen(false)
-                        }}
-                      >
-                        {p.name}
-                      </button>
-                    ))
-                  )}
+                <div className="absolute right-0 z-20 mt-1 max-h-72 w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
+                  <div className="border-b border-slate-100 p-2">
+                    <Input
+                      ref={productSearchRef}
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Search products…"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-auto py-1">
+                    {availableProducts.length === 0 ? (
+                      <div className="px-3 py-2 text-slate-400">No products in stock</div>
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="px-3 py-2 text-slate-400">No matching products</div>
+                    ) : (
+                      filteredProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                          onClick={() => {
+                            setAddProductId(p.id)
+                            setProductSearch("")
+                            setProductDropdownOpen(false)
+                          }}
+                        >
+                          {p.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>
