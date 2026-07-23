@@ -19,9 +19,10 @@ export type SupplierData = {
 
 interface Props {
   supplier?: SupplierData
+  canEditOpeningBalance?: boolean
 }
 
-export function SupplierForm({ supplier }: Props) {
+export function SupplierForm({ supplier, canEditOpeningBalance = true }: Props) {
   const action = supplier ? updateSupplier : createSupplier
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -84,20 +85,22 @@ export function SupplierForm({ supplier }: Props) {
             placeholder="Optional"
           />
         </div>
-        {!supplier && (
-          <div className="space-y-1.5">
-            <Label htmlFor="openingBalance">Opening Balance (owed to them)</Label>
-            <Input
-              id="openingBalance"
-              name="openingBalance"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue="0"
-              placeholder="0.00"
-            />
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="openingBalance">Opening Balance (owed to them)</Label>
+          <Input
+            id="openingBalance"
+            name="openingBalance"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={supplier?.openingBalance ?? "0"}
+            placeholder="0.00"
+            disabled={!canEditOpeningBalance}
+          />
+          <p className="text-xs text-slate-500">
+            Changing opening balance will change outstanding/ledger totals.
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-2">

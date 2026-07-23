@@ -75,18 +75,58 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
   const area = (formData.get("area") as string)?.trim() || null
   const creditLimit = Math.max(0, parseFloat(formData.get("creditLimit") as string) || 0)
 
+  const customer = await db.customer.findFirst({
+    where: { id, companyId },
+    select: { openingBalance: true },
+  })
+  if (!customer) return { error: "Customer not found" }
+
+  const canEditOpeningBalance = user.role === "OWNER" || user.role === "ADMIN"
+  const oldOpeningBalance = parseFloat(customer.openingBalance.toString())
+  const requestedOpeningBalance = Math.max(
+    0,
+    parseFloat(formData.get("openingBalance") as string) || 0
+  )
+  const openingBalance = canEditOpeningBalance ? requestedOpeningBalance : oldOpeningBalance
+
   try {
     const res = await db.customer.updateMany({
       where: { id, companyId },
-      data: { name, type: type as CustomerType, phone, email, address, area, creditLimit },
+      data: {
+        name,
+        type: type as CustomerType,
+        phone,
+        email,
+        address,
+        area,
+        creditLimit,
+        openingBalance,
+      },
     })
     if (!res.count) return { error: "Customer not found" }
   } catch {
     return { error: "Failed to update customer" }
   }
 
+  if (oldOpeningBalance !== openingBalance) {
+    await writeAuditLog({
+      companyId,
+      userId: user.id,
+      action: "UPDATE_OPENING_BALANCE",
+      entity: "Customer",
+      entityId: id,
+      oldValues: { openingBalance: oldOpeningBalance },
+      newValues: { openingBalance },
+    })
+  }
+
   revalidatePath("/customers")
   revalidatePath(`/customers/${id}`)
+  revalidatePath(`/customers/${id}/statement`)
+  revalidatePath("/reports")
+  revalidatePath("/reports/aging")
+  revalidatePath("/reports/recovery")
+  revalidatePath("/reports/balance-sheet")
   redirect(`/customers/${id}`)
 }
 

@@ -23,7 +23,8 @@ export default async function EditCustomerPage({ params }: Props) {
 
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const user = session.user
+  const companyId = user.companyId as string
 
   const customer = await db.customer.findFirst({ where: { id, companyId } })
   if (!customer) notFound()
@@ -53,7 +54,7 @@ export default async function EditCustomerPage({ params }: Props) {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <CustomerForm customer={serialized} />
+        <CustomerForm customer={serialized} canEditOpeningBalance={user.role === "OWNER" || user.role === "ADMIN"} />
       </div>
 
       <div className="rounded-xl border border-red-200 bg-white p-6">

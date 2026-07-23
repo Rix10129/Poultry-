@@ -73,6 +73,10 @@ export async function writeAuditLog(params: {
           action: params.action,
           entity: params.entity,
           entityId: params.entityId,
+          detail:
+            params.oldValues || params.newValues
+              ? JSON.stringify({ oldValues: params.oldValues ?? null, newValues: params.newValues ?? null })
+              : null,
           ipAddress: params.ipAddress ?? null,
         },
       })
