@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -144,6 +144,8 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   const formMode = mode
   const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
   const [addProductId, setAddProductId] = useState("")
+  const [productSearch, setProductSearch] = useState("")
+  const productSearchRef = useRef<HTMLInputElement>(null)
   const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
   const [invoiceDate, setInvoiceDate] = useState(() => dateInputValue(initialInvoice?.invoiceDate) || new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState(() => dateInputValue(initialInvoice?.dueDate))
@@ -167,7 +169,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     if (!query) return availableProducts
     return availableProducts.filter((p) => p.name.toLowerCase().includes(query))
   }, [availableProducts, productSearch])
-  const selectedAddProduct = availableProducts.find((p) => p.id === addProductId)
 
   function addLine() {
     const matchedProduct = products.find(p => p.name.toLowerCase() === productSearch.trim().toLowerCase())
@@ -206,7 +207,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     setLines(prev => [...prev, line])
     setAddProductId("")
     setProductSearch("")
-    requestAnimationFrame(() => productSearchRef.current?.focus())
+    productSearchRef.current?.focus()
     setError(null)
   }
 
@@ -230,6 +231,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   }, [lines, disc])
 
   const balance = net - paid
+  const submitLabel = formMode === "update" ? "Update Invoice" : "Create Invoice"
 
   function buildLinesJson() {
     return JSON.stringify(lines.map((l) => ({
@@ -395,32 +397,166 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         </div>
       )}
 
-      {/* Compact sticky invoice header */}
-      <div className="sticky top-0 z-20 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr]">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.4fr_0.8fr]">
-            <div className="space-y-1">
-              <Label>Customer</Label>
-              <Select value={customerId} onChange={e => setCustomerId(e.target.value)} className="h-9">
-                <option value="">Walk-in / Cash Sale</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Invoice Date</Label>
-              <Input
-                type="date"
-                value={invoiceDate}
-                onChange={e => setInvoiceDate(e.target.value)}
-                required
-                className="h-9"
-              />
-            </div>
+      {/* Header row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="col-span-2 space-y-1.5">
+          <Label>Customer</Label>
+          <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
+            <option value="">Walk-in / Cash Sale</option>
+            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Invoice Date</Label>
+          <Input
+            type="date"
+            value={invoiceDate}
+            onChange={e => setInvoiceDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Due Date</Label>
+          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">
+            Items
+            {lines.length > 0 && (
+              <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
+            )}
+          </h3>
+          <div className="flex items-center gap-2">
+            <Input
+              ref={productSearchRef}
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Search product…"
+              className="w-48 text-sm"
+            />
+            <Select
+              value={addProductId}
+              onChange={e => setAddProductId(e.target.value)}
+              className="w-56 text-sm"
+            >
+              <option value="">Select product…</option>
+              {filteredProducts.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+            <Button type="button" size="sm" onClick={addLine} disabled={!addProductId}>
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Payment</Label>
-              <Select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} className="h-9">
+        </div>
+
+        {lines.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
+            <p className="text-sm text-slate-400">Select a product above and click Add</p>
+            <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-3 py-2.5 font-medium text-slate-600">Product / Batch</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600">Avail</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-24">Qty</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-32">Unit Price</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-20">Disc%</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600">Total</th>
+                  <th className="w-8" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {lines.map(line => {
+                  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+                  const overQty = line.quantity > line.maxQty
+                  return (
+                    <tr key={line.key} className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium text-slate-900">{line.productName}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {line.batchNumber}
+                          </span>
+                          <ExpiryBadge expiryDate={line.expiryDate} />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-xs text-slate-400">{line.maxQty}</td>
+                      <td className="px-3 py-2.5">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={line.maxQty}
+                          value={line.quantity}
+                          onChange={e =>
+                            updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
+                          }
+                          className={`text-right ${overQty ? "border-red-400 focus:ring-red-400" : ""}`}
+                        />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.salePrice}
+                          onChange={e =>
+                            updateLine(line.key, { salePrice: parseFloat(e.target.value) || 0 })
+                          }
+                          className="text-right"
+                        />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={line.discount}
+                          onChange={e =>
+                            updateLine(line.key, { discount: parseFloat(e.target.value) || 0 })
+                          }
+                          className="text-right"
+                        />
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
+                        {formatCurrency(lineTotal)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setLines(prev => prev.filter(l => l.key !== line.key))}
+                          className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) /* closes the empty-items/table conditional */}
+      </div>
+
+      {/* Payment + summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Payment */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Payment</h3>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Payment Mode</Label>
+              <Select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
                 <option value="CASH">Cash</option>
                 <option value="BANK">Bank Transfer</option>
                 <option value="CHEQUE">Cheque</option>
@@ -565,44 +701,14 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   )
 }
 
-function LineRow({ line, updateLine, removeLine }: { line: LineItem; updateLine: (key: string, patch: Partial<LineItem>) => void; removeLine: () => void }) {
-  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
-  const overQty = line.quantity > line.maxQty
-  return (
-    <tr className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
-      <td className="px-2 py-2">
-        <p className="font-medium text-slate-900 leading-tight">{line.productName}</p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{line.batchNumber}</span>
-          <ExpiryBadge expiryDate={line.expiryDate} />
-        </div>
-      </td>
-      <td className="px-2 py-2 text-right text-xs text-slate-400">{line.maxQty}</td>
-      <td className="px-2 py-2"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></td>
-      <td className="px-2 py-2"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></td>
-      <td className="px-2 py-2"><LineNumberInput value={line.discount} min="0" max="100" step="0.01" onChange={value => updateLine(line.key, { discount: parseFloat(value) || 0 })} /></td>
-      <td className="px-2 py-2 text-right font-semibold text-slate-900">{formatCurrency(lineTotal)}</td>
-      <td className="px-2 py-2"><RemoveButton onClick={removeLine} /></td>
-    </tr>
-  )
-}
-
-function LineCard({ line, updateLine, removeLine }: { line: LineItem; updateLine: (key: string, patch: Partial<LineItem>) => void; removeLine: () => void }) {
-  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
-  const overQty = line.quantity > line.maxQty
-  return (
-    <div className={`rounded-xl border p-3 ${overQty ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-medium text-slate-900">{line.productName}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{line.batchNumber}</span>
-            <ExpiryBadge expiryDate={line.expiryDate} />
-            <span className="text-xs text-slate-400">Avail {line.maxQty}</span>
-          </div>
-        </div>
-        <RemoveButton onClick={removeLine} />
-      </div>
+      <div className="flex gap-3 pt-2">
+        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
+          {submitLabel}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => history.back()}>
+          Cancel
+        </Button>
+     
       <div className="mt-3 grid grid-cols-3 gap-2">
         <Field label="Qty"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></Field>
         <Field label="Price"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></Field>
