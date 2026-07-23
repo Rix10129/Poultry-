@@ -94,6 +94,41 @@ interface InvoiceFormProps {
   initialInvoice?: InitialInvoice
 }
 
+function initialLinesFromInvoice(initialInvoice: InitialInvoice | undefined, products: ProductOption[]): LineItem[] {
+  return (initialInvoice?.lines ?? []).map((line) => ({
+    key: crypto.randomUUID(),
+    productId: line.productId,
+    productName: line.productName,
+    unit: line.unit,
+    batchId: line.batchId,
+    batchNumber: line.batchNumber,
+    expiryDate: line.expiryDate,
+    maxQty: products.flatMap((p) => p.batches).find((b) => b.id === line.batchId)?.quantity ?? line.quantity,
+    quantity: line.quantity,
+    salePrice: parseFloat(line.salePrice) || 0,
+    discount: parseFloat(line.discount) || 0,
+    taxRate: parseFloat(line.taxRate) || 0,
+  }))
+}
+
+export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
+  const [addProductId, setAddProductId] = useState("")
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false)
+  const [productSearch, setProductSearch] = useState("")
+  const productDropdownRef = useRef<HTMLDivElement>(null)
+  const productSearchRef = useRef<HTMLInputElement>(null)
+  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
+  const [invoiceDate, setInvoiceDate] = useState(() => initialInvoice?.invoiceDate ?? new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState(initialInvoice?.dueDate ?? "")
+  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
+  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [savedOffline, setSavedOffline] = useState(false)
+  const [confirmDependentEdit, setConfirmDependentEdit] = useState(false)
 export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
@@ -159,6 +194,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
     setLines(prev => [...prev, line])
     setAddProductId("")
+    setProductDropdownOpen(false)
     setProductSearch("")
     requestAnimationFrame(() => productSearchRef.current?.focus())
     setError(null)
@@ -349,6 +385,158 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         </div>
       )}
 
+      {mode === "update" && initialInvoice?.hasDependentRecords && initialInvoice.canOverrideSafeguards && (
+        <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <input
+            type="checkbox"
+            checked={confirmDependentEdit}
+            onChange={(e) => setConfirmDependentEdit(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            I understand this invoice has dependent payments or returns and explicitly approve recalculating its stock and accounting values.
+          </span>
+        </label>
+      )}
+
+      {mode === "update" && initialInvoice?.hasDependentRecords && !initialInvoice.canOverrideSafeguards && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          This invoice has dependent payments or returns. Only an Owner or Admin can explicitly confirm edits.
+        </div>
+      )}
+
+      {/* Header row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="col-span-2 space-y-1.5">
+          <Label>Customer</Label>
+          <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
+            <option value="">Walk-in / Cash Sale</option>
+            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Invoice Date</Label>
+          <Input
+            type="date"
+            value={invoiceDate}
+            onChange={e => setInvoiceDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Due Date</Label>
+          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        </div>
+      </div>
+
+      {/* Line items */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">
+            Items
+            {lines.length > 0 && (
+              <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
+            )}
+          </h3>
+          <div className="flex items-center gap-2">
+            <div
+              ref={productDropdownRef}
+              className="relative w-56"
+              onBlur={(e) => {
+                if (!productDropdownRef.current?.contains(e.relatedTarget as Node | null)) {
+                  setProductDropdownOpen(false)
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="flex h-9 w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-900 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => {
+                  setProductDropdownOpen((open) => {
+                    const nextOpen = !open
+                    if (nextOpen) requestAnimationFrame(() => productSearchRef.current?.focus())
+                    return nextOpen
+                  })
+                }}
+              >
+                <span className={selectedAddProduct ? "truncate" : "truncate text-slate-400"}>
+                  {selectedAddProduct?.name ?? "Select product…"}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${productDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+              {productDropdownOpen && (
+                <div className="absolute right-0 z-20 mt-1 max-h-72 w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
+                  <div className="border-b border-slate-100 p-2">
+                    <Input
+                      ref={productSearchRef}
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Search products…"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-auto py-1">
+                    {availableProducts.length === 0 ? (
+                      <div className="px-3 py-2 text-slate-400">No products in stock</div>
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="px-3 py-2 text-slate-400">No matching products</div>
+                    ) : (
+                      filteredProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                          onClick={() => {
+                            setAddProductId(p.id)
+                            setProductSearch("")
+                            setProductDropdownOpen(false)
+                          }}
+                        >
+                          {p.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button type="button" size="sm" onClick={addLine} disabled={!addProductId}>
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
+          </div>
+        </div>
+
+        {lines.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
+            <p className="text-sm text-slate-400">Select a product above and click Add</p>
+            <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-3 py-2.5 font-medium text-slate-600">Product / Batch</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600">Avail</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-24">Qty</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-32">Unit Price</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-20">Disc%</th>
+                  <th className="text-right px-3 py-2.5 font-medium text-slate-600">Total</th>
+                  <th className="w-8" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {lines.map(line => (
+                  <LineRow
+                    key={line.key}
+                    line={line}
+                    updateLine={updateLine}
+                    removeLine={(key) => setLines(prev => prev.filter(l => l.key !== key))}
+                  />
+                ))}
+              </tbody>
+            </table>
       {/* Compact sticky invoice header */}
       <div className="sticky top-0 z-20 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr]">
@@ -541,6 +729,14 @@ function LineRow({ line, updateLine, removeLine }: { line: LineItem; updateLine:
   )
 }
 
+
+      <div className="flex gap-3 pt-2">
+        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting || (mode === "update" && !!initialInvoice?.hasDependentRecords && (!initialInvoice.canOverrideSafeguards || !confirmDependentEdit))}>
+          {mode === "update" ? "Update Invoice" : "Create Invoice"}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => history.back()}>
+          Cancel
+        </Button>
 function LineCard({ line, updateLine, removeLine }: { line: LineItem; updateLine: (key: string, patch: Partial<LineItem>) => void; removeLine: () => void }) {
   const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
   const overQty = line.quantity > line.maxQty
@@ -583,6 +779,84 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
   )
 }
 
+function LineRow({
+  line,
+  updateLine,
+  removeLine,
+}: {
+  line: LineItem
+  updateLine: (key: string, patch: Partial<LineItem>) => void
+  removeLine: (key: string) => void
+}) {
+  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+  const overQty = line.quantity > line.maxQty
+
+  return (
+    <tr className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
+      <td className="px-3 py-2.5">
+        <p className="font-medium text-slate-900">{line.productName}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+            {line.batchNumber}
+          </span>
+          <ExpiryBadge expiryDate={line.expiryDate} />
+        </div>
+      </td>
+      <td className="px-3 py-2.5 text-right text-xs text-slate-400">{line.maxQty}</td>
+      <td className="px-3 py-2.5">
+        <Input
+          type="number"
+          min="1"
+          max={line.maxQty}
+          value={line.quantity}
+          onChange={e =>
+            updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
+          }
+          className={`text-right ${overQty ? "border-red-400 focus:ring-red-400" : ""}`}
+        />
+      </td>
+      <td className="px-3 py-2.5">
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={line.salePrice}
+          onChange={e =>
+            updateLine(line.key, { salePrice: parseFloat(e.target.value) || 0 })
+          }
+          className="text-right"
+        />
+      </td>
+      <td className="px-3 py-2.5">
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={line.discount}
+          onChange={e =>
+            updateLine(line.key, { discount: parseFloat(e.target.value) || 0 })
+          }
+          className="text-right"
+        />
+      </td>
+      <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
+        {formatCurrency(lineTotal)}
+      </td>
+      <td className="px-3 py-2.5">
+        <button
+          type="button"
+          onClick={() => removeLine(line.key)}
+          className="text-slate-300 hover:text-red-500 transition-colors p-1"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
+    </tr>
+  )
+}
+
+function SumRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
 function SummaryPill({ label, value, strong, tone = "default" }: { label: string; value: string; strong?: boolean; tone?: "default" | "danger" | "success" }) {
   const toneClass = tone === "danger" ? "text-red-600" : tone === "success" ? "text-green-600" : "text-slate-900"
   return (
