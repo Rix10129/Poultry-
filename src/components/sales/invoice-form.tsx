@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,6 +36,31 @@ export type CustomerOption = {
   type: string
 }
 
+
+type InvoiceFormInitialLine = {
+  productId: string
+  productName: string
+  unit: string
+  batchId: string
+  batchNumber: string
+  expiryDate: string
+  quantity: number
+  salePrice: string
+  discount: string
+  taxRate: string
+}
+
+type InvoiceFormInitialInvoice = {
+  customerId?: string | null
+  invoiceDate?: string
+  dueDate?: string | null
+  paymentMode?: string
+  paidAmount?: string
+  discountAmount?: string
+  notes?: string | null
+  lines?: InvoiceFormInitialLine[]
+}
+
 type LineItem = {
   key: string
   productId: string
@@ -59,24 +83,49 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
   return Math.max(0, batchTotal - used)
 }
 
+
+function initialLinesFromInvoice(initialInvoice: InvoiceFormInitialInvoice | undefined, products: ProductOption[]): LineItem[] {
+  return (initialInvoice?.lines ?? []).map((line) => ({
+    key: crypto.randomUUID(),
+    productId: line.productId,
+    productName: line.productName,
+    unit: line.unit,
+    batchId: line.batchId,
+    batchNumber: line.batchNumber,
+    expiryDate: line.expiryDate,
+    maxQty: products.flatMap((p) => p.batches).find((batch) => batch.id === line.batchId)?.quantity ?? line.quantity,
+    quantity: line.quantity,
+    salePrice: parseFloat(line.salePrice) || 0,
+    discount: parseFloat(line.discount) || 0,
+    taxRate: parseFloat(line.taxRate) || 0,
+  }))
+}
+
+function dateInputValue(value: string | null | undefined) {
+  return value ? value.split("T")[0] : ""
+}
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  mode?: "create" | "update"
+  initialInvoice?: InvoiceFormInitialInvoice
 }
 
-export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const router = useRouter()
-  const [lines, setLines] = useState<LineItem[]>([])
+export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
+  const formMode = mode
+  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
   const [addProductId, setAddProductId] = useState("")
-  const [customerId, setCustomerId] = useState("")
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState("")
-  const [paymentMode, setPaymentMode] = useState("CASH")
-  const [paidAmount, setPaidAmount] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [productSearch, setProductSearch] = useState("")
+  const productSearchRef = useRef<HTMLInputElement>(null)
+  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
+  const [invoiceDate, setInvoiceDate] = useState(() => dateInputValue(initialInvoice?.invoiceDate) || new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState(() => dateInputValue(initialInvoice?.dueDate))
+  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
+  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
@@ -86,6 +135,11 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     () => products.filter(p => p.batches.some(b => batchAvailable(b.id, b.quantity, lines) > 0)),
     [products, lines]
   )
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase()
+    if (!query) return availableProducts
+    return availableProducts.filter((p) => p.name.toLowerCase().includes(query))
+  }, [availableProducts, productSearch])
 
   function addLine() {
     if (!addProductId) return
@@ -121,6 +175,8 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
     setLines(prev => [...prev, line])
     setAddProductId("")
+    setProductSearch("")
+    productSearchRef.current?.focus()
     setError(null)
   }
 
@@ -144,6 +200,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   }, [lines, disc])
 
   const balance = net - paid
+  const submitLabel = formMode === "update" ? "Update Invoice" : "Create Invoice"
 
   function buildLinesJson() {
     return JSON.stringify(lines.map((l) => ({
@@ -188,8 +245,15 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
+    // Invoice updates are accounting/stock mutations and must be handled online.
+    if (formMode === "update" && !navigator.onLine) {
+      setError("Invoice editing requires an internet connection")
+      setSubmitting(false)
+      return
+    }
+
     // If the browser already knows we're offline, skip the server call entirely
-    if (!navigator.onLine) {
+    if (formMode === "create" && !navigator.onLine) {
       try {
         await saveOffline()
       } catch {
@@ -220,21 +284,22 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         setSubmitting(false)
       }
       // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+      const redirectDigest = err instanceof Error && "digest" in err ? String(err.digest) : ""
+      if (redirectDigest.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        err?.name === "TypeError" ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
+        (err instanceof Error && err.name === "TypeError") ||
+        (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
+        (err instanceof Error && err.message.toLowerCase().includes("network"))
 
-      if (isNetworkError) {
+      if (formMode === "create" && isNetworkError) {
         try {
           await saveOffline()
         } catch {
@@ -330,13 +395,20 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
             )}
           </h3>
           <div className="flex items-center gap-2">
+            <Input
+              ref={productSearchRef}
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Search product…"
+              className="w-48 text-sm"
+            />
             <Select
               value={addProductId}
               onChange={e => setAddProductId(e.target.value)}
               className="w-56 text-sm"
             >
               <option value="">Select product…</option>
-              {availableProducts.map(p => (
+              {filteredProducts.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>
@@ -437,7 +509,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
               </tbody>
             </table>
           </div>
-        )}
+        ) /* closes the empty-items/table conditional */}
       </div>
 
       {/* Payment + summary */}
@@ -519,7 +591,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          Create Invoice
+          {submitLabel}
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>
           Cancel
