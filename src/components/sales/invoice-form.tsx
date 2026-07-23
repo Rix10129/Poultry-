@@ -37,7 +37,7 @@ export type CustomerOption = {
 }
 
 
-type InitialInvoiceLine = {
+type InvoiceFormInitialLine = {
   productId: string
   productName: string
   unit: string
@@ -50,7 +50,7 @@ type InitialInvoiceLine = {
   taxRate: string
 }
 
-type InitialInvoice = {
+type InvoiceFormInitialInvoice = {
   customerId?: string | null
   invoiceDate?: string
   dueDate?: string | null
@@ -58,7 +58,7 @@ type InitialInvoice = {
   paidAmount?: string
   discountAmount?: string
   notes?: string | null
-  lines?: InitialInvoiceLine[]
+  lines?: InvoiceFormInitialLine[]
 }
 
 type LineItem = {
@@ -84,7 +84,7 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
 }
 
 
-function initialLinesFromInvoice(initialInvoice: InitialInvoice | undefined, products: ProductOption[]): LineItem[] {
+function initialLinesFromInvoice(initialInvoice: InvoiceFormInitialInvoice | undefined, products: ProductOption[]): LineItem[] {
   return (initialInvoice?.lines ?? []).map((line) => ({
     key: crypto.randomUUID(),
     productId: line.productId,
@@ -137,7 +137,7 @@ interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
   mode?: "create" | "update"
-  initialInvoice?: InitialInvoice
+  initialInvoice?: InvoiceFormInitialInvoice
 }
 
 export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
