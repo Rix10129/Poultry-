@@ -13,7 +13,31 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check GitLab mirror configuration
+        id: mirror-config
+        env:
+          GITLAB_SSH_PRIVATE_KEY: ${{ secrets.GITLAB_SSH_PRIVATE_KEY }}
+          GITLAB_REPO_URL: ${{ secrets.GITLAB_REPO_URL }}
+        run: |
+          if [ -z "$GITLAB_SSH_PRIVATE_KEY" ] || [ -z "$GITLAB_REPO_URL" ]; then
+            echo "GitLab mirror secrets are not configured; skipping mirror push."
+            echo "should_mirror=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          case "$GITLAB_REPO_URL" in
+            git@gitlab.com:*|https://gitlab.com/*|ssh://git@gitlab.com/*) ;;
+            *)
+              echo "GITLAB_REPO_URL is not a supported GitLab URL; skipping mirror push."
+              echo "should_mirror=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          echo "should_mirror=true" >> "$GITHUB_OUTPUT"
+
       - name: Push mirror to GitLab
+        if: steps.mirror-config.outputs.should_mirror == 'true'
         env:
           GITLAB_SSH_PRIVATE_KEY: ${{ secrets.GITLAB_SSH_PRIVATE_KEY }}
           GITLAB_REPO_URL: ${{ secrets.GITLAB_REPO_URL }}
