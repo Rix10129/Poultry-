@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice, updateInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, ChevronDown } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -114,6 +114,8 @@ function initialLinesFromInvoice(initialInvoice: InitialInvoice | undefined, pro
 export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
   const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
   const [addProductId, setAddProductId] = useState("")
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false)
+  const productDropdownRef = useRef<HTMLDivElement>(null)
   const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
   const [invoiceDate, setInvoiceDate] = useState(() => initialInvoice?.invoiceDate ?? new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState(initialInvoice?.dueDate ?? "")
@@ -131,6 +133,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     () => products.filter(p => p.batches.some(b => batchAvailable(b.id, b.quantity, lines) > 0)),
     [products, lines]
   )
+  const selectedAddProduct = availableProducts.find((p) => p.id === addProductId)
 
   function addLine() {
     if (!addProductId) return
@@ -166,6 +169,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
 
     setLines(prev => [...prev, line])
     setAddProductId("")
+    setProductDropdownOpen(false)
     setError(null)
   }
 
@@ -387,16 +391,47 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
             )}
           </h3>
           <div className="flex items-center gap-2">
-            <Select
-              value={addProductId}
-              onChange={e => setAddProductId(e.target.value)}
-              className="w-56 text-sm"
+            <div
+              ref={productDropdownRef}
+              className="relative w-56"
+              onBlur={(e) => {
+                if (!productDropdownRef.current?.contains(e.relatedTarget as Node | null)) {
+                  setProductDropdownOpen(false)
+                }
+              }}
             >
-              <option value="">Select product…</option>
-              {availableProducts.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </Select>
+              <button
+                type="button"
+                className="flex h-9 w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-left text-sm text-slate-900 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setProductDropdownOpen((open) => !open)}
+              >
+                <span className={selectedAddProduct ? "truncate" : "truncate text-slate-400"}>
+                  {selectedAddProduct?.name ?? "Select product…"}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${productDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+              {productDropdownOpen && (
+                <div className="absolute right-0 z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                  {availableProducts.length === 0 ? (
+                    <div className="px-3 py-2 text-slate-400">No products in stock</div>
+                  ) : (
+                    availableProducts.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="block w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                        onClick={() => {
+                          setAddProductId(p.id)
+                          setProductDropdownOpen(false)
+                        }}
+                      >
+                        {p.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             <Button type="button" size="sm" onClick={addLine} disabled={!addProductId}>
               <Plus className="h-4 w-4" />
               Add
