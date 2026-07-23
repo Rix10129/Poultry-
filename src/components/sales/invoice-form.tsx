@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -64,10 +63,11 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  mode?: "create" | "update"
 }
 
-export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const router = useRouter()
+export function InvoiceForm({ products, customers, mode = "create" }: InvoiceFormProps) {
+  const formMode = mode
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [customerId, setCustomerId] = useState("")
@@ -188,8 +188,15 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setSubmitting(true)
     setError(null)
 
+    // Invoice updates are accounting/stock mutations and must be handled online.
+    if (formMode === "update" && !navigator.onLine) {
+      setError("Invoice editing requires an internet connection")
+      setSubmitting(false)
+      return
+    }
+
     // If the browser already knows we're offline, skip the server call entirely
-    if (!navigator.onLine) {
+    if (formMode === "create" && !navigator.onLine) {
       try {
         await saveOffline()
       } catch {
@@ -220,21 +227,22 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         setSubmitting(false)
       }
       // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Next.js redirect() throws a special error internally — re-throw it so the
       // router can handle the navigation (otherwise the catch swallows it and the
       // user sees "Unexpected error" even after a successful create).
-      if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err
+      const redirectDigest = err instanceof Error && "digest" in err ? String(err.digest) : ""
+      if (redirectDigest.startsWith("NEXT_REDIRECT")) throw err
 
       // True network failure: navigator.onLine can lie (device has WiFi but no
       // internet), so we check the error type and fall back to the offline queue.
       const isNetworkError =
         err instanceof TypeError ||
-        err?.name === "TypeError" ||
-        err?.message?.toLowerCase().includes("fetch") ||
-        err?.message?.toLowerCase().includes("network")
+        (err instanceof Error && err.name === "TypeError") ||
+        (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
+        (err instanceof Error && err.message.toLowerCase().includes("network"))
 
-      if (isNetworkError) {
+      if (formMode === "create" && isNetworkError) {
         try {
           await saveOffline()
         } catch {
