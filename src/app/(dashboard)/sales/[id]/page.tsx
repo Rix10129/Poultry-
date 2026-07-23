@@ -30,7 +30,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
 
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const companyId = (session.user as { companyId: string }).companyId
 
   const [invoice, company] = await Promise.all([
     db.saleInvoice.findFirst({
@@ -62,7 +62,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const isPartial = !isPaid && paid > 0.001
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 print:max-w-none print:space-y-0 print:p-8">
+    <div className="invoice-print-compact max-w-4xl mx-auto space-y-6 print:max-w-none print:space-y-0 print:p-0">
       {/* Screen header — hidden when printing */}
       <div className="flex items-start justify-between print:hidden">
         <div className="flex items-center gap-3">
@@ -109,20 +109,20 @@ export default async function InvoiceDetailPage({ params }: Props) {
       </div>
 
       {/* Print header — company branding (only visible when printing) */}
-      <div className="hidden print:block print:mb-6">
-        <div className="flex justify-between items-center pb-4 border-b-2 border-slate-800">
+      <div className="hidden print:block print:mb-2 invoice-print-header">
+        <div className="flex justify-between items-center pb-2 border-b-2 border-slate-800">
           {/* Left: Company logo + name */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {company?.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={company.logoUrl}
                 alt={company.name}
-                className="h-16 w-auto object-contain"
+                className="h-10 w-auto object-contain"
               />
             )}
             <div>
-              <p className="text-2xl font-bold text-slate-900">{company?.name ?? "Company"}</p>
+              <p className="text-lg font-bold text-slate-900">{company?.name ?? "Company"}</p>
               {company?.phone && <p className="text-xs text-slate-500 mt-0.5">{company.phone}</p>}
               {company?.email && <p className="text-xs text-slate-500">{company.email}</p>}
               {company?.address && <p className="text-xs text-slate-500">{company.address}</p>}
@@ -133,22 +133,22 @@ export default async function InvoiceDetailPage({ params }: Props) {
           {/* Right: Invoice info */}
           <div className="text-right">
             <p className="text-xs font-bold tracking-widest text-slate-500 uppercase">Sale Invoice</p>
-            <p className="text-2xl font-mono font-bold text-slate-900 mt-0.5">{invoice.invoiceNumber}</p>
-            <p className="text-sm text-slate-600 mt-1">Date: {formatDate(invoice.invoiceDate)}</p>
-            {invoice.dueDate && <p className="text-sm text-slate-600">Due: {formatDate(invoice.dueDate)}</p>}
-            <p className={`text-sm font-bold mt-1 ${isPaid ? "text-green-600" : isPartial ? "text-yellow-600" : "text-red-600"}`}>
+            <p className="text-xl font-mono font-bold text-slate-900 mt-0.5">{invoice.invoiceNumber}</p>
+            <p className="text-xs text-slate-600 mt-0.5">Date: {formatDate(invoice.invoiceDate)}</p>
+            {invoice.dueDate && <p className="text-xs text-slate-600">Due: {formatDate(invoice.dueDate)}</p>}
+            <p className={`text-xs font-bold mt-0.5 print:hidden ${isPaid ? "text-green-600" : isPartial ? "text-yellow-600" : "text-red-600"}`}>
               Status: {isPaid ? "PAID ✓" : isPartial ? "PARTIAL" : "UNPAID"}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden print:border-none print:rounded-none">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden print:border-none print:rounded-none print:overflow-visible">
         {/* Invoice meta */}
-        <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-4 print:px-0 print:py-2 print:gap-x-4 print:gap-y-1 print:text-xs">
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
+            <p className="mt-1 text-sm font-semibold text-slate-900 print:mt-0 print:text-xs">
               {invoice.customer?.name ?? <span className="italic text-slate-400">Walk-in</span>}
             </p>
             {invoice.customer?.phone && (
@@ -160,67 +160,67 @@ export default async function InvoiceDetailPage({ params }: Props) {
           </div>
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Payment Mode</p>
-            <p className="mt-1 text-sm text-slate-900 capitalize">
+            <p className="mt-1 text-sm text-slate-900 capitalize print:mt-0 print:text-xs">
               {invoice.paymentMode.toLowerCase().replace("_", " ")}
             </p>
           </div>
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Prepared By</p>
-            <p className="mt-1 text-sm text-slate-900">{invoice.user?.name ?? "—"}</p>
+            <p className="mt-1 text-sm text-slate-900 print:mt-0 print:text-xs">{invoice.user?.name ?? "—"}</p>
             {invoice.dueDate && (
               <>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2">Due Date</p>
-                <p className="text-sm text-slate-900">{formatDate(invoice.dueDate)}</p>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2 print:hidden">Due Date</p>
+                <p className="text-sm text-slate-900 print:hidden">{formatDate(invoice.dueDate)}</p>
               </>
             )}
           </div>
         </div>
 
         {/* Items table */}
-        <table className="w-full text-sm">
+        <table className="invoice-print-table w-full text-sm print:text-[10px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="text-left px-6 py-3 font-medium text-slate-600">#</th>
-              <th className="text-left px-6 py-3 font-medium text-slate-600">Product / Batch</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Qty</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Unit Price</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Disc%</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Tax%</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Total</th>
+              <th className="text-left px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">#</th>
+              <th className="text-left px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">Product / Batch</th>
+              <th className="text-right px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">Qty</th>
+              <th className="text-right px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">Unit Price</th>
+              <th className="text-right px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">Disc%</th>
+              <th className="text-right px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">Tax%</th>
+              <th className="text-right px-6 py-3 font-medium text-slate-600 print:px-1.5 print:py-1">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {invoice.items.map((item, idx) => {
               const lineTotal = parseFloat(item.totalAmount.toString())
               return (
-                <tr key={item.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-3 text-slate-400">{idx + 1}</td>
-                  <td className="px-6 py-3">
-                    <p className="font-medium text-slate-900">{item.product.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                <tr key={item.id} className="invoice-print-row hover:bg-slate-50">
+                  <td className="px-6 py-3 text-slate-400 print:px-1.5 print:py-1">{idx + 1}</td>
+                  <td className="px-6 py-3 print:px-1.5 print:py-1">
+                    <p className="font-medium text-slate-900 print:text-[10px]">{item.product.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 print:mt-0 print:gap-1">
+                      <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded print:bg-transparent print:px-0 print:py-0 print:text-[9px]">
                         {item.batch.batchNumber}
                       </span>
-                      <ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} />
+                      <span className="print:hidden"><ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} /></span>
                     </div>
                   </td>
-                  <td className="px-6 py-3 text-right text-slate-700">
+                  <td className="px-6 py-3 text-right text-slate-700 print:px-1.5 print:py-1">
                     {item.quantity} {item.product.unit}
                   </td>
-                  <td className="px-6 py-3 text-right text-slate-700">
+                  <td className="px-6 py-3 text-right text-slate-700 print:px-1.5 print:py-1">
                     {formatCurrency(parseFloat(item.salePrice.toString()))}
                   </td>
-                  <td className="px-6 py-3 text-right text-slate-500">
+                  <td className="px-6 py-3 text-right text-slate-500 print:px-1.5 print:py-1">
                     {parseFloat(item.discount.toString()) > 0
                       ? `${parseFloat(item.discount.toString())}%`
                       : "—"}
                   </td>
-                  <td className="px-6 py-3 text-right text-slate-500">
+                  <td className="px-6 py-3 text-right text-slate-500 print:px-1.5 print:py-1">
                     {parseFloat(item.taxRate.toString()) > 0
                       ? `${parseFloat(item.taxRate.toString())}%`
                       : "—"}
                   </td>
-                  <td className="px-6 py-3 text-right font-semibold text-slate-900">
+                  <td className="px-6 py-3 text-right font-semibold text-slate-900 print:px-1.5 print:py-1">
                     {formatCurrency(lineTotal)}
                   </td>
                 </tr>
@@ -230,8 +230,8 @@ export default async function InvoiceDetailPage({ params }: Props) {
         </table>
 
         {/* Totals */}
-        <div className="border-t border-slate-200 px-6 py-4">
-          <div className="ml-auto w-64 space-y-2 text-sm">
+        <div className="invoice-print-totals border-t border-slate-200 px-6 py-4 print:px-0 print:py-2">
+          <div className="ml-auto w-64 space-y-2 text-sm print:w-56 print:space-y-0.5 print:text-[10px]">
             <TotalRow label="Subtotal" value={formatCurrency(parseFloat(invoice.totalAmount.toString()))} />
             {parseFloat(invoice.discountAmount.toString()) > 0.001 && (
               <TotalRow
@@ -247,7 +247,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
             </div>
             <TotalRow label="Amount Received" value={formatCurrency(paid)} />
             <div
-              className={`flex justify-between font-bold text-base pt-1 ${
+              className={`flex justify-between font-bold text-base pt-1 print:text-xs print:pt-0.5 ${
                 isPaid
                   ? "text-green-600"
                   : balance < -0.001
@@ -268,10 +268,10 @@ export default async function InvoiceDetailPage({ params }: Props) {
         </div>
 
         {/* Notes */}
-        {invoice.notes && (
-          <div className="border-t border-slate-200 px-6 py-4">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Notes</p>
-            <p className="text-sm text-slate-700">{invoice.notes}</p>
+        {invoice.notes?.trim() && (
+          <div className="invoice-print-notes border-t border-slate-200 px-6 py-4 print:px-0 print:py-2">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 print:mb-0.5">Notes</p>
+            <p className="text-sm text-slate-700 print:text-[10px]">{invoice.notes}</p>
           </div>
         )}
       </div>
