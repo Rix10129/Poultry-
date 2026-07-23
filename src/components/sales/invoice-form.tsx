@@ -231,6 +231,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   }, [lines, disc])
 
   const balance = net - paid
+  const hasLineItems = lines.length > 0
   const submitLabel = formMode === "update" ? "Update Invoice" : "Create Invoice"
 
   function buildLinesJson() {
@@ -261,7 +262,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (lines.length === 0) { setError("Add at least one product"); return }
+    if (!hasLineItems) { setError("Add at least one product"); return }
 
     for (const line of lines) {
       if (!line.quantity || line.quantity < 1) {
@@ -426,7 +427,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-900">
             Items
-            {lines.length > 0 && (
+            {hasLineItems && (
               <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
             )}
           </h3>
@@ -455,14 +456,14 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
           </div>
         </div>
 
-        {lines.length === 0 && (
+        {!hasLineItems && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
             <p className="text-sm text-slate-400">Select a product above and click Add</p>
             <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
           </div>
         )}
 
-        {lines.length > 0 && (
+        {hasLineItems && (
           <div className="rounded-xl border border-slate-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -475,7 +476,10 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600">Total</th>
                   <th className="w-8" />
                 </tr>
+
               </thead>
+              )}
+              
               <tbody className="divide-y divide-slate-100">
                 {lines.map(line => {
                   const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
@@ -704,7 +708,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
 }
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
+        <Button type="submit" loading={submitting} disabled={!hasLineItems || submitting}>
           {submitLabel}
         </Button>
         <Button type="button" variant="outline" onClick={() => history.back()}>
