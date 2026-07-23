@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Printer } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { CustomerLedgerActions } from "@/components/customers/customer-ledger-actions"
 
 export const dynamic = "force-dynamic"
 
@@ -28,8 +29,9 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
   const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
-  const companyName = (session.user as any).companyName as string ?? "Our Company"
+  const user = session.user as { companyId: string; companyName?: string }
+  const companyId = user.companyId
+  const companyName = user.companyName ?? "Our Company"
 
   const customer = await db.customer.findFirst({
     where: { id, companyId },
@@ -87,19 +89,19 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
   }
 
   const ledger: LedgerRow[] = [
-    ...invoices.map((inv) => ({
+    ...invoices.map((inv: { invoiceDate: Date; invoiceNumber: string; schemeNotes?: string | null; netAmount: { toString(): string } }) => ({
       date: inv.invoiceDate,
       description: `Invoice ${inv.invoiceNumber}${inv.schemeNotes ? ` — Scheme: ${inv.schemeNotes}` : ""}`,
       debit: parseFloat(inv.netAmount.toString()),
       credit: 0,
     })),
-    ...payments.map((p) => ({
+    ...payments.map((p: { paymentDate: Date; amount: { toString(): string }; paymentMode: string; reference?: string | null; invoice?: { invoiceNumber: string } | null }) => ({
       date: p.paymentDate,
       description: `Payment${p.invoice ? ` (vs. ${p.invoice.invoiceNumber})` : ""} — ${p.paymentMode}${p.reference ? ` #${p.reference}` : ""}`,
       debit: 0,
       credit: parseFloat(p.amount.toString()),
     })),
-    ...returns.map((r) => ({
+    ...returns.map((r: { returnDate: Date; returnNumber: string; totalAmount: { toString(): string }; notes?: string | null }) => ({
       date: r.returnDate,
       description: `Return ${r.returnNumber}${r.notes ? ` — ${r.notes}` : ""}`,
       debit: 0,
@@ -108,15 +110,16 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
   ].sort((a, b) => a.date.getTime() - b.date.getTime())
 
   // Running balance
-  let running = openingBalance
-  const ledgerWithBalance = ledger.map((row) => {
-    running += row.debit - row.credit
-    return { ...row, balance: running }
-  })
-  const closingBalance = running
+  const ledgerWithBalance = ledger.reduce<(LedgerRow & { balance: number })[]>((rows, row) => {
+    const previousBalance = rows.at(-1)?.balance ?? openingBalance
+    rows.push({ ...row, balance: previousBalance + row.debit - row.credit })
+    return rows
+  }, [])
+  const closingBalance = ledgerWithBalance.at(-1)?.balance ?? openingBalance
 
   const totalDebit = ledger.reduce((s, r) => s + r.debit, 0)
   const totalCredit = ledger.reduce((s, r) => s + r.credit, 0)
+  const exportHref = `/api/export?type=customer-ledger&customerId=${encodeURIComponent(id)}&from=${isoDate(fromDate)}&to=${isoDate(toDate)}`
 
   return (
     <div className="space-y-6">
@@ -131,13 +134,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
             <p className="text-sm text-slate-500">{customer.name}</p>
           </div>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors"
-        >
-          <Printer className="h-4 w-4" />
-          Print
-        </button>
+        <CustomerLedgerActions exportHref={exportHref} />
       </div>
 
       {/* Date range filter */}
