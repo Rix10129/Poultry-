@@ -11,7 +11,11 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const companyId = (session.user as any).companyId as string
+  const actor = session.user as { companyId?: string; role?: string }
+  const companyId = actor.companyId as string
+  if (actor.role !== "OWNER" && actor.role !== "ADMIN") {
+    return NextResponse.json({ error: "Manager access required" }, { status: 403 })
+  }
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 })
 
   const days = parseInt(req.nextUrl.searchParams.get("days") ?? "30")

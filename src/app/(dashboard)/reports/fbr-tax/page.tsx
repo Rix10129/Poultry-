@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { redirect } from "next/navigation"
+import { ReportExportButton } from "@/components/reports/report-export-button"
 import { formatCurrency } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -78,6 +79,11 @@ export default async function FBRTaxPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
+
+      <div className="flex justify-end">
+        <ReportExportButton report="fbr-tax" />
+      </div>
+
       <div>
         <h1 className="text-2xl font-bold text-slate-900">FBR Tax Summary</h1>
         <p className="text-slate-500 text-sm mt-0.5">
