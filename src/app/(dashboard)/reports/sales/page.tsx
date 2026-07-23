@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ReportExportButton } from "@/components/reports/report-export-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -71,6 +72,11 @@ export default async function SalesReportPage({
 
   return (
     <div className="space-y-6 max-w-5xl">
+
+      <div className="flex justify-end">
+        <ReportExportButton report="sales" />
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
+import { ReportExportButton } from "@/components/reports/report-export-button"
 import { formatCurrency } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -104,6 +105,11 @@ export default async function SalesmanReportPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+
+      <div className="flex justify-end">
+        <ReportExportButton report="salesman" />
+      </div>
+
       <div className="flex items-center gap-3">
         <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
           <ChevronLeft className="h-5 w-5" />

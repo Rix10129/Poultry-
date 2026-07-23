@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ReportExportButton } from "@/components/reports/report-export-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -82,6 +83,11 @@ export default async function StockValuationPage({
 
   return (
     <div className="space-y-6 max-w-5xl">
+
+      <div className="flex justify-end">
+        <ReportExportButton report="stock" />
+      </div>
+
       <div className="flex items-center gap-3">
         <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
           <ChevronLeft className="h-5 w-5" />
