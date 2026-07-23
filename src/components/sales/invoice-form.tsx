@@ -455,12 +455,14 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
           </div>
         </div>
 
-        {lines.length === 0 ? (
+        {lines.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
             <p className="text-sm text-slate-400">Select a product above and click Add</p>
             <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
           </div>
-        ) : (
+        )}
+
+        {lines.length > 0 && (
           <div className="rounded-xl border border-slate-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
