@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { daysUntilExpiry } from "@/lib/utils"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -285,6 +286,9 @@ export async function createInvoice(
           where: { id: line.batchId, companyId, productId: line.productId },
         })
         if (!batch) throw new Error(`Batch not found`)
+        if (daysUntilExpiry(batch.expiryDate) < 0) {
+          throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
+        }
         if (batch.quantity < line.quantity) {
           throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
         }
@@ -438,6 +442,9 @@ export async function updateInvoice(
           where: { id: line.batchId, companyId, productId: line.productId },
         })
         if (!batch) throw new Error("Batch not found")
+        if (daysUntilExpiry(batch.expiryDate) < 0) {
+          throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
+        }
         if (batch.quantity < line.quantity) {
           throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
         }
