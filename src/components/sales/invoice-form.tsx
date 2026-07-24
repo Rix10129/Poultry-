@@ -701,24 +701,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   )
 }
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          {submitLabel}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => history.back()}>
-          Cancel
-        </Button>
-     
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <Field label="Qty"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></Field>
-        <Field label="Price"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></Field>
-        <Field label="Disc%"><LineNumberInput value={line.discount} min="0" max="100" step="0.01" onChange={value => updateLine(line.key, { discount: parseFloat(value) || 0 })} /></Field>
-      </div>
-      <div className="mt-2 text-right text-sm font-semibold text-slate-900">{formatCurrency(lineTotal)}</div>
-    </div>
-  )
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="space-y-1 text-xs text-slate-500"><span>{label}</span>{children}</label>
 }
