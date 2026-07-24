@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice } from "@/app/(dashboard)/sales/actions"
-import { formatCurrency } from "@/lib/utils"
+import { daysUntilExpiry, formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
 
@@ -58,6 +58,10 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
   return Math.max(0, batchTotal - used)
 }
 
+function isSellableBatch(batch: BatchOption) {
+  return daysUntilExpiry(batch.expiryDate) >= 0
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface InvoiceFormProps {
@@ -83,7 +87,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
-    () => products.filter(p => p.batches.some(b => batchAvailable(b.id, b.quantity, lines) > 0)),
+    () => products.filter(p => p.batches.some(b => isSellableBatch(b) && batchAvailable(b.id, b.quantity, lines) > 0)),
     [products, lines]
   )
   const filteredProducts = useMemo(() => {
@@ -104,7 +108,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     let chosen: { batch: BatchOption; avail: number } | null = null
     for (const batch of product.batches) {
       const avail = batchAvailable(batch.id, batch.quantity, lines)
-      if (avail > 0) { chosen = { batch, avail }; break }
+      if (isSellableBatch(batch) && avail > 0) { chosen = { batch, avail }; break }
     }
 
     if (!chosen) {
@@ -343,12 +347,8 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-900">Items</h3>
-          <span className="text-xs text-slate-500">{availableProducts.length} products in stock</span>
+          <span className="text-xs text-slate-500">{availableProducts.length} sellable products</span>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          {lines.length} line{lines.length === 1 ? "" : "s"} · Earliest-expiry stock is selected automatically
-        </p>
-      </section>
 
         {lines.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
