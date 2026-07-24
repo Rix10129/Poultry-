@@ -73,7 +73,6 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
-  const productSearchRef = useRef<HTMLInputElement>(null)
   const [customerId, setCustomerId] = useState("")
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState("")
@@ -134,7 +133,6 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setLines(prev => [...prev, line])
     setAddProductId("")
     setProductSearch("")
-    requestAnimationFrame(() => productSearchRef.current?.focus())
     setError(null)
   }
 
@@ -307,7 +305,6 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           <div className="min-w-0 flex-1 space-y-1">
             <Label htmlFor="product-search">Add item</Label>
             <Input
-              ref={productSearchRef}
               id="product-search"
               value={productSearch}
               onChange={e => setProductSearch(e.target.value)}
