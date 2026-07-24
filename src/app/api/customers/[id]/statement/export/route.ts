@@ -40,29 +40,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   let balance = parseFloat(customer.openingBalance.toString()) + parseFloat(previousInvoices._sum.netAmount?.toString() ?? "0") - parseFloat(previousInvoices._sum.paidAmount?.toString() ?? "0") - parseFloat(previousReturns._sum.totalAmount?.toString() ?? "0")
   const rows = [
-    ...invoices.map((item) => ({ date: item.invoiceDate, description: `Invoice ${item.invoiceNumber}`, debit: parseFloat(item.netAmount.toString()), credit: 0 })),
-    ...payments.map((item) => ({ date: item.paymentDate, description: `Payment${item.invoice ? ` (${item.invoice.invoiceNumber})` : ""} — ${item.paymentMode}${item.reference ? ` #${item.reference}` : ""}`, debit: 0, credit: parseFloat(item.amount.toString()) })),
-    ...returns.map((item) => ({ date: item.returnDate, description: `Return ${item.returnNumber}`, debit: 0, credit: parseFloat(item.totalAmount.toString()) })),
+    ...invoices.map((item) => ({ date: item.invoiceDate, type: "Invoice", description: item.invoiceNumber, debit: parseFloat(item.netAmount.toString()), credit: 0 })),
+    ...payments.map((item) => ({ date: item.paymentDate, type: "Payment", description: `${item.invoice ? `${item.invoice.invoiceNumber} — ` : ""}${item.paymentMode}${item.reference ? ` #${item.reference}` : ""}`, debit: 0, credit: parseFloat(item.amount.toString()) })),
+    ...returns.map((item) => ({ date: item.returnDate, type: "Sale Return", description: item.returnNumber, debit: 0, credit: parseFloat(item.totalAmount.toString()) })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime())
 
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet("Customer Ledger")
   sheet.addRow(["Customer Ledger"])
   sheet.getCell("A1").font = { bold: true, size: 14 }
-  sheet.addRow([customer.name])
-  sheet.addRow([`Period: ${from.toLocaleDateString("en-GB")} - ${to.toLocaleDateString("en-GB")}`])
+  sheet.addRow(["Customer", customer.name])
+  sheet.addRow(["Report period", `${from.toLocaleDateString("en-GB")} - ${to.toLocaleDateString("en-GB")}`])
   sheet.addRow([])
-  const header = sheet.addRow(["Date", "Description", "Debit", "Credit", "Balance"])
+  const header = sheet.addRow(["Date", "Type", "Description", "Debit", "Credit", "Running Balance"])
   header.font = { bold: true, color: { argb: "FFFFFFFF" } }
   header.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } } })
-  sheet.addRow([from, "Balance Brought Forward", 0, 0, balance])
+  const openingRow = sheet.addRow([from, "Opening Balance", "Balance Brought Forward", 0, 0, balance])
+  openingRow.font = { italic: true }
   for (const row of rows) {
     balance += row.debit - row.credit
-    sheet.addRow([row.date, row.description, row.debit, row.credit, balance])
+    sheet.addRow([row.date, row.type, row.description, row.debit, row.credit, balance])
   }
-  sheet.columns = [{ width: 14 }, { width: 48 }, { width: 16 }, { width: 16 }, { width: 16 }]
+  const closingRow = sheet.addRow([to, "Closing Balance", "Balance Carried Forward", 0, 0, balance])
+  closingRow.font = { bold: true }
+  closingRow.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8F4FD" } } })
+
+  sheet.columns = [{ width: 14 }, { width: 18 }, { width: 48 }, { width: 16 }, { width: 16 }, { width: 18 }]
   for (const column of [1]) sheet.getColumn(column).numFmt = "dd-mmm-yyyy"
-  for (const column of [3, 4, 5]) sheet.getColumn(column).numFmt = '#,##0.00'
+  for (const column of [4, 5, 6]) sheet.getColumn(column).numFmt = '#,##0.00'
 
   const filename = `${customer.name.replace(/[^a-z0-9]+/gi, "-")}-ledger.xlsx`
   return new NextResponse(new Uint8Array(await workbook.xlsx.writeBuffer()), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${filename}"` } })
