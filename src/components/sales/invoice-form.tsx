@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
-import { createInvoice, updateInvoice } from "@/app/(dashboard)/sales/actions"
+import { createInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, ChevronDown } from "lucide-react"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -36,31 +36,6 @@ export type CustomerOption = {
   type: string
 }
 
-
-type InvoiceFormInitialLine = {
-  productId: string
-  productName: string
-  unit: string
-  batchId: string
-  batchNumber: string
-  expiryDate: string
-  quantity: number
-  salePrice: string
-  discount: string
-  taxRate: string
-}
-
-type InvoiceFormInitialInvoice = {
-  customerId?: string | null
-  invoiceDate?: string
-  dueDate?: string | null
-  paymentMode?: string
-  paidAmount?: string
-  discountAmount?: string
-  notes?: string | null
-  lines?: InvoiceFormInitialLine[]
-}
-
 type LineItem = {
   key: string
   productId: string
@@ -83,81 +58,28 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
   return Math.max(0, batchTotal - used)
 }
 
-
-function initialLinesFromInvoice(initialInvoice: InvoiceFormInitialInvoice | undefined, products: ProductOption[]): LineItem[] {
-  return (initialInvoice?.lines ?? []).map((line) => ({
-    key: crypto.randomUUID(),
-    productId: line.productId,
-    productName: line.productName,
-    unit: line.unit,
-    batchId: line.batchId,
-    batchNumber: line.batchNumber,
-    expiryDate: line.expiryDate,
-    maxQty: products.flatMap((p) => p.batches).find((batch) => batch.id === line.batchId)?.quantity ?? line.quantity,
-    quantity: line.quantity,
-    salePrice: parseFloat(line.salePrice) || 0,
-    discount: parseFloat(line.discount) || 0,
-    taxRate: parseFloat(line.taxRate) || 0,
-  }))
-}
-
-function dateInputValue(value: string | null | undefined) {
-  return value ? value.split("T")[0] : ""
-}
 // ── Component ─────────────────────────────────────────────────────────────────
-
-export type InitialInvoiceLine = {
-  productId: string
-  productName: string
-  unit: string
-  batchId: string
-  batchNumber: string
-  expiryDate: string
-  quantity: number
-  salePrice: string
-  discount: string
-  taxRate: string
-}
-
-export type InitialInvoice = {
-  id: string
-  customerId: string | null
-  invoiceDate: string
-  dueDate: string | null
-  paymentMode: string
-  paidAmount: string
-  discountAmount: string
-  notes: string | null
-  lines: InitialInvoiceLine[]
-  hasDependentRecords?: boolean
-  canOverrideSafeguards?: boolean
-}
 
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
-  mode?: "create" | "update"
-  initialInvoice?: InvoiceFormInitialInvoice
 }
 
-export function InvoiceForm({ products, customers, mode = "create", initialInvoice }: InvoiceFormProps) {
-  const formMode = mode
-  const [lines, setLines] = useState<LineItem[]>(() => initialLinesFromInvoice(initialInvoice, products))
+export function InvoiceForm({ products, customers }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const productSearchRef = useRef<HTMLInputElement>(null)
-  const [customerId, setCustomerId] = useState(initialInvoice?.customerId ?? "")
-  const [invoiceDate, setInvoiceDate] = useState(() => dateInputValue(initialInvoice?.invoiceDate) || new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState(() => dateInputValue(initialInvoice?.dueDate))
-  const [paymentMode, setPaymentMode] = useState(initialInvoice?.paymentMode ?? "CASH")
-  const [paidAmount, setPaidAmount] = useState(initialInvoice?.paidAmount ?? "")
-  const [discountAmount, setDiscountAmount] = useState(initialInvoice?.discountAmount ?? "")
-  const [notes, setNotes] = useState(initialInvoice?.notes ?? "")
+  const [customerId, setCustomerId] = useState("")
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState("")
+  const [paymentMode, setPaymentMode] = useState("CASH")
+  const [paidAmount, setPaidAmount] = useState("")
+  const [discountAmount, setDiscountAmount] = useState("")
+  const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
-  const [moreDetailsOpen, setMoreDetailsOpen] = useState(false)
-  const productSearchRef = useRef<HTMLInputElement>(null)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -165,16 +87,17 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     [products, lines]
   )
   const filteredProducts = useMemo(() => {
-    const query = productSearch.trim().toLowerCase()
-    if (!query) return availableProducts
-    return availableProducts.filter((p) => p.name.toLowerCase().includes(query))
+    const searchTerm = productSearch.trim().toLowerCase()
+    if (!searchTerm) return availableProducts
+
+    return availableProducts.filter((product) =>
+      product.name.toLowerCase().includes(searchTerm)
+    )
   }, [availableProducts, productSearch])
 
   function addLine() {
-    const matchedProduct = products.find(p => p.name.toLowerCase() === productSearch.trim().toLowerCase())
-    const productId = addProductId || matchedProduct?.id || ""
-    if (!productId) return
-    const product = products.find(p => p.id === productId)
+    if (!addProductId) return
+    const product = products.find(p => p.id === addProductId)
     if (!product) return
 
     // FEFO: pick the first batch (sorted by expiryDate ASC) with available stock
@@ -207,7 +130,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     setLines(prev => [...prev, line])
     setAddProductId("")
     setProductSearch("")
-    productSearchRef.current?.focus()
+    requestAnimationFrame(() => productSearchRef.current?.focus())
     setError(null)
   }
 
@@ -231,33 +154,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   }, [lines, disc])
 
   const balance = net - paid
-  const submitLabel = formMode === "update" ? "Update Invoice" : "Create Invoice"
-
-  function buildLinesJson() {
-    return JSON.stringify(lines.map((l) => ({
-      productId: l.productId,
-      batchId: l.batchId,
-      quantity: l.quantity,
-      unit: l.unit,
-      salePrice: l.salePrice,
-      discount: l.discount,
-      taxRate: l.taxRate,
-    })))
-  }
-
-  async function saveOffline() {
-    await addToSalesQueue({
-      customerId,
-      invoiceDate,
-      dueDate,
-      paymentMode,
-      paidAmount: String(paid),
-      discountAmount: String(disc),
-      notes,
-      linesJson: buildLinesJson(),
-    })
-    setSavedOffline(true)
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -276,28 +172,34 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     setSubmitting(true)
     setError(null)
 
-    // Invoice updates are accounting/stock mutations and must be handled online.
-    if (formMode === "update" && !navigator.onLine) {
-      setError("Invoice editing requires an internet connection")
+    // When offline, queue locally instead of calling the server
+    if (!navigator.onLine) {
+      try {
+        await addToSalesQueue({
+          customerId,
+          invoiceDate,
+          dueDate,
+          paymentMode,
+          paidAmount: String(paid),
+          discountAmount: String(disc),
+          notes,
+          linesJson: JSON.stringify(lines.map((l) => ({
+            productId: l.productId,
+            batchId: l.batchId,
+            quantity: l.quantity,
+            salePrice: l.salePrice,
+            discount: l.discount,
+            taxRate: l.taxRate,
+          }))),
+        })
+        setSavedOffline(true)
+      } catch {
+        setError("Could not save offline — please try again")
+      }
       setSubmitting(false)
       return
     }
 
-    // If the browser already knows we're offline, skip the server call entirely
-    if (formMode === "create" && !navigator.onLine) {
-      try {
-        await saveOffline()
-      } catch {
-        setError("Could not save offline — please try again")
-        setSubmitting(false)
-      }
-      return
-    }
-
-    // Try the server. Three outcomes:
-    //   1. Server redirect (success) — Next.js navigates, execution ends
-    //   2. Validation error returned — show it
-    //   3. Network error (TypeError: Failed to fetch) — fall back to offline queue
     const fd = new FormData()
     fd.set("customerId", customerId)
     fd.set("invoiceDate", invoiceDate)
@@ -306,44 +208,23 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     fd.set("paidAmount", String(paid))
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
-    fd.set("linesJson", buildLinesJson())
-    if (mode === "update" && initialInvoice) {
-      fd.set("id", initialInvoice.id)
-      if (confirmDependentEdit) fd.set("confirmDependentEdit", "1")
-    }
+    fd.set("linesJson", JSON.stringify(lines.map(l => ({
+      productId: l.productId,
+      batchId: l.batchId,
+      quantity: l.quantity,
+      salePrice: l.salePrice,
+      discount: l.discount,
+      taxRate: l.taxRate,
+    }))))
 
     try {
-      const result = mode === "update" ? await updateInvoice(null, fd) : await createInvoice(null, fd)
+      const result = await createInvoice(null, fd)
       if (result?.error) {
         setError(result.error)
         setSubmitting(false)
       }
-      // On success redirect() is called server-side — Next.js navigates away
-    } catch (err: unknown) {
-      // Next.js redirect() throws a special error internally — re-throw it so the
-      // router can handle the navigation (otherwise the catch swallows it and the
-      // user sees "Unexpected error" even after a successful create).
-      const redirectDigest = err instanceof Error && "digest" in err ? String(err.digest) : ""
-      if (redirectDigest.startsWith("NEXT_REDIRECT")) throw err
-
-      // True network failure: navigator.onLine can lie (device has WiFi but no
-      // internet), so we check the error type and fall back to the offline queue.
-      const isNetworkError =
-        err instanceof TypeError ||
-        (err instanceof Error && err.name === "TypeError") ||
-        (err instanceof Error && err.message.toLowerCase().includes("fetch")) ||
-        (err instanceof Error && err.message.toLowerCase().includes("network"))
-
-      if (formMode === "create" && isNetworkError) {
-        try {
-          await saveOffline()
-        } catch {
-          setError("No connection and could not save offline — please try again")
-          setSubmitting(false)
-        }
-        return
-      }
-
+      // On success the server redirects — execution stops here
+    } catch {
       setError("Unexpected error — please try again")
       setSubmitting(false)
     }
@@ -376,7 +257,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
               setDueDate("")
               setPaymentMode("CASH")
               setPaidAmount("")
-              setProductSearch("")
               setDiscountAmount("")
               setNotes("")
             }}
@@ -389,17 +269,16 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pb-36 md:pb-28">
+    <form onSubmit={handleSubmit} className="space-y-4 pb-28">
       {error && (
-        <div className="sticky top-2 z-30 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 shadow-sm">
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
           <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {/* Header row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="col-span-2 space-y-1.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="space-y-1.5">
           <Label>Customer</Label>
           <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
             <option value="">Walk-in / Cash Sale</option>
@@ -413,57 +292,70 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
             value={invoiceDate}
             onChange={e => setInvoiceDate(e.target.value)}
             required
+            className="sm:w-40"
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Due Date</Label>
-          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
         </div>
       </div>
 
-      {/* Line items */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-900">
-            Items
-            {lines.length > 0 && (
-              <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
-            )}
-          </h3>
-          <div className="flex items-center gap-2">
+      <section className="sticky top-2 z-20 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor="product-search">Add item</Label>
             <Input
               ref={productSearchRef}
+              id="product-search"
               value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search product…"
-              className="w-48 text-sm"
+              onChange={e => setProductSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && addProductId) {
+                  e.preventDefault()
+                  addLine()
+                }
+              }}
+              placeholder="Search product by name…"
+              autoComplete="off"
             />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor="product-picker">Product</Label>
             <Select
+              id="product-picker"
               value={addProductId}
               onChange={e => setAddProductId(e.target.value)}
-              className="w-56 text-sm"
             >
               <option value="">Select product…</option>
               {filteredProducts.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>
-            <Button type="button" size="sm" onClick={addLine} disabled={!addProductId}>
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
           </div>
+          <Button type="button" onClick={addLine} disabled={!addProductId} className="shrink-0">
+            <Plus className="h-4 w-4" />
+            Add item
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          {lines.length} line{lines.length === 1 ? "" : "s"} · Earliest-expiry stock is selected automatically
+        </p>
+      </section>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">Items</h3>
+          <span className="text-xs text-slate-500">{availableProducts.length} products in stock</span>
         </div>
 
-        {lines.length === 0 ? (
+        {lines.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
             <p className="text-sm text-slate-400">Select a product above and click Add</p>
             <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
           </div>
-        ) : (
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+        )}
+
+        {lines.length > 0 && (
+          <div className="max-h-[42vh] overflow-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left px-3 py-2.5 font-medium text-slate-600">Product / Batch</th>
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600">Avail</th>
@@ -545,26 +437,25 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
               </tbody>
             </table>
           </div>
-        ) /* closes the empty-items/table conditional */}
+        )}
       </div>
 
-      {/* Payment + summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Payment */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Payment</h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Payment Mode</Label>
               <Select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
                 <option value="CASH">Cash</option>
                 <option value="BANK">Bank Transfer</option>
                 <option value="CHEQUE">Cheque</option>
-                <option value="CREDIT">Credit</option>
+                <option value="CREDIT">Credit (on account)</option>
               </Select>
             </div>
-            <div className="space-y-1">
-              <Label>Paid</Label>
+            <div className="space-y-1.5">
+              <Label>Amount Received</Label>
               <Input
                 type="number"
                 min="0"
@@ -572,175 +463,88 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
                 value={paidAmount}
                 onChange={e => setPaidAmount(e.target.value)}
                 placeholder="0.00"
-                className="h-9 text-right"
               />
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Keyboard-friendly add item flow */}
-      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="product-search">Add item</Label>
-              <span className="text-xs text-slate-400">Press Enter to add, then keep typing</span>
+            <div className="space-y-1.5">
+              <Label>Due Date</Label>
+              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
-            <div className="flex gap-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Notes</Label>
               <Input
-                ref={productSearchRef}
-                id="product-search"
-                list="available-products"
-                value={productSearch}
-                onChange={e => {
-                  const value = e.target.value
-                  setProductSearch(value)
-                  setAddProductId(products.find(p => p.name === value)?.id || "")
-                }}
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    addLine()
-                  }
-                }}
-                placeholder="Search product by name…"
-                className="h-9"
-                autoComplete="off"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Optional"
               />
-              <datalist id="available-products">
-                {availableProducts.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
-              <Button type="button" size="sm" onClick={addLine} disabled={!addProductId && !products.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase())} className="h-9 shrink-0">
-                <Plus className="h-4 w-4" />
-                Add item
-              </Button>
             </div>
           </div>
-          <div className="text-sm text-slate-500 md:text-right">
-            <span className="font-medium text-slate-900">{lines.length}</span> lines · FEFO batch auto-selected
+        </div>
+
+        {/* Summary */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Summary</h3>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
+            <SumRow label="Subtotal" value={formatCurrency(subtotal)} />
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Invoice Discount</span>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={discountAmount}
+                onChange={e => setDiscountAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-28 text-right h-7 text-sm py-1"
+              />
+            </div>
+            {taxTotal > 0.001 && <SumRow label="Tax" value={formatCurrency(taxTotal)} />}
+            <div className="border-t border-slate-200 pt-2">
+              <SumRow label="Net Amount" value={formatCurrency(net)} bold />
+            </div>
+            <SumRow label="Received" value={formatCurrency(paid)} />
+            <div
+              className={`flex justify-between font-bold ${
+                balance > 0.001
+                  ? "text-red-600"
+                  : balance < -0.001
+                  ? "text-green-600"
+                  : "text-slate-900"
+              }`}
+            >
+              <span>
+                {balance > 0.001 ? "Balance Due" : balance < -0.001 ? "Change Due" : "Settled ✓"}
+              </span>
+              <span>{Math.abs(balance) < 0.001 ? "—" : formatCurrency(Math.abs(balance))}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Line items */}
-      <div className="space-y-3">
-        {lines.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
-            <p className="text-sm text-slate-400">Search for a product, press Enter, and continue adding items.</p>
-            <p className="text-xs text-slate-300 mt-1">Designed for fast entry of 10–30 invoice lines.</p>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:inset-x-auto md:right-4 md:bottom-4 md:w-[min(720px,calc(100vw-2rem))] md:rounded-xl md:border">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-slate-500">Net amount</p>
+            <p className="text-lg font-bold text-slate-900">{formatCurrency(net)}</p>
           </div>
-        ) : (
-          <>
-            <div className="hidden rounded-xl border border-slate-200 md:block md:max-h-[55vh] md:overflow-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="text-left px-2 py-2 font-medium text-slate-600">Product / Batch</th>
-                    <th className="text-right px-2 py-2 font-medium text-slate-600">Avail</th>
-                    <th className="text-right px-2 py-2 font-medium text-slate-600 w-20">Qty</th>
-                    <th className="text-right px-2 py-2 font-medium text-slate-600 w-28">Price</th>
-                    <th className="text-right px-2 py-2 font-medium text-slate-600 w-20">Disc%</th>
-                    <th className="text-right px-2 py-2 font-medium text-slate-600">Total</th>
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {lines.map(line => <LineRow key={line.key} line={line} updateLine={updateLine} removeLine={() => setLines(prev => prev.filter(l => l.key !== line.key))} />)}
-                </tbody>
-              </table>
-            </div>
-            <div className="space-y-2 md:hidden">
-              {lines.map(line => <LineCard key={line.key} line={line} updateLine={updateLine} removeLine={() => setLines(prev => prev.filter(l => l.key !== line.key))} />)}
-            </div>
-          </>
-        )}
-      </div>
-
-      <details className="rounded-xl border border-slate-200 bg-white p-3" open={moreDetailsOpen} onToggle={e => setMoreDetailsOpen(e.currentTarget.open)}>
-        <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-900">
-          More details
-          <ChevronDown className={`h-4 w-4 transition-transform ${moreDetailsOpen ? "rotate-180" : ""}`} />
-        </summary>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Due Date</Label>
-            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => history.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
+              Create Invoice
+            </Button>
           </div>
-          <div className="space-y-1.5">
-            <Label>Invoice Discount</Label>
-            <Input type="number" min="0" step="0.01" value={discountAmount} onChange={e => setDiscountAmount(e.target.value)} placeholder="0.00" />
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Notes</Label>
-            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" />
-          </div>
-        </div>
-      </details>
-
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:left-auto md:right-4 md:bottom-4 md:w-[min(920px,calc(100vw-2rem))] md:rounded-2xl md:border">
-        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:grid-cols-7">
-          <SummaryPill label="Items" value={String(lines.length)} />
-          <SummaryPill label="Subtotal" value={formatCurrency(subtotal)} />
-          <SummaryPill label="Discount" value={formatCurrency(disc)} />
-          <SummaryPill label="Tax" value={formatCurrency(taxTotal)} />
-          <SummaryPill label="Net" value={formatCurrency(net)} strong />
-          <SummaryPill label="Paid" value={formatCurrency(paid)} />
-          <SummaryPill label={balance > 0.001 ? "Balance" : balance < -0.001 ? "Change" : "Balance"} value={Math.abs(balance) < 0.001 ? "—" : formatCurrency(Math.abs(balance))} tone={balance > 0.001 ? "danger" : balance < -0.001 ? "success" : "default"} strong />
-        </div>
-        <div className="mt-3 flex gap-2">
-          <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting} className="flex-1">
-            Create Invoice
-          </Button>
-          <Button type="button" variant="outline" onClick={() => history.back()} className="shrink-0">
-            Cancel
-          </Button>
         </div>
       </div>
     </form>
   )
 }
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          {submitLabel}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => history.back()}>
-          Cancel
-        </Button>
-     
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <Field label="Qty"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></Field>
-        <Field label="Price"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></Field>
-        <Field label="Disc%"><LineNumberInput value={line.discount} min="0" max="100" step="0.01" onChange={value => updateLine(line.key, { discount: parseFloat(value) || 0 })} /></Field>
-      </div>
-      <div className="mt-2 text-right text-sm font-semibold text-slate-900">{formatCurrency(lineTotal)}</div>
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="space-y-1 text-xs text-slate-500"><span>{label}</span>{children}</label>
-}
-
-function LineNumberInput({ value, onChange, min, max, step, error }: { value: number; onChange: (value: string) => void; min?: string | number; max?: string | number; step?: string; error?: boolean }) {
-  return <Input type="number" min={min} max={max} step={step} value={value} onChange={e => onChange(e.target.value)} className={`h-8 text-right ${error ? "border-red-400 focus:ring-red-400" : ""}`} />
-}
-
-function RemoveButton({ onClick }: { onClick: () => void }) {
+function SumRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className="text-slate-300 hover:text-red-500 transition-colors p-1" aria-label="Remove item">
-      <Trash2 className="h-3.5 w-3.5" />
-    </button>
-  )
-}
-
-function SummaryPill({ label, value, strong, tone = "default" }: { label: string; value: string; strong?: boolean; tone?: "default" | "danger" | "success" }) {
-  const toneClass = tone === "danger" ? "text-red-600" : tone === "success" ? "text-green-600" : "text-slate-900"
-  return (
-    <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-      <div className="text-[11px] uppercase tracking-wide text-slate-400">{label}</div>
-      <div className={`${strong ? "font-bold" : "font-semibold"} ${toneClass}`}>{value}</div>
+    <div className={`flex justify-between ${bold ? "font-semibold text-slate-900" : "text-slate-600"}`}>
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   )
 }
