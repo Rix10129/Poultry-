@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -345,6 +345,10 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           <h3 className="text-sm font-semibold text-slate-900">Items</h3>
           <span className="text-xs text-slate-500">{availableProducts.length} products in stock</span>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          {lines.length} line{lines.length === 1 ? "" : "s"} · Earliest-expiry stock is selected automatically
+        </p>
+      </section>
 
         {lines.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
