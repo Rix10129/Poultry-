@@ -154,6 +154,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   }, [lines, disc])
 
   const balance = net - paid
+  const itemCountLabel = `${lines.length} line${lines.length === 1 ? "" : "s"}`
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -335,7 +336,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           </Button>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          {lines.length} line{lines.length === 1 ? "" : "s"} · Earliest-expiry stock is selected automatically
+          {itemCountLabel}{" · "}Earliest-expiry stock is selected automatically
         </p>
       </section>
 
@@ -344,13 +345,19 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           <h3 className="text-sm font-semibold text-slate-900">Items</h3>
           <span className="text-xs text-slate-500">{availableProducts.length} products in stock</span>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          {lines.length} line{lines.length === 1 ? "" : "s"} · Earliest-expiry stock is selected automatically
+        </p>
+      </section>
 
         {lines.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
             <p className="text-sm text-slate-400">Select a product above and click Add</p>
             <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
           </div>
-        ) : (
+        )}
+
+        {lines.length > 0 && (
           <div className="max-h-[42vh] overflow-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
@@ -534,6 +541,9 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           </div>
         </div>
       </div>
+    </form>
+  )
+}
 
 function SumRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
