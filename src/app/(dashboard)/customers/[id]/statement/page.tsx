@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Printer } from "lucide-react"
+import { ChevronLeft, Download, Printer } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -33,7 +33,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
 
   const customer = await db.customer.findFirst({
     where: { id, companyId },
-    select: { id: true, name: true, phone: true, address: true, area: true },
+    select: { id: true, name: true, phone: true, address: true, area: true, openingBalance: true },
   })
   if (!customer) notFound()
 
@@ -55,6 +55,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
     _sum: { totalAmount: true },
   })
   const openingBalance =
+    parseFloat(customer.openingBalance.toString()) +
     parseFloat(prevInvAgg._sum.netAmount?.toString() ?? "0") -
     parseFloat(prevInvAgg._sum.paidAmount?.toString() ?? "0") -
     parseFloat(prevReturnsAgg._sum.totalAmount?.toString() ?? "0")
@@ -131,6 +132,14 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
             <p className="text-sm text-slate-500">{customer.name}</p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+        <a
+          href={`/api/customers/${id}/statement/export?from=${isoDate(fromDate)}&to=${isoDate(toDate)}`}
+          className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          Export Excel
+        </a>
         <button
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors"
@@ -138,6 +147,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
           <Printer className="h-4 w-4" />
           Print
         </button>
+        </div>
       </div>
 
       {/* Date range filter */}
