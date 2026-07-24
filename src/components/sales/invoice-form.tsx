@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -345,7 +345,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           <span className="text-xs text-slate-500">{availableProducts.length} products in stock</span>
         </div>
 
-        {lines.length === 0 ? (
+        {lines.length === 0 && (
           <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
             <p className="text-sm text-slate-400">Select a product above and click Add</p>
             <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
@@ -534,9 +534,6 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           </div>
         </div>
       </div>
-    </form>
-  )
-}
 
 function SumRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
