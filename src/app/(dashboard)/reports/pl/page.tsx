@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "P&L Statement" }
 
@@ -89,6 +90,7 @@ export default async function PLPage({
           <h1 className="text-xl font-bold text-slate-900">Profit & Loss Statement</h1>
           <p className="text-sm text-slate-500">Revenue, cost of goods, expenses, and net profit</p>
         </div>
+        <ReportExportControls report="pl" />
       </div>
 
       <form method="GET" className="flex flex-wrap items-center gap-3 bg-white rounded-xl border border-slate-200 px-4 py-3">

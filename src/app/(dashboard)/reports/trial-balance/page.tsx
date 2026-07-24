@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, Scale } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Trial Balance" }
 
@@ -98,6 +99,7 @@ export default async function TrialBalancePage({
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Total Credits</p>
           <p className="text-2xl font-bold text-slate-900">{formatCurrency(grandCr)}</p>
         </div>
+        <ReportExportControls report="trial-balance" />
       </div>
 
       {/* Per-type tables */}
