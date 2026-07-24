@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
 import { writeAuditLog, logAudit } from "@/lib/audit"
+import { daysUntilExpiry } from "@/lib/utils"
 
 type ActionState = { error: string } | null
 
@@ -285,6 +286,9 @@ export async function createInvoice(
           where: { id: line.batchId, companyId, productId: line.productId },
         })
         if (!batch) throw new Error(`Batch not found`)
+        if (daysUntilExpiry(batch.expiryDate) < 0) {
+          throw new Error(`Cannot sell expired batch ${batch.batchNumber}`)
+        }
         if (batch.quantity < line.quantity) {
           throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
         }
@@ -354,6 +358,9 @@ export async function updateInvoice(
   const companyId = user.companyId as string
   const userId = user.id as string
   const role = user.role as string
+  if (role !== "OWNER" && role !== "ADMIN") {
+    return { error: "Only Owner/Admin users can edit invoices." }
+  }
 
   const id = (formData.get("id") as string)?.trim()
   const customerId = (formData.get("customerId") as string) || null
@@ -388,9 +395,13 @@ export async function updateInvoice(
       })
       if (!invoice) throw new Error("Invoice not found")
 
-      const hasDependentRecords = invoice.payments.length > 0 || invoice.returns.length > 0
-      if (hasDependentRecords && !((role === "OWNER" || role === "ADMIN") && confirmDependentEdit)) {
-        throw new Error("Cannot edit — this invoice has recorded payments or sale returns. Owner/Admin confirmation is required.")
+      if (invoice.returns.length > 0) {
+        throw new Error("Cannot edit — this invoice already has a sale return.")
+      }
+
+      const hasDependentPayments = invoice.payments.length > 0
+      if (hasDependentPayments && !confirmDependentEdit) {
+        throw new Error("Cannot edit — this invoice has recorded payments. Please confirm the Owner/Admin override before saving.")
       }
 
       invoiceNumber = invoice.invoiceNumber
@@ -438,6 +449,9 @@ export async function updateInvoice(
           where: { id: line.batchId, companyId, productId: line.productId },
         })
         if (!batch) throw new Error("Batch not found")
+        if (daysUntilExpiry(batch.expiryDate) < 0) {
+          throw new Error(`Cannot sell expired batch ${batch.batchNumber}`)
+        }
         if (batch.quantity < line.quantity) {
           throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
         }

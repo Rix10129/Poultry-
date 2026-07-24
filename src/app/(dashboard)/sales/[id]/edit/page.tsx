@@ -54,6 +54,7 @@ export default async function EditInvoicePage({ params }: Props) {
   const user = session.user as { companyId?: string; role?: string }
   const companyId = user.companyId as string
   const canOverrideSafeguards = user.role === "OWNER" || user.role === "ADMIN"
+  if (!canOverrideSafeguards) redirect(`/sales/${id}`)
 
   const [invoice, rawProducts, customers] = await Promise.all([
     db.saleInvoice.findFirst({
@@ -99,6 +100,7 @@ export default async function EditInvoicePage({ params }: Props) {
   ])
 
   if (!invoice) notFound()
+  if (invoice.returns.length > 0) redirect(`/sales/${invoice.id}`)
 
   const restoredByBatch = new Map<string, number>()
   for (const item of invoice.items) {

@@ -1,8 +1,16 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"
 const APP_URL = (process.env.NEXTAUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")
+
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY is not set; skipping email send.")
+    return null
+  }
+  return new Resend(apiKey)
+}
 
 function baseTemplate(content: string) {
   return `
@@ -27,6 +35,8 @@ export async function sendVerificationEmail(
   token: string
 ): Promise<void> {
   const url = `${APP_URL}/verify-email?token=${token}`
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -57,6 +67,8 @@ export async function sendAdminApprovalRequest(opts: {
   approveUrl: string
   rejectUrl: string
 }): Promise<void> {
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: FROM,
     to: opts.to,
@@ -96,6 +108,8 @@ export async function sendApprovalConfirmationEmail(
   companyName: string
 ): Promise<void> {
   const loginUrl = `${APP_URL}/login`
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -120,6 +134,8 @@ export async function sendRejectionEmail(
   name: string,
   companyName: string
 ): Promise<void> {
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -139,6 +155,8 @@ export async function sendPasswordResetEmail(
   companyName: string
 ): Promise<void> {
   const url = `${APP_URL}/reset-password?token=${token}`
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: FROM,
     to,

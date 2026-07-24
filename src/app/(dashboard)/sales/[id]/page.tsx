@@ -30,7 +30,9 @@ export default async function InvoiceDetailPage({ params }: Props) {
 
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const companyId = (session.user as any).companyId as string
+  const user = session.user as { companyId?: string; role?: string }
+  const companyId = user.companyId as string
+  const canEditInvoice = user.role === "OWNER" || user.role === "ADMIN"
 
   const [invoice, company] = await Promise.all([
     db.saleInvoice.findFirst({
@@ -45,6 +47,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
           },
           orderBy: { id: "asc" },
         },
+        returns: { select: { id: true } },
       },
     }),
     db.company.findFirst({
@@ -75,12 +78,14 @@ export default async function InvoiceDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/sales/${invoice.id}/edit`}>
-            <Button variant="outline" size="sm">
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-          </Link>
+          {canEditInvoice && invoice.returns.length === 0 && (
+            <Link href={`/sales/${invoice.id}/edit`}>
+              <Button variant="outline" size="sm">
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            </Link>
+          )}
           <Link href={`/sales/returns/new?invoiceId=${invoice.id}`}>
             <Button variant="outline" size="sm">
               <RotateCcw className="h-4 w-4" />

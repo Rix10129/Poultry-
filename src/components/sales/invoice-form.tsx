@@ -51,6 +51,7 @@ type InvoiceFormInitialLine = {
 }
 
 type InvoiceFormInitialInvoice = {
+  id?: string
   customerId?: string | null
   invoiceDate?: string
   dueDate?: string | null
@@ -59,6 +60,8 @@ type InvoiceFormInitialInvoice = {
   discountAmount?: string
   notes?: string | null
   lines?: InvoiceFormInitialLine[]
+  hasDependentRecords?: boolean
+  canOverrideSafeguards?: boolean
 }
 
 type LineItem = {
@@ -157,7 +160,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false)
-  const productSearchRef = useRef<HTMLInputElement>(null)
+  const [confirmDependentEdit, setConfirmDependentEdit] = useState(false)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -307,7 +310,7 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
     fd.set("linesJson", buildLinesJson())
-    if (mode === "update" && initialInvoice) {
+    if (mode === "update" && initialInvoice?.id) {
       fd.set("id", initialInvoice.id)
       if (confirmDependentEdit) fd.set("confirmDependentEdit", "1")
     }
@@ -394,6 +397,24 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         <div className="sticky top-2 z-30 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 shadow-sm">
           <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
           <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {formMode === "update" && initialInvoice?.hasDependentRecords && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="font-semibold">Owner/Admin confirmation required</div>
+          <p className="mt-1">
+            This invoice has linked payment records. Saving will restore the original stock first, then apply the updated invoice lines.
+          </p>
+          <label className="mt-3 flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={confirmDependentEdit}
+              onChange={(event) => setConfirmDependentEdit(event.target.checked)}
+              className="mt-1"
+            />
+            <span>I understand and confirm this Owner/Admin invoice edit.</span>
+          </label>
         </div>
       )}
 
@@ -689,8 +710,13 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
           <SummaryPill label={balance > 0.001 ? "Balance" : balance < -0.001 ? "Change" : "Balance"} value={Math.abs(balance) < 0.001 ? "—" : formatCurrency(Math.abs(balance))} tone={balance > 0.001 ? "danger" : balance < -0.001 ? "success" : "default"} strong />
         </div>
         <div className="mt-3 flex gap-2">
-          <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting} className="flex-1">
-            Create Invoice
+          <Button
+            type="submit"
+            loading={submitting}
+            disabled={lines.length === 0 || submitting || (formMode === "update" && !!initialInvoice?.hasDependentRecords && !confirmDependentEdit)}
+            className="flex-1"
+          >
+            {submitLabel}
           </Button>
           <Button type="button" variant="outline" onClick={() => history.back()} className="shrink-0">
             Cancel
@@ -698,24 +724,6 @@ export function InvoiceForm({ products, customers, mode = "create", initialInvoi
         </div>
       </div>
     </form>
-  )
-}
-
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          {submitLabel}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => history.back()}>
-          Cancel
-        </Button>
-     
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <Field label="Qty"><LineNumberInput value={line.quantity} min="1" max={line.maxQty} onChange={value => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} error={overQty} /></Field>
-        <Field label="Price"><LineNumberInput value={line.salePrice} min="0" step="0.01" onChange={value => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} /></Field>
-        <Field label="Disc%"><LineNumberInput value={line.discount} min="0" max="100" step="0.01" onChange={value => updateLine(line.key, { discount: parseFloat(value) || 0 })} /></Field>
-      </div>
-      <div className="mt-2 text-right text-sm font-semibold text-slate-900">{formatCurrency(lineTotal)}</div>
-    </div>
   )
 }
 
@@ -732,6 +740,83 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
     <button type="button" onClick={onClick} className="text-slate-300 hover:text-red-500 transition-colors p-1" aria-label="Remove item">
       <Trash2 className="h-3.5 w-3.5" />
     </button>
+  )
+}
+
+function LineRow({
+  line,
+  updateLine,
+  removeLine,
+}: {
+  line: LineItem
+  updateLine: (key: string, patch: Partial<LineItem>) => void
+  removeLine: () => void
+}) {
+  const overQty = line.quantity > line.maxQty
+  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+
+  return (
+    <tr className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
+      <td className="px-2 py-2">
+        <p className="font-medium text-slate-900">{line.productName}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-500">{line.batchNumber}</span>
+          <ExpiryBadge expiryDate={line.expiryDate} />
+        </div>
+      </td>
+      <td className="px-2 py-2 text-right text-xs text-slate-400">{line.maxQty}</td>
+      <td className="px-2 py-2">
+        <LineNumberInput value={line.quantity} min={1} max={line.maxQty} error={overQty} onChange={(value) => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} />
+      </td>
+      <td className="px-2 py-2">
+        <LineNumberInput value={line.salePrice} min={0} step="0.01" onChange={(value) => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} />
+      </td>
+      <td className="px-2 py-2">
+        <LineNumberInput value={line.discount} min={0} max={100} step="0.01" onChange={(value) => updateLine(line.key, { discount: parseFloat(value) || 0 })} />
+      </td>
+      <td className="px-2 py-2 text-right font-semibold text-slate-900">{formatCurrency(lineTotal)}</td>
+      <td className="px-2 py-2"><RemoveButton onClick={removeLine} /></td>
+    </tr>
+  )
+}
+
+function LineCard({
+  line,
+  updateLine,
+  removeLine,
+}: {
+  line: LineItem
+  updateLine: (key: string, patch: Partial<LineItem>) => void
+  removeLine: () => void
+}) {
+  const overQty = line.quantity > line.maxQty
+  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+
+  return (
+    <div className={`rounded-xl border p-3 ${overQty ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-medium text-slate-900">{line.productName}</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-500">{line.batchNumber}</span>
+            <ExpiryBadge expiryDate={line.expiryDate} />
+          </div>
+        </div>
+        <RemoveButton onClick={removeLine} />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Field label={`Qty / ${line.maxQty}`}>
+          <LineNumberInput value={line.quantity} min={1} max={line.maxQty} error={overQty} onChange={(value) => updateLine(line.key, { quantity: Math.max(1, parseInt(value) || 1) })} />
+        </Field>
+        <Field label="Price">
+          <LineNumberInput value={line.salePrice} min={0} step="0.01" onChange={(value) => updateLine(line.key, { salePrice: parseFloat(value) || 0 })} />
+        </Field>
+        <Field label="Disc%">
+          <LineNumberInput value={line.discount} min={0} max={100} step="0.01" onChange={(value) => updateLine(line.key, { discount: parseFloat(value) || 0 })} />
+        </Field>
+      </div>
+      <div className="mt-3 text-right text-sm font-semibold text-slate-900">{formatCurrency(lineTotal)}</div>
+    </div>
   )
 }
 
