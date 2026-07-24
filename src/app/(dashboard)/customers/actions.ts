@@ -74,11 +74,12 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
   const address = (formData.get("address") as string)?.trim() || null
   const area = (formData.get("area") as string)?.trim() || null
   const creditLimit = Math.max(0, parseFloat(formData.get("creditLimit") as string) || 0)
+  const openingBalance = Math.max(0, parseFloat(formData.get("openingBalance") as string) || 0)
 
   try {
     const res = await db.customer.updateMany({
       where: { id, companyId },
-      data: { name, type: type as CustomerType, phone, email, address, area, creditLimit },
+      data: { name, type: type as CustomerType, phone, email, address, area, creditLimit, openingBalance },
     })
     if (!res.count) return { error: "Customer not found" }
   } catch {
@@ -87,6 +88,7 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
 
   revalidatePath("/customers")
   revalidatePath(`/customers/${id}`)
+  revalidatePath(`/customers/${id}/statement`)
   redirect(`/customers/${id}`)
 }
 

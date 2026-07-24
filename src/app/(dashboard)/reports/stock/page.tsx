@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Package } from "lucide-react"
+import { ChevronLeft, Download, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -121,6 +121,13 @@ export default async function StockValuationPage({
           Include zero-stock
         </label>
         <Button type="submit" variant="outline" size="sm">Filter</Button>
+        <a
+          href={`/api/reports/stock/export?categoryId=${categoryId ?? ""}&species=${species ?? ""}&zero=${showZero ? "1" : ""}`}
+          className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" />
+          Export Excel
+        </a>
         {(categoryId || species || showZero) && (
           <Link href="/reports/stock">
             <Button variant="ghost" size="sm">Clear</Button>
