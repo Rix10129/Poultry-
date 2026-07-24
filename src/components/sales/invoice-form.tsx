@@ -69,6 +69,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   const [lines, setLines] = useState<LineItem[]>([])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
+  const productSearchRef = useRef<HTMLInputElement>(null)
   const [customerId, setCustomerId] = useState("")
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState("")
@@ -129,6 +130,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     setLines(prev => [...prev, line])
     setAddProductId("")
     setProductSearch("")
+    requestAnimationFrame(() => productSearchRef.current?.focus())
     setError(null)
   }
 
@@ -267,7 +269,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4 pb-28">
       {error && (
         <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
           <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
@@ -275,9 +277,8 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         </div>
       )}
 
-      {/* Header row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="col-span-2 space-y-1.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="space-y-1.5">
           <Label>Customer</Label>
           <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
             <option value="">Walk-in / Cash Sale</option>
@@ -291,45 +292,57 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
             value={invoiceDate}
             onChange={e => setInvoiceDate(e.target.value)}
             required
+            className="sm:w-40"
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Due Date</Label>
-          <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
         </div>
       </div>
 
-      {/* Line items */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-900">
-            Items
-            {lines.length > 0 && (
-              <span className="ml-2 text-slate-400 font-normal">({lines.length})</span>
-            )}
-          </h3>
-          <div className="flex items-center gap-2">
+      <section className="sticky top-2 z-20 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor="product-search">Add item</Label>
             <Input
+              ref={productSearchRef}
+              id="product-search"
               value={productSearch}
               onChange={e => setProductSearch(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && addProductId) {
+                  e.preventDefault()
+                  addLine()
+                }
+              }}
               placeholder="Search product by name…"
-              className="w-56 text-sm"
+              autoComplete="off"
             />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor="product-picker">Product</Label>
             <Select
+              id="product-picker"
               value={addProductId}
               onChange={e => setAddProductId(e.target.value)}
-              className="w-56 text-sm"
             >
               <option value="">Select product…</option>
               {filteredProducts.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>
-            <Button type="button" size="sm" onClick={addLine} disabled={!addProductId}>
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
           </div>
+          <Button type="button" onClick={addLine} disabled={!addProductId} className="shrink-0">
+            <Plus className="h-4 w-4" />
+            Add item
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          {lines.length} line{lines.length === 1 ? "" : "s"} · Earliest-expiry stock is selected automatically
+        </p>
+      </section>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">Items</h3>
+          <span className="text-xs text-slate-500">{availableProducts.length} products in stock</span>
         </div>
 
         {lines.length === 0 && (
@@ -337,12 +350,10 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
             <p className="text-sm text-slate-400">Select a product above and click Add</p>
             <p className="text-xs text-slate-300 mt-1">FEFO batch is auto-selected</p>
           </div>
-        )}
-
-        {lines.length > 0 && (
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+        ) : (
+          <div className="max-h-[42vh] overflow-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left px-3 py-2.5 font-medium text-slate-600">Product / Batch</th>
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600">Avail</th>
@@ -427,12 +438,11 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         )}
       </div>
 
-      {/* Payment + summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Payment */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Payment</h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Payment Mode</Label>
               <Select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
@@ -454,6 +464,10 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
               />
             </div>
             <div className="space-y-1.5">
+              <Label>Due Date</Label>
+              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>Notes</Label>
               <Input
                 value={notes}
@@ -504,17 +518,22 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
         </div>
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-          Create Invoice
-        </Button>
-        <Button type="button" variant="outline" onClick={() => history.back()}>
-          Cancel
-        </Button>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:inset-x-auto md:right-4 md:bottom-4 md:w-[min(720px,calc(100vw-2rem))] md:rounded-xl md:border">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-slate-500">Net amount</p>
+            <p className="text-lg font-bold text-slate-900">{formatCurrency(net)}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => history.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
+              Create Invoice
+            </Button>
+          </div>
+        </div>
       </div>
-    </form>
-  )
-}
 
 function SumRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
