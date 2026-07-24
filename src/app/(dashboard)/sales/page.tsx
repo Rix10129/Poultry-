@@ -16,18 +16,27 @@ const PAGE_SIZE = 50
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<{ q?: string; page?: string; from?: string; to?: string; paymentMode?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q, page: pageParam } = await searchParams
+  const { q, from, to, paymentMode, page: pageParam } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
+  const fromDate = from ? new Date(`${from}T00:00:00`) : undefined
+  const toDate = to ? new Date(`${to}T23:59:59`) : undefined
 
   const where = {
     companyId,
-    ...(q ? { invoiceNumber: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(q ? {
+      OR: [
+        { invoiceNumber: { contains: q, mode: "insensitive" as const } },
+        { customer: { name: { contains: q, mode: "insensitive" as const } } },
+      ],
+    } : {}),
+    ...(fromDate || toDate ? { invoiceDate: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}),
+    ...(paymentMode ? { paymentMode: paymentMode as never } : {}),
   }
 
   const [invoices, total] = await Promise.all([
@@ -66,15 +75,24 @@ export default async function SalesPage({
         </div>
       </div>
 
-      <form method="GET" className="flex gap-3">
+      <form method="GET" className="flex flex-wrap gap-3">
         <input
           name="q"
           defaultValue={q}
-          placeholder="Search by invoice number…"
+          placeholder="Invoice number or customer…"
           className="h-9 w-64 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <Button type="submit" variant="outline" size="sm">Search</Button>
-        {q && (
+        <input name="from" type="date" defaultValue={from} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700" />
+        <input name="to" type="date" defaultValue={to} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700" />
+        <select name="paymentMode" defaultValue={paymentMode ?? ""} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700">
+          <option value="">All payment modes</option>
+          <option value="CASH">Cash</option>
+          <option value="BANK">Bank transfer</option>
+          <option value="CHEQUE">Cheque</option>
+          <option value="CREDIT">Credit</option>
+        </select>
+        <Button type="submit" variant="outline" size="sm">Filter</Button>
+        {(q || from || to || paymentMode) && (
           <Link href="/sales">
             <Button variant="ghost" size="sm">Clear</Button>
           </Link>
@@ -163,7 +181,7 @@ export default async function SalesPage({
             page={page}
             total={total}
             pageSize={PAGE_SIZE}
-            baseUrl={q ? `/sales?q=${encodeURIComponent(q)}` : "/sales"}
+            baseUrl={`/sales?${new URLSearchParams({ ...(q ? { q } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(paymentMode ? { paymentMode } : {}) }).toString()}`}
           />
         </div>
       )}
