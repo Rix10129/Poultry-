@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Download, Printer } from "lucide-react"
+import { ChevronLeft, Download } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { StatementPrintButton } from "@/components/customers/statement-print-button"
 
 export const dynamic = "force-dynamic"
 
@@ -140,13 +141,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
           <Download className="h-4 w-4" />
           Export Excel
         </a>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 transition-colors"
-        >
-          <Printer className="h-4 w-4" />
-          Print
-        </button>
+        <StatementPrintButton />
         </div>
       </div>
 
