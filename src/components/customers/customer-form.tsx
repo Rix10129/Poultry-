@@ -114,20 +114,23 @@ export function CustomerForm({ customer }: Props) {
             placeholder="0.00"
           />
         </div>
-        {!customer && (
-          <div className="space-y-1.5">
-            <Label htmlFor="openingBalance">Opening Balance (they owe us)</Label>
-            <Input
-              id="openingBalance"
-              name="openingBalance"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue="0"
-              placeholder="0.00"
-            />
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="openingBalance">Opening Balance (they owe us)</Label>
+          <Input
+            id="openingBalance"
+            name="openingBalance"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={customer?.openingBalance ?? "0"}
+            placeholder="0.00"
+          />
+          {customer && (
+            <p className="text-xs text-slate-500">
+              Updating this changes the customer&apos;s outstanding balance.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-3 pt-2">
