@@ -74,21 +74,68 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
   const address = (formData.get("address") as string)?.trim() || null
   const area = (formData.get("area") as string)?.trim() || null
   const creditLimit = Math.max(0, parseFloat(formData.get("creditLimit") as string) || 0)
-  const openingBalance = Math.max(0, parseFloat(formData.get("openingBalance") as string) || 0)
+  const openingBalanceRaw = formData.get("openingBalance")
+  const canAdjustOpeningBalance = user.role === "OWNER" || user.role === "ADMIN"
+  if (openingBalanceRaw !== null && !canAdjustOpeningBalance)
+    return { error: "Only owners and admins can change opening balances" }
 
+  const openingBalance = openingBalanceRaw === null ? null : Number(openingBalanceRaw)
+  if (openingBalance !== null && (!Number.isFinite(openingBalance) || openingBalance < 0))
+    return { error: "Opening balance must be a valid non-negative number" }
+
+  let oldOpeningBalance = ""
   try {
-    const res = await db.customer.updateMany({
-      where: { id, companyId },
-      data: { name, type: type as CustomerType, phone, email, address, area, creditLimit, openingBalance },
+    oldOpeningBalance = await db.$transaction(async (tx) => {
+      const existing = await tx.customer.findFirst({
+        where: { id, companyId },
+        select: { openingBalance: true },
+      })
+      if (!existing) throw new Error("CUSTOMER_NOT_FOUND")
+
+      await tx.customer.update({
+        where: { id: id! },
+        data: {
+          name,
+          type: type as CustomerType,
+          phone,
+          email,
+          address,
+          area,
+          creditLimit,
+          ...(openingBalance !== null ? { openingBalance } : {}),
+        },
+      })
+      return existing.openingBalance.toString()
     })
-    if (!res.count) return { error: "Customer not found" }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "CUSTOMER_NOT_FOUND")
+      return { error: "Customer not found" }
     return { error: "Failed to update customer" }
+  }
+
+  const openingBalanceChanged =
+    openingBalance !== null && Number(oldOpeningBalance) !== openingBalance
+  if (openingBalanceChanged) {
+    await writeAuditLog({
+      companyId,
+      userId: user.id,
+      action: "UPDATE_OPENING_BALANCE",
+      entity: "Customer",
+      entityId: id,
+      oldValues: { openingBalance: oldOpeningBalance },
+      newValues: { openingBalance },
+    })
   }
 
   revalidatePath("/customers")
   revalidatePath(`/customers/${id}`)
   revalidatePath(`/customers/${id}/statement`)
+  if (openingBalanceChanged) {
+    revalidatePath("/")
+    revalidatePath("/reports/recovery")
+    revalidatePath("/reports/balance-sheet")
+    revalidatePath("/reports", "layout")
+  }
   redirect(`/customers/${id}`)
 }
 
