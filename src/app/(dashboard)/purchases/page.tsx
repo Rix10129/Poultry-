@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination"
+import { ExportButtons } from "@/components/reports/export-buttons"
+import { matchesPaymentStatus, parseTransactionFilters, transactionWhere } from "@/lib/report-filters"
 
 export const metadata = { title: "Purchases" }
 
@@ -16,30 +18,34 @@ const PAGE_SIZE = 50
 export default async function PurchasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q, page: pageParam } = await searchParams
-  const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
-
-  const where = {
-    companyId,
-    ...(q ? { poNumber: { contains: q, mode: "insensitive" as const } } : {}),
-  }
+  const raw = await searchParams
+  const parsed = parseTransactionFilters(raw)
+  const filters = parsed.success ? parsed.data : parseTransactionFilters({}).data!
+  const { q, from, to, partyId, userId, paymentStatus, status } = filters
+  const page = Math.max(1, parseInt(raw.page ?? "1") || 1)
+  const where = transactionWhere(filters, companyId, "purchases")
+  const [suppliers, users] = await Promise.all([
+    db.supplier.findMany({ where: { companyId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { companyId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ])
 
   const [orders, total] = await Promise.all([
     db.purchaseOrder.findMany({
-      where,
+      where: where as never,
       include: { supplier: { select: { name: true } } },
       orderBy: { orderDate: "desc" },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
+      ...(paymentStatus === "PAID" || paymentStatus === "PARTIAL" ? {} : { take: PAGE_SIZE, skip: (page - 1) * PAGE_SIZE }),
     }),
-    db.purchaseOrder.count({ where }),
+    db.purchaseOrder.count({ where: where as never }),
   ])
+  const visibleOrders = orders.filter(order => matchesPaymentStatus(order, paymentStatus))
+  const queryParams = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => [key, String(value)]))
 
   return (
     <div className="space-y-6">
@@ -66,22 +72,30 @@ export default async function PurchasesPage({
         </div>
       </div>
 
-      <form method="GET" className="flex gap-3">
+      <form method="GET" className="flex flex-wrap gap-3">
         <input
           name="q"
           defaultValue={q}
           placeholder="Search by PO number…"
           className="h-9 w-64 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <Button type="submit" variant="outline" size="sm">Search</Button>
-        {q && (
+        <input name="from" type="date" defaultValue={from} /><input name="to" type="date" defaultValue={to} />
+        <select name="partyId" defaultValue={partyId}><option value="">All suppliers</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <select name="userId" defaultValue={userId}><option value="">All users</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+        <select name="paymentStatus" defaultValue={paymentStatus}><option value="">All payment statuses</option><option value="PAID">Paid</option><option value="PARTIAL">Partial</option><option value="UNPAID">Unpaid</option></select>
+        <select name="status" defaultValue={status}><option value="">All document statuses</option><option value="DRAFT">Draft</option><option value="POSTED">Posted</option><option value="CANCELLED">Cancelled</option><option value="REVERSED">Reversed</option></select>
+        <input name="minAmount" type="number" min="0" step="0.01" defaultValue={filters.minAmount} placeholder="Min amount" className="h-9 w-28 rounded-lg border px-3 text-sm" />
+        <input name="maxAmount" type="number" min="0" step="0.01" defaultValue={filters.maxAmount} placeholder="Max amount" className="h-9 w-28 rounded-lg border px-3 text-sm" />
+        <Button type="submit" variant="outline" size="sm">Filter</Button>
+        <ExportButtons endpoint="/api/reports/transactions/export" params={{ kind: "purchases", ...queryParams }} />
+        {Object.keys(queryParams).length > 0 && (
           <Link href="/purchases">
             <Button variant="ghost" size="sm">Clear</Button>
           </Link>
         )}
       </form>
 
-      {orders.length === 0 ? (
+      {visibleOrders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Truck className="h-10 w-10 text-slate-300 mb-3" />
           <p className="font-medium text-slate-600">No purchase orders yet</p>
@@ -105,7 +119,7 @@ export default async function PurchasesPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {orders.map((po) => {
+              {visibleOrders.map((po) => {
                 const net = parseFloat(po.netAmount.toString())
                 const paid = parseFloat(po.paidAmount.toString())
                 const bal = net - paid
@@ -155,7 +169,7 @@ export default async function PurchasesPage({
             page={page}
             total={total}
             pageSize={PAGE_SIZE}
-            baseUrl={q ? `/purchases?q=${encodeURIComponent(q)}` : "/purchases"}
+            baseUrl={`/purchases?${new URLSearchParams(queryParams).toString()}`}
           />
         </div>
       )}

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination"
+import { ExportButtons } from "@/components/reports/export-buttons"
+import { matchesPaymentStatus, parseTransactionFilters, transactionWhere } from "@/lib/report-filters"
 
 export const metadata = { title: "Sales" }
 
@@ -16,39 +18,34 @@ const PAGE_SIZE = 50
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; from?: string; to?: string; paymentMode?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q, from, to, paymentMode, page: pageParam } = await searchParams
-  const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
-  const fromDate = from ? new Date(`${from}T00:00:00`) : undefined
-  const toDate = to ? new Date(`${to}T23:59:59`) : undefined
-
-  const where = {
-    companyId,
-    ...(q ? {
-      OR: [
-        { invoiceNumber: { contains: q, mode: "insensitive" as const } },
-        { customer: { name: { contains: q, mode: "insensitive" as const } } },
-      ],
-    } : {}),
-    ...(fromDate || toDate ? { invoiceDate: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}),
-    ...(paymentMode ? { paymentMode: paymentMode as never } : {}),
-  }
+  const raw = await searchParams
+  const parsed = parseTransactionFilters(raw)
+  const filters = parsed.success ? parsed.data : parseTransactionFilters({}).data!
+  const { q, from, to, paymentMode, partyId, userId, paymentStatus, status } = filters
+  const page = Math.max(1, parseInt(raw.page ?? "1") || 1)
+  const where = transactionWhere(filters, companyId, "sales")
+  const [customers, users] = await Promise.all([
+    db.customer.findMany({ where: { companyId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { companyId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ])
 
   const [invoices, total] = await Promise.all([
     db.saleInvoice.findMany({
-      where,
+      where: where as never,
       include: { customer: { select: { name: true } } },
       orderBy: { invoiceDate: "desc" },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
+      ...(paymentStatus === "PAID" || paymentStatus === "PARTIAL" ? {} : { take: PAGE_SIZE, skip: (page - 1) * PAGE_SIZE }),
     }),
-    db.saleInvoice.count({ where }),
+    db.saleInvoice.count({ where: where as never }),
   ])
+  const visibleInvoices = invoices.filter(inv => matchesPaymentStatus(inv, paymentStatus))
+  const queryParams = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => [key, String(value)]))
 
   return (
     <div className="space-y-6">
@@ -91,15 +88,22 @@ export default async function SalesPage({
           <option value="CHEQUE">Cheque</option>
           <option value="CREDIT">Credit</option>
         </select>
+        <select name="partyId" defaultValue={partyId}><option value="">All customers</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <select name="userId" defaultValue={userId}><option value="">All users</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+        <select name="paymentStatus" defaultValue={paymentStatus}><option value="">All payment statuses</option><option value="PAID">Paid</option><option value="PARTIAL">Partial</option><option value="UNPAID">Unpaid</option></select>
+        <select name="status" defaultValue={status}><option value="">All document statuses</option><option value="DRAFT">Draft</option><option value="POSTED">Posted</option><option value="CANCELLED">Cancelled</option><option value="REVERSED">Reversed</option></select>
+        <input name="minAmount" type="number" min="0" step="0.01" defaultValue={filters.minAmount} placeholder="Min amount" className="h-9 w-28 rounded-lg border px-3 text-sm" />
+        <input name="maxAmount" type="number" min="0" step="0.01" defaultValue={filters.maxAmount} placeholder="Max amount" className="h-9 w-28 rounded-lg border px-3 text-sm" />
         <Button type="submit" variant="outline" size="sm">Filter</Button>
-        {(q || from || to || paymentMode) && (
+        <ExportButtons endpoint="/api/reports/transactions/export" params={{ kind: "sales", ...queryParams }} />
+        {Object.keys(queryParams).length > 0 && (
           <Link href="/sales">
             <Button variant="ghost" size="sm">Clear</Button>
           </Link>
         )}
       </form>
 
-      {invoices.length === 0 ? (
+      {visibleInvoices.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <FileText className="h-10 w-10 text-slate-300 mb-3" />
           <p className="font-medium text-slate-600">No invoices yet</p>
@@ -124,7 +128,7 @@ export default async function SalesPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {invoices.map((inv) => {
+              {visibleInvoices.map((inv) => {
                 const net = parseFloat(inv.netAmount.toString())
                 const paid = parseFloat(inv.paidAmount.toString())
                 const bal = net - paid
@@ -181,7 +185,7 @@ export default async function SalesPage({
             page={page}
             total={total}
             pageSize={PAGE_SIZE}
-            baseUrl={`/sales?${new URLSearchParams({ ...(q ? { q } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(paymentMode ? { paymentMode } : {}) }).toString()}`}
+            baseUrl={`/sales?${new URLSearchParams(queryParams).toString()}`}
           />
         </div>
       )}

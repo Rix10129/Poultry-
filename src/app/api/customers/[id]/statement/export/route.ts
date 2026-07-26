@@ -1,9 +1,9 @@
 import ExcelJS from "exceljs"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { buildCustomerLedger } from "@/lib/customer-ledger"
+import { pdfResponse } from "@/lib/report-export"
+import { authorize } from "@/lib/authorization"
 
 export const runtime = "nodejs"
 
@@ -14,9 +14,9 @@ function parseDate(value: string | null, endOfDay = false) {
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  const companyId = (session?.user as { companyId?: string } | undefined)?.companyId
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const authorization = await authorize("EXPORT_DATA")
+  if (!authorization.ok) return NextResponse.json({ error: "Unauthorized" }, { status: authorization.status })
+  const companyId = authorization.actor.companyId
 
   const { id } = await params
   const now = new Date()
@@ -45,6 +45,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     payments,
     returns,
   })
+
+  if (req.nextUrl.searchParams.get("format") === "pdf") {
+    const columns = [{ header: "Date", key: "date" }, { header: "Description", key: "description", width: 48 }, { header: "Debit", key: "debit", numeric: true }, { header: "Credit", key: "credit", numeric: true }, { header: "Balance", key: "balance", numeric: true }]
+    const rows = [{ date: from.toISOString().slice(0, 10), description: "Balance Brought Forward", debit: 0, credit: 0, balance: ledger.openingBalance }, ...ledger.rows.map(row => ({ date: row.date.toISOString().slice(0, 10), description: row.description, debit: row.debit, credit: row.credit, balance: row.balance }))]
+    return pdfResponse(`${customer.name} - Customer Statement`, `${customer.name.replace(/[^a-z0-9]+/gi, "-")}-ledger`, columns, rows)
+  }
 
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet("Customer Ledger")

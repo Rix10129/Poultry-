@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ExportButtons } from "@/components/reports/export-buttons"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { calculatePurchaseBalance } from "@/lib/supplier-ledger"
 
@@ -105,6 +106,7 @@ export default async function PurchaseReportPage({
           ))}
         </select>
         <Button type="submit" variant="outline" size="sm">Filter</Button>
+        <ExportButtons endpoint="/api/reports/transactions/export" params={{ kind: "purchases", from, to, partyId: supplierId }} />
         {(from || to || supplierId) && (
           <Link href="/reports/purchases">
             <Button variant="ghost" size="sm">Clear</Button>
