@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { DeleteButton } from "@/components/ui/delete-button"
 import { MarkPaidButton } from "@/components/suppliers/mark-paid-button"
 import { deletePaymentSchedule } from "./actions"
+import { calculateSupplierBalance } from "@/lib/supplier-ledger"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Payment Schedule" }
@@ -20,19 +21,23 @@ export default async function SupplierSchedulePage() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const schedules = await db.supplierPaymentSchedule.findMany({
+  const [schedules, suppliers] = await Promise.all([db.supplierPaymentSchedule.findMany({
     where: { companyId },
     orderBy: [{ isPaid: "asc" }, { dueDate: "asc" }],
     include: {
       supplier: { select: { name: true } },
       purchaseOrder: { select: { poNumber: true } },
     },
-  })
+  }), db.supplier.findMany({ where: { companyId }, select: { openingBalance: true,
+    purchases: { select: { netAmount: true, paidAmount: true } }, payments: { select: { amount: true, isVoided: true } },
+    purchaseReturns: { select: { totalAmount: true } } } })])
 
   const unpaid = schedules.filter((s) => !s.isPaid)
   const paid = schedules.filter((s) => s.isPaid)
   const overdueCount = unpaid.filter((s) => s.dueDate < today).length
-  const totalOwed = unpaid.reduce((sum, s) => sum + parseFloat(s.amount.toString()), 0)
+  const totalOwed = suppliers.reduce((sum, supplier) => sum + Math.max(0,
+    calculateSupplierBalance({ openingBalance: supplier.openingBalance, purchases: supplier.purchases,
+      payments: supplier.payments, returns: supplier.purchaseReturns }).closingBalance), 0)
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -55,7 +60,7 @@ export default async function SupplierSchedulePage() {
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Owed</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{formatCurrency(totalOwed)}</p>
-          <p className="text-xs text-slate-400 mt-1">{unpaid.length} pending</p>
+          <p className="text-xs text-slate-400 mt-1">live ledger balance · {unpaid.length} scheduled</p>
         </div>
         <div className={`rounded-xl border p-4 ${overdueCount > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200"}`}>
           <p className={`text-xs font-medium uppercase tracking-wider ${overdueCount > 0 ? "text-red-600" : "text-slate-500"}`}>Overdue</p>

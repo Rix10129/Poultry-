@@ -1,4 +1,5 @@
 import { calculateCustomerBalance } from "@/lib/customer-ledger"
+import { calculateSupplierBalance } from "@/lib/supplier-ledger"
 import { db } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -34,6 +35,8 @@ export default async function BalanceSheetPage() {
       select: {
         openingBalance: true,
         purchases: { select: { netAmount: true, paidAmount: true } },
+        payments: { select: { amount: true, isVoided: true } },
+        purchaseReturns: { select: { totalAmount: true } },
       },
     }),
   ])
@@ -54,11 +57,9 @@ export default async function BalanceSheetPage() {
 
   // ── Liabilities ──────────────────────────────────────────────────────────
   const accountsPayable = suppliers.reduce((total, s) => {
-    const poNet = s.purchases.reduce(
-      (sum, po) => sum + parseFloat(po.netAmount.toString()) - parseFloat(po.paidAmount.toString()),
-      0
-    )
-    return total + Math.max(0, parseFloat(s.openingBalance.toString()) + poNet)
+    const balance = calculateSupplierBalance({ openingBalance: s.openingBalance,
+      purchases: s.purchases, payments: s.payments, returns: s.purchaseReturns }).closingBalance
+    return total + Math.max(0, balance)
   }, 0)
 
   const totalLiabilities = accountsPayable

@@ -1,4 +1,5 @@
 import { calculateCustomerBalance } from "@/lib/customer-ledger"
+import { calculatePurchaseBalance } from "@/lib/supplier-ledger"
 import ExcelJS from "exceljs"
 import { db } from "@/lib/db"
 
@@ -74,7 +75,7 @@ export async function generateReport(
     }),
     db.purchaseOrder.findMany({
       where: { companyId, orderDate: { gte: from, lte: to } },
-      include: { supplier: { select: { name: true } } },
+      include: { supplier: { select: { name: true } }, payments: { select: { amount: true, isVoided: true } } },
       orderBy: { orderDate: "asc" },
     }),
     db.product.findMany({
@@ -138,7 +139,7 @@ export async function generateReport(
   let pNet = 0, pPaid = 0
   purchases.forEach((po, i) => {
     const net = parseFloat(po.netAmount.toString())
-    const paid = parseFloat(po.paidAmount.toString())
+    const paid = net - calculatePurchaseBalance(po, po.payments)
     pNet += net; pPaid += paid
     const row = s2.addRow([
       i + 1, po.poNumber, fmtDate(po.orderDate), po.supplier.name,

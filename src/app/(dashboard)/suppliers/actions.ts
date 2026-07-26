@@ -6,8 +6,102 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { writeAuditLog } from "@/lib/audit"
+import { PaymentMode } from "@prisma/client"
 
 type ActionState = { error: string } | null
+const PAYMENT_MODES = ["CASH", "BANK", "CHEQUE"] as const
+
+function refreshSupplierPaymentPaths(supplierId: string, purchaseOrderId?: string | null) {
+  revalidatePath("/suppliers")
+  revalidatePath(`/suppliers/${supplierId}`)
+  revalidatePath("/purchases")
+  revalidatePath("/reports/purchases")
+  revalidatePath("/reports/balance-sheet")
+  revalidatePath("/suppliers/schedule")
+  revalidatePath("/api/export")
+  if (purchaseOrderId) revalidatePath(`/purchases/${purchaseOrderId}`)
+}
+
+function paymentFields(formData: FormData) {
+  const amount = Number(formData.get("amount"))
+  const paymentMode = String(formData.get("paymentMode") || "CASH")
+  const paymentDate = new Date(String(formData.get("paymentDate") || ""))
+  return {
+    amount, paymentMode, paymentDate,
+    purchaseOrderId: String(formData.get("purchaseOrderId") || "").trim() || null,
+    reference: String(formData.get("reference") || "").trim() || null,
+    notes: String(formData.get("notes") || "").trim() || null,
+  }
+}
+
+export async function recordSupplierPayment(_: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+  const supplierId = String(formData.get("supplierId") || "").trim()
+  const fields = paymentFields(formData)
+  if (!supplierId) return { error: "Supplier is required" }
+  if (!Number.isFinite(fields.amount) || fields.amount <= 0) return { error: "Amount must be greater than 0" }
+  if (Number.isNaN(fields.paymentDate.getTime())) return { error: "A valid payment date is required" }
+  if (!PAYMENT_MODES.includes(fields.paymentMode as any)) return { error: "Invalid payment mode" }
+
+  const [supplier, purchase] = await Promise.all([
+    db.supplier.findFirst({ where: { id: supplierId, companyId }, select: { id: true } }),
+    fields.purchaseOrderId
+      ? db.purchaseOrder.findFirst({ where: { id: fields.purchaseOrderId, supplierId, companyId }, select: { id: true } })
+      : null,
+  ])
+  if (!supplier) return { error: "Supplier not found" }
+  if (fields.purchaseOrderId && !purchase) return { error: "Purchase order does not belong to this supplier" }
+
+  const payment = await db.supplierPayment.create({ data: {
+    companyId, supplierId, amount: fields.amount, paymentMode: fields.paymentMode as PaymentMode,
+    paymentDate: fields.paymentDate, purchaseOrderId: fields.purchaseOrderId,
+    reference: fields.reference, notes: fields.notes,
+  } })
+  await writeAuditLog({ companyId, userId: user.id, action: "CREATE_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: payment.id, newValues: fields })
+  refreshSupplierPaymentPaths(supplierId, fields.purchaseOrderId)
+  redirect(`/suppliers/${supplierId}`)
+}
+
+export async function updateSupplierPayment(_: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Only owners and admins can edit payments" }
+  const companyId = user.companyId as string
+  const id = String(formData.get("paymentId") || "").trim()
+  const fields = paymentFields(formData)
+  if (!Number.isFinite(fields.amount) || fields.amount <= 0) return { error: "Amount must be greater than 0" }
+  if (Number.isNaN(fields.paymentDate.getTime())) return { error: "A valid payment date is required" }
+  if (!PAYMENT_MODES.includes(fields.paymentMode as any)) return { error: "Invalid payment mode" }
+  const existing = await db.supplierPayment.findFirst({ where: { id, companyId, isVoided: false } })
+  if (!existing) return { error: "Active payment not found" }
+  if (fields.purchaseOrderId) {
+    const purchase = await db.purchaseOrder.findFirst({ where: { id: fields.purchaseOrderId, supplierId: existing.supplierId, companyId }, select: { id: true } })
+    if (!purchase) return { error: "Purchase order does not belong to this supplier" }
+  }
+  await db.supplierPayment.update({ where: { id }, data: { ...fields, paymentMode: fields.paymentMode as PaymentMode } })
+  await writeAuditLog({ companyId, userId: user.id, action: "UPDATE_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: id, oldValues: { amount: existing.amount.toString(), paymentMode: existing.paymentMode, paymentDate: existing.paymentDate, purchaseOrderId: existing.purchaseOrderId, reference: existing.reference, notes: existing.notes }, newValues: fields })
+  refreshSupplierPaymentPaths(existing.supplierId, fields.purchaseOrderId || existing.purchaseOrderId)
+  redirect(`/suppliers/${existing.supplierId}`)
+}
+
+export async function voidSupplierPayment(_: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Only owners and admins can void payments" }
+  const companyId = user.companyId as string
+  const id = String(formData.get("paymentId") || "").trim()
+  const existing = await db.supplierPayment.findFirst({ where: { id, companyId, isVoided: false } })
+  if (!existing) return { error: "Active payment not found" }
+  await db.supplierPayment.update({ where: { id }, data: { isVoided: true, voidedAt: new Date(), voidedBy: user.id } })
+  await writeAuditLog({ companyId, userId: user.id, action: "VOID_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: id, oldValues: { isVoided: false, amount: existing.amount.toString() }, newValues: { isVoided: true } })
+  refreshSupplierPaymentPaths(existing.supplierId, existing.purchaseOrderId)
+  redirect(`/suppliers/${existing.supplierId}`)
+}
 
 export async function createSupplier(_: ActionState, formData: FormData): Promise<ActionState> {
   const session = await getServerSession(authOptions)
