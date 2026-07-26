@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, Download } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { StatementPrintButton } from "@/components/customers/statement-print-button"
+import { buildCustomerLedger } from "@/lib/customer-ledger"
 
 export const dynamic = "force-dynamic"
 
@@ -46,79 +47,37 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
   const fromDate = from ? new Date(from + "T00:00:00") : defaultFrom
   const toDate = to ? new Date(to + "T23:59:59") : new Date(isoDate(defaultTo) + "T23:59:59")
 
-  // Opening balance = outstanding on all invoices BEFORE this period
-  const prevInvAgg = await db.saleInvoice.aggregate({
-    where: { customerId: id, companyId, invoiceDate: { lt: fromDate } },
-    _sum: { netAmount: true, paidAmount: true },
-  })
-  const prevReturnsAgg = await db.saleReturn.aggregate({
-    where: { customerId: id, companyId, returnDate: { lt: fromDate } },
-    _sum: { totalAmount: true },
-  })
-  const openingBalance =
-    parseFloat(customer.openingBalance.toString()) +
-    parseFloat(prevInvAgg._sum.netAmount?.toString() ?? "0") -
-    parseFloat(prevInvAgg._sum.paidAmount?.toString() ?? "0") -
-    parseFloat(prevReturnsAgg._sum.totalAmount?.toString() ?? "0")
-
-  // Transactions within period
   const [invoices, payments, returns] = await Promise.all([
     db.saleInvoice.findMany({
-      where: { customerId: id, companyId, invoiceDate: { gte: fromDate, lte: toDate } },
-      select: { invoiceNumber: true, invoiceDate: true, netAmount: true, paidAmount: true, notes: true, schemeNotes: true },
+      where: { customerId: id, companyId },
+      select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, paidAmount: true, schemeNotes: true },
       orderBy: { invoiceDate: "asc" },
     }),
     db.customerPayment.findMany({
-      where: { customerId: id, companyId, paymentDate: { gte: fromDate, lte: toDate } },
-      select: { paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } },
+      where: { customerId: id, companyId },
+      select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } },
       orderBy: { paymentDate: "asc" },
     }),
     db.saleReturn.findMany({
-      where: { customerId: id, companyId, returnDate: { gte: fromDate, lte: toDate } },
+      where: { customerId: id, companyId },
       select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true },
       orderBy: { returnDate: "asc" },
     }),
   ])
 
-  // Build unified ledger sorted by date
-  type LedgerRow = {
-    date: Date
-    description: string
-    debit: number
-    credit: number
-  }
-
-  const ledger: LedgerRow[] = [
-    ...invoices.map((inv) => ({
-      date: inv.invoiceDate,
-      description: `Invoice ${inv.invoiceNumber}${inv.schemeNotes ? ` — Scheme: ${inv.schemeNotes}` : ""}`,
-      debit: parseFloat(inv.netAmount.toString()),
-      credit: 0,
-    })),
-    ...payments.map((p) => ({
-      date: p.paymentDate,
-      description: `Payment${p.invoice ? ` (vs. ${p.invoice.invoiceNumber})` : ""} — ${p.paymentMode}${p.reference ? ` #${p.reference}` : ""}`,
-      debit: 0,
-      credit: parseFloat(p.amount.toString()),
-    })),
-    ...returns.map((r) => ({
-      date: r.returnDate,
-      description: `Return ${r.returnNumber}${r.notes ? ` — ${r.notes}` : ""}`,
-      debit: 0,
-      credit: parseFloat(r.totalAmount.toString()),
-    })),
-  ].sort((a, b) => a.date.getTime() - b.date.getTime())
-
-  // Running balance
-  let running = openingBalance
-  const ledgerWithBalance = ledger.map((row) => {
-    running += row.debit - row.credit
-    return { ...row, balance: running }
+  const {
+    openingBalance,
+    rows: ledgerWithBalance,
+    totals: { debit: totalDebit, credit: totalCredit },
+    closingBalance,
+  } = buildCustomerLedger({
+    customerOpeningBalance: customer.openingBalance,
+    fromDate,
+    toDate,
+    invoices,
+    payments,
+    returns,
   })
-  const closingBalance = running
-
-  const totalDebit = ledger.reduce((s, r) => s + r.debit, 0)
-  const totalCredit = ledger.reduce((s, r) => s + r.credit, 0)
 
   return (
     <div className="space-y-6">
