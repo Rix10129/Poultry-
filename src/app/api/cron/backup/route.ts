@@ -1,47 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { Resend } from "resend"
+import { dumpCompanyBackup } from "@/lib/company-backup-data"
+import { encryptBackup } from "@/lib/company-backup"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-async function dumpCompany(companyId: string, companyName: string) {
-  const [customers, suppliers, products, invoices, purchases, expenses, payments] =
-    await Promise.all([
-      db.customer.findMany({ where: { companyId } }),
-      db.supplier.findMany({ where: { companyId } }),
-      db.product.findMany({ where: { companyId }, include: { batches: true } }),
-      db.saleInvoice.findMany({
-        where: { companyId },
-        include: { items: true },
-        orderBy: { invoiceDate: "desc" },
-      }),
-      db.purchaseOrder.findMany({
-        where: { companyId },
-        include: { items: true },
-        orderBy: { orderDate: "desc" },
-      }),
-      db.expense.findMany({ where: { companyId } }),
-      db.customerPayment.findMany({ where: { companyId } }),
-    ])
-
-  return JSON.stringify({
-    backupDate: new Date().toISOString(),
-    company: companyName,
-    companyId,
-    counts: {
-      customers: customers.length,
-      suppliers: suppliers.length,
-      products: products.length,
-      invoices: invoices.length,
-      purchases: purchases.length,
-      expenses: expenses.length,
-      payments: payments.length,
-    },
-    data: { customers, suppliers, products, invoices, purchases, expenses, payments },
-  })
+async function dumpCompany(companyId: string) {
+  const secret = process.env.BACKUP_ENCRYPTION_KEY
+  if (!secret) throw new Error("BACKUP_ENCRYPTION_KEY is required")
+  return JSON.stringify(encryptBackup(await dumpCompanyBackup(companyId), secret))
 }
 
 async function uploadToR2(
@@ -67,7 +38,7 @@ async function uploadToR2(
       Bucket: bucket,
       Key: key,
       Body: body,
-      ContentType: "application/json",
+      ContentType: "application/vnd.poultry.backup+json",
     })
   )
 
@@ -128,17 +99,17 @@ export async function GET(req: NextRequest) {
     const safeName = company.name.replace(/[^a-z0-9]/gi, "-").toLowerCase()
 
     try {
-      const payload = await dumpCompany(company.id, company.name)
+      const payload = await dumpCompany(company.id)
       const sizeKb = (payload.length / 1024).toFixed(1)
 
       if (useR2) {
-        const key = `backups/${dateStr}/${safeName}-${company.id.slice(0, 8)}.json`
+        const key = `backups/${dateStr}/${safeName}-${company.id.slice(0, 8)}.poultry-backup`
         await uploadToR2(key, payload, r2Bucket!, r2AccountId!, r2AccessKey!, r2SecretKey!)
         results.push(`✅ ${company.name}: uploaded to R2 (${sizeKb} KB)`)
       } else {
         // Email mode — collect as attachment
         attachments.push({
-          filename: `${safeName}-${dateStr}.json`,
+          filename: `${safeName}-${dateStr}.poultry-backup`,
           content: Buffer.from(payload),
         })
         results.push(`✅ ${company.name}: prepared for email (${sizeKb} KB)`)
