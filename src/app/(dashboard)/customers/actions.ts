@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { CustomerType, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
+import { postCustomerReceipt } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
 
@@ -201,7 +202,7 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
 
   try {
     await db.$transaction(async (tx) => {
-      await tx.customerPayment.create({
+      const payment = await tx.customerPayment.create({
         data: {
           companyId,
           customerId,
@@ -213,6 +214,7 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
           notes,
         },
       })
+      await postCustomerReceipt(tx, { companyId, sourceId: payment.id, number: payment.id, date: payment.paymentDate, amount: payment.amount, paymentMode: payment.paymentMode, description: notes ?? "Customer receipt" })
 
       // Refresh the invoice cache from authoritative payment rows.
       if (invoiceId) {

@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType } from "@prisma/client"
+import { postPurchase, postPurchaseReturn, reversePosting } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
 
@@ -28,6 +29,7 @@ export async function deletePurchase(
       if (!po) throw new Error("Purchase order not found")
       if (po.payments.length > 0)
         throw new Error("Cannot delete — this order has recorded payments. Remove payments first.")
+      await reversePosting(tx, companyId, "PURCHASE", po.id, `Purchase ${po.poNumber} voided`)
 
       for (const item of po.items) {
         if (!item.batch) continue
@@ -151,6 +153,7 @@ export async function createPurchaseReturn(
           },
         })
       }
+      await postPurchaseReturn(tx, { companyId, sourceId: ret.id, number: returnNumber, date: ret.returnDate, amount: ret.totalAmount })
     })
   } catch (e: any) {
     return { error: e?.message ?? "Failed to create purchase return" }
@@ -299,6 +302,7 @@ export async function createPurchase(
           },
         })
       }
+      await postPurchase(tx, { companyId, sourceId: po.id, number: poNumber, date: po.orderDate, amount: po.netAmount, tax: po.taxAmount, paid: po.paidAmount, paymentMode: "CASH" })
     })
   } catch (e: any) {
     // Catch unique constraint on batch number

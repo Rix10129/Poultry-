@@ -1,9 +1,10 @@
 import { Pool } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
-import { PrismaClient, UserRole, CustomerType, Species, UnitType, AccountType } from "@prisma/client"
+import { PrismaClient, UserRole, CustomerType, Species, UnitType } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import fs from "fs"
 import path from "path"
+import { ensureSystemAccounts } from "../src/lib/accounting/system-accounts"
 
 // Load .env so the seed works when run directly with tsx
 try {
@@ -261,7 +262,8 @@ async function main() {
     }
   }
 
-  // ── Chart of Accounts ─────────────────────────────────────────────────────
+  /* // Legacy chart retained here for seed history; canonical system accounts
+     are created and validated below.
   type AccSeed = { id: string; code: string; name: string; type: AccountType; parentId?: string }
 
   const parentAccounts: AccSeed[] = [
@@ -303,6 +305,8 @@ async function main() {
       },
     })
   }
+  */
+  await prisma.$transaction(async tx => { await ensureSystemAccounts(tx, company.id) })
 
   console.log("✅  Seed complete.")
   console.log("")
