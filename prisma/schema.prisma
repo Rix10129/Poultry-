@@ -162,6 +162,23 @@ model Company {
   routeVisits              RouteVisit[]
   quotations               Quotation[]
   supplierPaymentSchedules SupplierPaymentSchedule[]
+  documentSequences        DocumentSequence[]
+}
+
+// Transactional counters for human-readable business document numbers.
+// A row is locked by PostgreSQL's atomic upsert while its next value is allocated.
+model DocumentSequence {
+  id            String   @id @default(cuid())
+  companyId     String
+  documentType  String
+  financialYear Int
+  lastValue     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, documentType, financialYear])
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────

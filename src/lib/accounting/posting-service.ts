@@ -1,6 +1,7 @@
 import { Prisma, VoucherType, type PaymentMode } from "@prisma/client"
 import Decimal from "decimal.js"
 import { SYSTEM_ACCOUNTS, validateSystemAccounts, type SystemAccount } from "./system-accounts"
+import { allocateDocumentNumber } from "../document-number"
 
 type Tx = Prisma.TransactionClient
 type Amount = Prisma.Decimal | Decimal | number | string
@@ -30,8 +31,9 @@ async function post(tx: Tx, sourceType: string, p: Posting, debits: Side[], cred
   const prior = await tx.journalEntry.findUnique({ where: { postingKey } })
   if (prior) return prior
   const accounts = await validateSystemAccounts(tx, p.companyId)
+  const voucherNumber = await allocateDocumentNumber(tx, p.companyId, "JOURNAL_ENTRY", p.date)
   return tx.journalEntry.create({ data: {
-    companyId: p.companyId, voucherType: VoucherType.JOURNAL, voucherNumber: `${sourceType}-${p.number}`,
+    companyId: p.companyId, voucherType: VoucherType.JOURNAL, voucherNumber,
     entryDate: p.date, description: p.description ?? `${sourceType} ${p.number}`, totalAmount: total.toFixed(2),
     reference: p.number, sourceType, sourceId: p.sourceId, postingKey, status: "POSTED",
     lines: { create: [

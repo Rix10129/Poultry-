@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { allocateDocumentNumber } from "@/lib/document-number"
 import { daysUntilExpiry } from "@/lib/utils"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -117,9 +118,8 @@ export async function createSaleReturn(
 
   try {
     await db.$transaction(async (tx) => {
-      const count = await tx.saleReturn.count({ where: { companyId } })
-      const year = new Date().getFullYear()
-      const returnNumber = `SR-${year}-${String(count + 1).padStart(5, "0")}`
+      const returnDateValue = new Date(returnDate)
+      const returnNumber = await allocateDocumentNumber(tx, companyId, "SALE_RETURN", returnDateValue)
 
       const totalAmount = lines.reduce((s, l) => s + l.quantity * l.salePrice, 0)
 
@@ -130,7 +130,7 @@ export async function createSaleReturn(
           customerId: customerId || null,
           invoiceId: invoiceId || null,
           returnNumber,
-          returnDate: new Date(returnDate),
+          returnDate: returnDateValue,
           totalAmount,
           notes,
         },
@@ -266,10 +266,8 @@ export async function createInvoice(
 
   try {
     await db.$transaction(async (tx) => {
-      // Generate sequential invoice number within this transaction (safe from races)
-      const count = await tx.saleInvoice.count({ where: { companyId } })
-      const year = new Date().getFullYear()
-      const invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, "0")}`
+      const invoiceDateValue = new Date(invoiceDate)
+      const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
 
       // Compute totals
       let totalAmount = 0
@@ -289,7 +287,7 @@ export async function createInvoice(
           userId,
           customerId: customerId || null,
           invoiceNumber,
-          invoiceDate: new Date(invoiceDate),
+          invoiceDate: invoiceDateValue,
           dueDate: dueDate ? new Date(dueDate) : null,
           totalAmount,
           discountAmount,

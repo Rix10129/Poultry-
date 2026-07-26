@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { allocateDocumentNumber } from "@/lib/document-number"
 import { MovementType, PaymentMode } from "@prisma/client"
 
 const VALID_PAYMENT_MODES = ["CASH", "BANK", "CHEQUE", "CREDIT"] as const
@@ -65,9 +66,8 @@ export async function POST(req: NextRequest) {
 
   try {
     await db.$transaction(async (tx) => {
-      const count = await tx.saleInvoice.count({ where: { companyId } })
-      const year = new Date().getFullYear()
-      const invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, "0")}`
+      const invoiceDateValue = new Date(body.invoiceDate || Date.now())
+      const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
 
       let totalAmount = 0
       let taxAmount = 0
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
           userId,
           customerId: customerId || null,
           invoiceNumber,
-          invoiceDate: new Date(invoiceDate || Date.now()),
+          invoiceDate: invoiceDateValue,
           dueDate: dueDate ? new Date(dueDate) : null,
           totalAmount,
           discountAmount: disc,
