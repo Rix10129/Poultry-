@@ -401,3 +401,15 @@ CREATE INDEX "InventoryImport_companyId_importedAt_idx" ON "InventoryImport"("co
 CREATE INDEX "InventoryImport_companyId_checksum_idx" ON "InventoryImport"("companyId", "checksum");
 CREATE UNIQUE INDEX "InventoryImportRow_importId_rowNumber_key" ON "InventoryImportRow"("importId", "rowNumber");
 CREATE INDEX "InventoryOpeningStock_companyId_importId_idx" ON "InventoryOpeningStock"("companyId", "importId");
+
+-- ─── Invoice drafts (non-posting workspaces) ────────────────────────────────
+CREATE TABLE IF NOT EXISTS "InvoiceDraft" (
+  "id" TEXT NOT NULL, "companyId" TEXT NOT NULL, "userId" TEXT NOT NULL,
+  "version" INTEGER NOT NULL DEFAULT 1, "data" JSONB NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "InvoiceDraft_pkey" PRIMARY KEY ("id")
+);
+DO $$ BEGIN ALTER TABLE "InvoiceDraft" ADD CONSTRAINT "InvoiceDraft_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE "InvoiceDraft" ADD CONSTRAINT "InvoiceDraft_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS "InvoiceDraft_companyId_userId_updatedAt_idx" ON "InvoiceDraft"("companyId", "userId", "updatedAt");

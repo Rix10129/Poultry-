@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
-import { createInvoice } from "@/app/(dashboard)/sales/actions"
+import { createInvoice, deleteInvoiceDraft, saveInvoiceDraft } from "@/app/(dashboard)/sales/actions"
 import { daysUntilExpiry, formatCurrency } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2 } from "lucide-react"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, Save } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
+import { INVOICE_DRAFT_VERSION, type InvoiceDraftData } from "@/lib/invoice-draft"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,8 @@ type LineItem = {
   salePrice: number
   discount: number   // percentage
   taxRate: number
+  savedAvailable: number
+  savedCatalogPrice: number
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,22 +70,27 @@ function isSellableBatch(batch: BatchOption) {
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
+  initialDraft?: (Omit<InvoiceDraftData, "lines"> & { id: string; lines: Array<InvoiceDraftData["lines"][number] & { maxQty: number }> }) | null
+  draftWarnings?: string[]
+  drafts?: Array<{ id: string; label: string; updatedAt: string }>
 }
 
-export function InvoiceForm({ products, customers }: InvoiceFormProps) {
-  const [lines, setLines] = useState<LineItem[]>([])
+export function InvoiceForm({ products, customers, initialDraft, draftWarnings = [], drafts = [] }: InvoiceFormProps) {
+  const [lines, setLines] = useState<LineItem[]>(() => initialDraft?.lines.map(line => ({ ...line, key: crypto.randomUUID() })) ?? [])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
-  const [customerId, setCustomerId] = useState("")
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [dueDate, setDueDate] = useState("")
-  const [paymentMode, setPaymentMode] = useState("CASH")
-  const [paidAmount, setPaidAmount] = useState("")
-  const [discountAmount, setDiscountAmount] = useState("")
-  const [notes, setNotes] = useState("")
+  const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "")
+  const [invoiceDate, setInvoiceDate] = useState(() => initialDraft?.invoiceDate ?? new Date().toISOString().split("T")[0])
+  const [dueDate, setDueDate] = useState(initialDraft?.dueDate ?? "")
+  const [paymentMode, setPaymentMode] = useState(initialDraft?.paymentMode ?? "CASH")
+  const [paidAmount, setPaidAmount] = useState(initialDraft?.paidAmount ?? "")
+  const [discountAmount, setDiscountAmount] = useState(initialDraft?.discountAmount ?? "")
+  const [notes, setNotes] = useState(initialDraft?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [savedOffline, setSavedOffline] = useState(false)
+  const [draftId, setDraftId] = useState(initialDraft?.id ?? "")
+  const [draftStatus, setDraftStatus] = useState(initialDraft ? "Draft resumed" : "")
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -128,6 +136,8 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
       salePrice: parseFloat(chosen.batch.salePrice) || parseFloat(product.salePrice) || 0,
       discount: 0,
       taxRate: parseFloat(product.taxRate) || 0,
+      savedAvailable: chosen.batch.quantity,
+      savedCatalogPrice: parseFloat(product.salePrice) || 0,
     }
 
     setLines(prev => [...prev, line])
@@ -157,6 +167,36 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
 
   const balance = net - paid
   const itemCountLabel = `${lines.length} line${lines.length === 1 ? "" : "s"}`
+
+  const draftData = useMemo<InvoiceDraftData>(() => ({
+    version: INVOICE_DRAFT_VERSION,
+    customerId,
+    customerName: customers.find(customer => customer.id === customerId)?.name ?? null,
+    invoiceDate, dueDate, paymentMode, paidAmount, discountAmount, notes,
+    lines: lines.map(line => ({
+      productId: line.productId, productName: line.productName, unit: line.unit,
+      batchId: line.batchId, batchNumber: line.batchNumber, expiryDate: line.expiryDate,
+      quantity: line.quantity, salePrice: line.salePrice, discount: line.discount,
+      taxRate: line.taxRate, savedAvailable: line.savedAvailable, savedCatalogPrice: line.savedCatalogPrice,
+    })),
+  }), [customerId, customers, invoiceDate, dueDate, paymentMode, paidAmount, discountAmount, notes, lines])
+
+  async function persistDraft(automatic = false) {
+    if (!navigator.onLine) { if (!automatic) setError("Connect to the internet to save a server draft"); return }
+    if (!automatic) setDraftStatus("Saving…")
+    const result = await saveInvoiceDraft({ ...draftData, id: draftId || undefined })
+    if (result.error) { setError(result.error); setDraftStatus("Draft not saved"); return }
+    if (result.id) setDraftId(result.id)
+    setDraftStatus(`${automatic ? "Autosaved" : "Saved"} ${new Date(result.savedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`)
+  }
+
+  useEffect(() => {
+    if (!draftId && !lines.length && !customerId && !notes) return
+    const timer = window.setTimeout(() => { void persistDraft(true) }, 1500)
+    return () => window.clearTimeout(timer)
+    // draftId is deliberately excluded: setting the ID after the first save must not schedule another save.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftData])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -211,6 +251,7 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
     fd.set("paidAmount", String(paid))
     fd.set("discountAmount", String(disc))
     fd.set("notes", notes)
+    if (draftId) fd.set("draftId", draftId)
     fd.set("linesJson", JSON.stringify(lines.map(l => ({
       productId: l.productId,
       batchId: l.batchId,
@@ -279,6 +320,20 @@ export function InvoiceForm({ products, customers }: InvoiceFormProps) {
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
+
+      {draftWarnings.length > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Review changes since this draft was saved</p>
+          <ul className="mt-1 list-disc pl-5">{draftWarnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="min-w-52 flex-1 space-y-1"><Label>Resume draft</Label><Select value={draftId} onChange={e => { if (e.target.value) window.location.assign(`/sales/new?draft=${e.target.value}`) }}><option value="">Select saved draft…</option>{drafts.map(d => <option key={d.id} value={d.id}>{d.label} — {new Date(d.updatedAt).toLocaleString()}</option>)}</Select></div>
+        <Button type="button" variant="outline" onClick={() => void persistDraft()}><Save className="h-4 w-4" />Save Draft</Button>
+        {draftId && <Button type="button" variant="outline" onClick={async () => { const result = await deleteInvoiceDraft(draftId); if (result.error) setError(result.error); else window.location.assign("/sales/new") }}><Trash2 className="h-4 w-4" />Delete Draft</Button>}
+        <span className="w-full text-xs text-slate-500">{draftStatus || "Incomplete invoices autosave after changes; drafts never post stock or accounting."}</span>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-1.5">
