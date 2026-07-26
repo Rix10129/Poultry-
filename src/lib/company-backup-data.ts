@@ -8,7 +8,7 @@ export async function dumpCompanyBackup(companyId: string) {
   const [users, documentSequences, suppliers, customers, categories, products, batches, stockMovements,
     purchases, purchaseItems, purchaseReturns, purchaseReturnItems, invoices, invoiceItems, saleReturns,
     saleReturnItems, customerPayments, supplierPayments, accounts, journalEntries, journalLines, pdcCheques,
-    expenses, salesTargets, routes, routeVisits, quotations, quotationItems, supplierPaymentSchedules, auditLogs] = await Promise.all([
+    expenses, salesTargets, routes, routeVisits, quotations, quotationItems, supplierPaymentSchedules, invoiceDrafts, auditLogs] = await Promise.all([
     db.user.findMany({where:{companyId}}), db.documentSequence.findMany({where:{companyId}}), db.supplier.findMany({where:{companyId}}),
     db.customer.findMany({where:{companyId}}), db.category.findMany({where:{companyId}}), db.product.findMany({where:{companyId}}),
     db.productBatch.findMany({where:{companyId}}), db.stockMovement.findMany({where:{companyId}}), db.purchaseOrder.findMany({where:{companyId}}),
@@ -20,8 +20,8 @@ export async function dumpCompanyBackup(companyId: string) {
     db.journalLine.findMany({where:{journalEntry:{companyId}}}), db.pDCCheque.findMany({where:{companyId}}), db.expense.findMany({where:{companyId}}),
     db.salesTarget.findMany({where:{companyId}}), db.route.findMany({where:{companyId}}), db.routeVisit.findMany({where:{companyId}}),
     db.quotation.findMany({where:{companyId}}), db.quotationItem.findMany({where:{quotation:{companyId}}}),
-    db.supplierPaymentSchedule.findMany({where:{companyId}}), db.auditLog.findMany({where:{companyId}}),
+    db.supplierPaymentSchedule.findMany({where:{companyId}}), db.invoiceDraft.findMany({where:{companyId}}), db.auditLog.findMany({where:{companyId}}),
   ])
-  const data: BackupData = { company: [company], users, permissions: Object.entries(ROLE_PERMISSIONS).map(([role, permissions]) => ({ role, permissions })), documentSequences, suppliers, customers, categories, products, batches, stockMovements, purchases, purchaseItems, purchaseReturns, purchaseReturnItems, invoices, invoiceItems, saleReturns, saleReturnItems, customerPayments, supplierPayments, accounts, journalEntries, journalLines, pdcCheques, expenses, salesTargets, routes, routeVisits, quotations, quotationItems, supplierPaymentSchedules, auditLogs }
+  const data: BackupData = { company: [company], users, permissions: Object.entries(ROLE_PERMISSIONS).map(([role, permissions]) => ({ role, permissions })), documentSequences, suppliers, customers, categories, products, batches, stockMovements, purchases, purchaseItems, purchaseReturns, purchaseReturnItems, invoices, invoiceItems, saleReturns, saleReturnItems, customerPayments, supplierPayments, accounts, journalEntries, journalLines, pdcCheques, expenses, salesTargets, routes, routeVisits, quotations, quotationItems, supplierPaymentSchedules, invoiceDrafts, auditLogs }
   return makeBackup(company.id, company.name, data)
 }

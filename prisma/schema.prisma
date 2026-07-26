@@ -175,6 +175,7 @@ model Company {
   documentSequences        DocumentSequence[]
   inventoryImports         InventoryImport[]
   inventoryOpeningStocks   InventoryOpeningStock[]
+  invoiceDrafts            InvoiceDraft[]
 }
 
 // Transactional counters for human-readable business document numbers.
@@ -222,6 +223,7 @@ model User {
   routeVisits  RouteVisit[]
   quotations   Quotation[]
   inventoryImports InventoryImport[]
+  invoiceDrafts InvoiceDraft[]
 
   @@unique([email, companyId])
   @@index([companyId])
@@ -567,6 +569,23 @@ model SaleInvoice {
   @@unique([invoiceNumber, companyId])
   @@index([companyId, invoiceDate])
   @@index([customerId])
+}
+
+/// Versioned, non-posting workspace for an incomplete sale. The JSON payload
+/// deliberately has no relations to stock, ledgers, or accounting entries.
+model InvoiceDraft {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  version   Int      @default(1)
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, userId, updatedAt])
 }
 
 // batchId is required — every sale line must reference a specific batch for FEFO

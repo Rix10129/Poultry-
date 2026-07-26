@@ -12,8 +12,30 @@ import { writeAuditLog, logAudit } from "@/lib/audit"
 import { postCustomerReceipt, postSaleInvoice, postSaleReturn, reversePosting } from "@/lib/accounting/posting-service"
 import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction } from "@/lib/authorization"
+import { persistInvoiceDraft, type InvoiceDraftData } from "@/lib/invoice-draft"
 
 type ActionState = { error: string } | null
+
+type DraftActionState = { error?: string; id?: string; savedAt?: string }
+
+export async function saveInvoiceDraft(data: InvoiceDraftData & { id?: string }): Promise<DraftActionState> {
+  const authorization = await authorize("SALE_CREATE")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  // This is intentionally the only write: drafts do not create invoices,
+  // movements, receipts, customer balances, or journal entries.
+  try {
+    const saved = await persistInvoiceDraft(db as any, { companyId: user.companyId, userId: user.id }, data)
+    return { id: saved!.id, savedAt: saved!.updatedAt.toISOString() }
+  } catch (error) { return { error: (error as Error).message } }
+}
+
+export async function deleteInvoiceDraft(id: string): Promise<DraftActionState> {
+  const authorization = await authorize("SALE_CREATE")
+  if (!authorization.ok) return forbiddenAction
+  const deleted = await db.invoiceDraft.deleteMany({ where: { id, companyId: authorization.actor.companyId, userId: authorization.actor.id } })
+  return deleted.count ? {} : { error: "Draft not found" }
+}
 
 export async function deleteInvoice(
   _prev: ActionState,
@@ -215,6 +237,7 @@ export async function createInvoice(
   const notes = (formData.get("notes") as string) || null
   const linesJson = formData.get("linesJson") as string
   const bypassCreditLimit = formData.get("bypassCreditLimit") === "1"
+  const draftId = String(formData.get("draftId") || "").trim() || null
 
   if (!linesJson) return { error: "No line items provided" }
   if (!VALID_PAYMENT_MODES.includes(paymentModeRaw as any)) return { error: "Invalid payment mode" }
@@ -266,6 +289,10 @@ export async function createInvoice(
 
   try {
     await db.$transaction(async (tx) => {
+      if (draftId) {
+        const draft = await tx.invoiceDraft.findFirst({ where: { id: draftId, companyId, userId } })
+        if (!draft) throw new Error("Draft not found or already posted")
+      }
       const invoiceDateValue = new Date(invoiceDate)
       const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
 
@@ -370,6 +397,8 @@ export async function createInvoice(
         })
       }
       await postSaleInvoice(tx, { companyId, sourceId: invoice.id, number: invoiceNumber, date: invoice.invoiceDate, amount: invoice.netAmount, tax: invoice.taxAmount, paid: customerId ? 0 : invoice.paidAmount, paymentMode: invoice.paymentMode })
+      // Consuming the draft in this transaction makes posting all-or-nothing.
+      if (draftId) await tx.invoiceDraft.delete({ where: { id: draftId } })
     })
   } catch (e: any) {
     return { error: e?.message ?? "Failed to create invoice" }

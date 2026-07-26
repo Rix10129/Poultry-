@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { BACKUP_COLLECTIONS, decryptBackup, encryptBackup, issueRestoreApproval, makeBackup, validateRestoredBackup, verifyBackup, verifyRestoreApproval, type BackupData } from "./company-backup"
-const empty = () => Object.fromEntries(BACKUP_COLLECTIONS.map(k => [k, []])) as BackupData
+const empty = () => Object.fromEntries(BACKUP_COLLECTIONS.map(k => [k, []])) as unknown as BackupData
 
 test("encrypted versioned backup round-trips and detects tampering", () => {
   const data = empty(); data.company = [{ id: "c", name: "Test" }]
