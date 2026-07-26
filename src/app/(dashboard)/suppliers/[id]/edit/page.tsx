@@ -24,6 +24,7 @@ export default async function EditSupplierPage({ params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
+  const role = (session.user as any).role as string
 
   const supplier = await db.supplier.findFirst({ where: { id, companyId } })
   if (!supplier) notFound()
@@ -51,7 +52,10 @@ export default async function EditSupplierPage({ params }: Props) {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <SupplierForm supplier={serialized} />
+        <SupplierForm
+          supplier={serialized}
+          canAdjustOpeningBalance={role === "OWNER" || role === "ADMIN"}
+        />
       </div>
 
       <div className="rounded-xl border border-red-200 bg-white p-6">

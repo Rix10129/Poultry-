@@ -65,19 +65,21 @@ export async function writeAuditLog(params: {
   newValues?: Record<string, unknown>
 }): Promise<void> {
   try {
-    db.auditLog
-      .create({
-        data: {
-          companyId: params.companyId,
-          userId: params.userId,
-          userName: "",
-          action: params.action,
-          entity: params.entity,
-          entityId: params.entityId,
-          ipAddress: params.ipAddress ?? null,
-        },
-      })
-      .catch(() => null)
+    await db.auditLog.create({
+      data: {
+        companyId: params.companyId,
+        userId: params.userId,
+        userName: "",
+        action: params.action,
+        entity: params.entity,
+        entityId: params.entityId,
+        detail:
+          params.oldValues || params.newValues
+            ? JSON.stringify({ oldValues: params.oldValues, newValues: params.newValues })
+            : null,
+        ipAddress: params.ipAddress ?? null,
+      },
+    })
   } catch {
     // never crash
   }
