@@ -214,17 +214,17 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
         },
       })
 
-      // Update the linked invoice's paidAmount
+      // Refresh the invoice cache from authoritative payment rows.
       if (invoiceId) {
         const invoice = await tx.saleInvoice.findFirst({
           where: { id: invoiceId, companyId },
-          select: { netAmount: true, paidAmount: true },
+          select: { id: true },
         })
         if (invoice) {
-          const newPaid = Math.min(
-            parseFloat(invoice.netAmount.toString()),
-            parseFloat(invoice.paidAmount.toString()) + amount
-          )
+          const aggregate = await tx.customerPayment.aggregate({
+            where: { invoiceId, companyId }, _sum: { amount: true },
+          })
+          const newPaid = Number(aggregate._sum.amount ?? 0)
           await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: newPaid } })
         }
       }

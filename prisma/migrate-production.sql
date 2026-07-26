@@ -327,3 +327,18 @@ ALTER TABLE "AuditLog" ADD  CONSTRAINT "AuditLog_companyId_fkey"
 ALTER TABLE "AuditLog" DROP CONSTRAINT IF EXISTS "AuditLog_userId_fkey";
 ALTER TABLE "AuditLog" ADD  CONSTRAINT "AuditLog_userId_fkey"
   FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CustomerPayment is the authoritative customer receipt ledger. Backfill the
+-- legacy invoice-time portion that was previously stored only in paidAmount.
+INSERT INTO "CustomerPayment" ("id", "companyId", "customerId", "invoiceId", "amount", "paymentMode", "paymentDate", "notes", "createdAt")
+SELECT md5(random()::text || clock_timestamp()::text || i."id"), i."companyId", i."customerId", i."id",
+       i."paidAmount" - COALESCE(p.paid, 0), i."paymentMode", i."invoiceDate",
+       'Migrated invoice-time receipt', CURRENT_TIMESTAMP
+FROM "SaleInvoice" i
+LEFT JOIN (SELECT "invoiceId", SUM("amount") paid FROM "CustomerPayment" WHERE "invoiceId" IS NOT NULL GROUP BY "invoiceId") p
+  ON p."invoiceId" = i."id"
+WHERE i."customerId" IS NOT NULL AND i."paidAmount" > COALESCE(p.paid, 0);
+
+UPDATE "SaleInvoice" i SET "paidAmount" = COALESCE(p.paid, 0)
+FROM (SELECT i2."id", SUM(cp."amount") paid FROM "SaleInvoice" i2 LEFT JOIN "CustomerPayment" cp ON cp."invoiceId" = i2."id" GROUP BY i2."id") p
+WHERE p."id" = i."id";

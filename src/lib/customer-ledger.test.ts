@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildCustomerLedger } from "./customer-ledger"
+import { buildCustomerLedger, calculateCustomerBalance } from "./customer-ledger"
 
 const date = (value: string) => new Date(`${value}T12:00:00.000Z`)
 
@@ -13,17 +13,17 @@ const scenario = {
       invoiceNumber: "INV-001",
       invoiceDate: date("2026-01-01"),
       netAmount: "100.00",
-      paidAmount: "100.00",
     },
     {
       id: "partial-invoice",
       invoiceNumber: "INV-002",
       invoiceDate: date("2026-01-02"),
       netAmount: "200.00",
-      paidAmount: "100.00",
     },
   ],
   payments: [
+    { invoiceId: "cash-invoice", paymentDate: date("2026-01-01"), amount: "100.00", paymentMode: "CASH", invoice: { invoiceNumber: "INV-001" } },
+    { invoiceId: "partial-invoice", paymentDate: date("2026-01-02"), amount: "40.00", paymentMode: "CASH", invoice: { invoiceNumber: "INV-002" } },
     {
       invoiceId: "partial-invoice",
       paymentDate: date("2026-01-05"),
@@ -49,7 +49,7 @@ const scenario = {
   ],
 }
 
-test("normalizes invoice receipts and linked payments without double counting", () => {
+test("counts invoice-time and later payment events exactly once", () => {
   const ledger = buildCustomerLedger({
     ...scenario,
     fromDate: date("2026-01-01"),
@@ -63,14 +63,22 @@ test("normalizes invoice receipts and linked payments without double counting", 
     ledger.rows.map(({ description, credit }) => [description, credit]),
     [
       ["Invoice INV-001", 0],
-      ["Receipt with Invoice INV-001", 100],
+      ["Payment (vs. INV-001) — CASH", 100],
       ["Invoice INV-002", 0],
-      ["Receipt with Invoice INV-002", 40],
+      ["Payment (vs. INV-002) — CASH", 40],
       ["Payment (vs. INV-002) — CASH", 60],
       ["Payment — BANK_TRANSFER #DEP-1", 30],
       ["Return RET-001", 25],
     ]
   )
+})
+
+test("all balance consumers reconcile to the shared closing balance", () => {
+  const input = { openingBalance: scenario.customerOpeningBalance, invoices: scenario.invoices,
+    payments: scenario.payments, returns: scenario.returns }
+  const expected = buildCustomerLedger({ ...scenario, fromDate: date("2026-01-01"), toDate: date("2026-12-31") }).closingBalance
+  const consumers = ["customer detail", "statement", "customer list", "recovery", "balance sheet", "Excel", "dashboard"]
+  for (const consumer of consumers) assert.equal(calculateCustomerBalance(input).closingBalance, expected, consumer)
 })
 
 test("date-filtered statement carries all earlier invoices and credits into opening", () => {

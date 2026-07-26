@@ -99,6 +99,18 @@ export async function POST(req: NextRequest) {
 
       invoiceId = invoice.id
 
+      if (customerId && paid > 0) {
+        await tx.customerPayment.create({
+          data: {
+            companyId, customerId, invoiceId: invoice.id,
+            amount: Math.min(paid, netAmount + 0.001),
+            paymentMode: paymentMode as PaymentMode,
+            paymentDate: new Date(invoiceDate || Date.now()),
+            notes: "Receipt recorded with invoice",
+          },
+        })
+      }
+
       for (const line of lines) {
         const batch = await tx.productBatch.findFirst({
           where: { id: line.batchId, companyId, productId: line.productId },

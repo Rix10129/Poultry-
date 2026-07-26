@@ -1,3 +1,4 @@
+import { calculateCustomerBalance } from "@/lib/customer-ledger"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -40,7 +41,9 @@ async function getStats(companyId: string) {
       where: { companyId },
       select: {
         openingBalance: true,
-        invoices: { select: { netAmount: true, paidAmount: true } },
+        invoices: { select: { netAmount: true } },
+        payments: { select: { amount: true } },
+        saleReturns: { select: { totalAmount: true } },
       },
     }),
     db.product.count({ where: { companyId, isActive: true } }),
@@ -67,9 +70,8 @@ async function getStats(companyId: string) {
   ])
 
   const totalReceivables = allCustomers.reduce((sum, c) => {
-    const net = c.invoices.reduce((s, inv) => s + parseFloat(inv.netAmount.toString()), 0)
-    const paid = c.invoices.reduce((s, inv) => s + parseFloat(inv.paidAmount.toString()), 0)
-    return sum + parseFloat(c.openingBalance.toString()) + net - paid
+    return sum + calculateCustomerBalance({ openingBalance: c.openingBalance,
+      invoices: c.invoices, payments: c.payments, returns: c.saleReturns }).closingBalance
   }, 0)
 
   const lowStockCount = products.filter(
