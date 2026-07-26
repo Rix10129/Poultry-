@@ -7,7 +7,8 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { CustomerType, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
-import { postCustomerReceipt } from "@/lib/accounting/posting-service"
+import { postCustomerReceipt, reversePosting } from "@/lib/accounting/posting-service"
+import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 
 type ActionState = { error: string } | null
 
@@ -204,6 +205,7 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
     await db.$transaction(async (tx) => {
       const payment = await tx.customerPayment.create({
         data: {
+          status: "POSTED",
           companyId,
           customerId,
           invoiceId: invoiceId || null,
@@ -239,4 +241,25 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
   revalidatePath("/sales")
   if (invoiceId) revalidatePath(`/sales/${invoiceId}`)
   redirect(`/customers/${customerId}`)
+}
+
+export async function reverseCustomerPayment(_: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions); const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string; const id = String(formData.get("paymentId") || "")
+  let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
+  let customerId = ""; let invoiceId: string | null = null
+  try { await db.$transaction(async tx => {
+    const payment = await tx.customerPayment.findFirst({ where: { id, companyId } })
+    if (!payment || payment.status !== "POSTED") throw new Error("Only a posted customer payment can be reversed")
+    customerId = payment.customerId; invoiceId = payment.invoiceId
+    const reversal = await reversePosting(tx, companyId, "CUSTOMER_RECEIPT", id, reason); if (!reversal) throw new Error("Customer payment accounting entry was not found")
+    await tx.customerPayment.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
+    if (invoiceId) {
+      const aggregate = await tx.customerPayment.aggregate({ where: { invoiceId, companyId, status: "POSTED" }, _sum: { amount: true } })
+      await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: aggregate._sum.amount ?? 0 } })
+    }
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "CustomerPayment", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
+  }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse customer payment" } }
+  revalidatePath(`/customers/${customerId}`); if (invoiceId) revalidatePath(`/sales/${invoiceId}`); redirect(`/customers/${customerId}`)
 }

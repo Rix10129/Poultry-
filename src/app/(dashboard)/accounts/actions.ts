@@ -6,6 +6,8 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { AccountType, VoucherType } from "@prisma/client"
+import { assertBalanced } from "@/lib/accounting/posting-service"
+import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 
 type ActionState = { error: string } | null
 
@@ -147,7 +149,13 @@ export async function createVoucher(
     if (!line.amount || line.amount <= 0) return { error: "Each line must have a positive amount" }
   }
 
-  const totalAmount = lines.reduce((s, l) => s + l.amount, 0)
+  let totalAmount: number
+  try {
+    totalAmount = assertBalanced(
+      lines.filter(line => line.debitAccountId).map(line => ({ account: "CASH" as const, amount: line.amount })),
+      lines.filter(line => line.creditAccountId).map(line => ({ account: "CASH" as const, amount: line.amount })),
+    ).toNumber()
+  } catch (error) { return { error: error instanceof Error ? error.message : "Voucher is not balanced" } }
   let entryId = ""
 
   try {
@@ -166,6 +174,9 @@ export async function createVoucher(
           description,
           totalAmount,
           reference,
+          sourceType: "VOUCHER",
+          sourceId: entryId || undefined,
+          status: "POSTED",
         },
       })
 
@@ -190,4 +201,19 @@ export async function createVoucher(
   revalidatePath("/accounts")
   revalidatePath("/accounts/vouchers")
   redirect(`/accounts/vouchers/${entryId}`)
+}
+
+export async function reverseVoucher(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions); const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string; const id = String(formData.get("id") || "")
+  let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
+  try { await db.$transaction(async tx => {
+    const entry = await tx.journalEntry.findFirst({ where: { id, companyId }, include: { lines: true } })
+    if (!entry || entry.status !== "POSTED" || entry.isReversal) throw new Error("Only a posted original voucher can be reversed")
+    const reversal = await tx.journalEntry.create({ data: { companyId, voucherType: VoucherType.JOURNAL, voucherNumber: `REV-${entry.voucherNumber}`, entryDate: new Date(), description: reason, totalAmount: entry.totalAmount, reference: entry.voucherNumber, sourceType: "VOUCHER_REVERSAL", sourceId: entry.id, postingKey: `${companyId}:VOUCHER_REVERSAL:${entry.id}`, isReversal: true, reversesEntryId: entry.id, status: "POSTED", lines: { create: entry.lines.map(line => ({ debitAccountId: line.creditAccountId, creditAccountId: line.debitAccountId, amount: line.amount, description: reason })) } } })
+    await tx.journalEntry.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "JournalEntry", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
+  }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse voucher" } }
+  revalidatePath("/accounts/vouchers"); redirect(`/accounts/vouchers/${id}`)
 }

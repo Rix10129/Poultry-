@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType } from "@prisma/client"
 import { postPurchase, postPurchaseReturn, reversePosting } from "@/lib/accounting/posting-service"
+import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 
 type ActionState = { error: string } | null
 
@@ -24,30 +25,11 @@ export async function deletePurchase(
     await db.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.findFirst({
         where: { id, companyId },
-        include: { items: { include: { batch: true } }, payments: true },
+        include: { items: true, payments: true, returns: true },
       })
       if (!po) throw new Error("Purchase order not found")
-      if (po.payments.length > 0)
-        throw new Error("Cannot delete — this order has recorded payments. Remove payments first.")
-      await reversePosting(tx, companyId, "PURCHASE", po.id, `Purchase ${po.poNumber} voided`)
-
-      for (const item of po.items) {
-        if (!item.batch) continue
-        const sold = item.batch.initialQuantity - item.batch.quantity
-        if (sold > 0)
-          throw new Error(
-            `Cannot delete — ${sold} unit(s) from this order have already been sold. Create a purchase return instead.`
-          )
-      }
-
-      await tx.stockMovement.deleteMany({ where: { reference: po.poNumber } })
-
-      for (const item of po.items) {
-        if (item.batchId) {
-          await tx.productBatch.delete({ where: { id: item.batchId } })
-        }
-      }
-
+      const postings = await tx.journalEntry.count({ where: { companyId, sourceType: "PURCHASE", sourceId: id } })
+      assertDocumentCanBeDeleted(po.status, { stockMovements: po.items.length, payments: po.payments.length, returns: po.returns.length, journalEntries: postings })
       await tx.purchaseOrder.delete({ where: { id } })
     })
   } catch (e: any) {
@@ -57,6 +39,28 @@ export async function deletePurchase(
   revalidatePath("/purchases")
   revalidatePath("/inventory")
   redirect("/purchases")
+}
+
+export async function reversePurchase(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions); const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string; const id = String(formData.get("id") || "").trim()
+  let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
+  try { await db.$transaction(async tx => {
+    const po = await tx.purchaseOrder.findFirst({ where: { id, companyId }, include: { items: { include: { batch: true } }, payments: true, returns: true } })
+    if (!po) throw new Error("Purchase order not found")
+    if (po.status !== "POSTED") throw new Error("Only posted purchases can be reversed")
+    if (po.payments.length || po.returns.length) throw new Error("Reverse linked payments and returns before reversing this purchase")
+    for (const item of po.items) {
+      if (!item.batchId || !item.batch || item.batch.quantity < item.quantity) throw new Error("Purchase stock has been consumed; create returns for dependent sales first")
+      await tx.productBatch.update({ where: { id: item.batchId }, data: { quantity: { decrement: item.quantity } } })
+      await tx.stockMovement.create({ data: { companyId, productId: item.productId, batchId: item.batchId, type: MovementType.PURCHASE_RETURN, quantity: -item.quantity, reference: `REV-${po.poNumber}`, sourceType: "PURCHASE_REVERSAL", sourceId: po.id, notes: reason } })
+    }
+    const journal = await reversePosting(tx, companyId, "PURCHASE", id, reason); if (!journal) throw new Error("Purchase accounting entry was not found")
+    await tx.purchaseOrder.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "PurchaseOrder", originalDocumentId: id, reversalDocumentId: journal.id, reason })
+  }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse purchase" } }
+  revalidatePath("/purchases"); revalidatePath("/inventory"); redirect(`/purchases/${id}`)
 }
 
 type PurchaseReturnLine = {
@@ -106,6 +110,7 @@ export async function createPurchaseReturn(
 
       const ret = await tx.purchaseReturn.create({
         data: {
+          status: "POSTED",
           companyId,
           supplierId,
           purchaseOrderId: purchaseOrderId || null,
@@ -147,6 +152,8 @@ export async function createPurchaseReturn(
             productId: line.productId,
             batchId: line.batchId,
             type: MovementType.PURCHASE_RETURN,
+            sourceType: "PURCHASE_RETURN",
+            sourceId: ret.id,
             quantity: -line.quantity,
             reference: returnNumber,
             notes: `Purchase Return ${returnNumber}`,
@@ -241,6 +248,7 @@ export async function createPurchase(
       // Create purchase order
       const po = await tx.purchaseOrder.create({
         data: {
+          status: "POSTED",
           companyId,
           supplierId,
           userId,
@@ -296,6 +304,8 @@ export async function createPurchase(
             productId: line.productId,
             batchId: batch.id,
             type: MovementType.PURCHASE,
+            sourceType: "PURCHASE",
+            sourceId: po.id,
             quantity: line.quantity,
             reference: poNumber,
             notes: `Purchase ${poNumber}`,

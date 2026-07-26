@@ -113,6 +113,13 @@ enum CompanyStatus {
   SUSPENDED
 }
 
+enum DocumentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
 // ─── Tenant Root ─────────────────────────────────────────────────────────────
 
 model Company {
@@ -322,15 +329,17 @@ model ProductBatch {
 }
 
 model StockMovement {
-  id        String       @id @default(cuid())
-  companyId String
-  productId String
-  batchId   String?
-  type      MovementType
-  quantity  Int // positive = stock in, negative = stock out
-  reference String? // invoice/PO number
-  notes     String?
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  companyId  String
+  productId  String
+  batchId    String?
+  type       MovementType
+  quantity   Int // positive = stock in, negative = stock out
+  reference  String? // invoice/PO number
+  sourceType String?
+  sourceId   String?
+  notes      String?
+  createdAt  DateTime     @default(now())
 
   company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product Product       @relation(fields: [productId], references: [id])
@@ -338,25 +347,30 @@ model StockMovement {
 
   @@index([productId, createdAt])
   @@index([companyId, createdAt])
+  @@index([companyId, sourceType, sourceId])
 }
 
 // ─── Purchases ───────────────────────────────────────────────────────────────
 
 model PurchaseOrder {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   companyId      String
   supplierId     String
   userId         String
   poNumber       String
-  orderDate      DateTime @default(now())
-  totalAmount    Decimal  @db.Decimal(12, 2)
-  discountAmount Decimal  @default(0) @db.Decimal(12, 2)
-  taxAmount      Decimal  @default(0) @db.Decimal(12, 2)
-  netAmount      Decimal  @db.Decimal(12, 2)
-  paidAmount     Decimal  @default(0) @db.Decimal(12, 2)
+  orderDate      DateTime       @default(now())
+  totalAmount    Decimal        @db.Decimal(12, 2)
+  discountAmount Decimal        @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal        @default(0) @db.Decimal(12, 2)
+  netAmount      Decimal        @db.Decimal(12, 2)
+  paidAmount     Decimal        @default(0) @db.Decimal(12, 2)
   notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status         DocumentStatus @default(DRAFT)
+  reversedAt     DateTime?
+  reversedBy     String?
+  reversalReason String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   company          Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   supplier         Supplier                  @relation(fields: [supplierId], references: [id])
@@ -387,15 +401,19 @@ model PurchaseOrderItem {
 }
 
 model PurchaseReturn {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   companyId       String
   supplierId      String
   purchaseOrderId String?
   returnNumber    String
-  returnDate      DateTime @default(now())
-  totalAmount     Decimal  @db.Decimal(12, 2)
+  returnDate      DateTime       @default(now())
+  totalAmount     Decimal        @db.Decimal(12, 2)
   notes           String?
-  createdAt       DateTime @default(now())
+  status          DocumentStatus @default(DRAFT)
+  reversedAt      DateTime?
+  reversedBy      String?
+  reversalReason  String?
+  createdAt       DateTime       @default(now())
 
   company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   supplier      Supplier             @relation(fields: [supplierId], references: [id])
@@ -422,24 +440,28 @@ model PurchaseReturnItem {
 // ─── Sales ───────────────────────────────────────────────────────────────────
 
 model SaleInvoice {
-  id             String      @id @default(cuid())
+  id             String         @id @default(cuid())
   companyId      String
   customerId     String?
   userId         String
   invoiceNumber  String
-  invoiceDate    DateTime    @default(now())
+  invoiceDate    DateTime       @default(now())
   dueDate        DateTime?
-  totalAmount    Decimal     @db.Decimal(12, 2)
-  discountAmount Decimal     @default(0) @db.Decimal(12, 2)
-  taxAmount      Decimal     @default(0) @db.Decimal(12, 2)
-  netAmount      Decimal     @db.Decimal(12, 2)
-  paidAmount     Decimal     @default(0) @db.Decimal(12, 2)
-  paymentMode    PaymentMode @default(CASH)
-  isCashSale     Boolean     @default(true)
+  totalAmount    Decimal        @db.Decimal(12, 2)
+  discountAmount Decimal        @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal        @default(0) @db.Decimal(12, 2)
+  netAmount      Decimal        @db.Decimal(12, 2)
+  paidAmount     Decimal        @default(0) @db.Decimal(12, 2)
+  paymentMode    PaymentMode    @default(CASH)
+  isCashSale     Boolean        @default(true)
   schemeNotes    String?
   notes          String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  status         DocumentStatus @default(DRAFT)
+  reversedAt     DateTime?
+  reversedBy     String?
+  reversalReason String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer Customer?         @relation(fields: [customerId], references: [id])
@@ -471,15 +493,19 @@ model SaleInvoiceItem {
 }
 
 model SaleReturn {
-  id           String   @id @default(cuid())
-  companyId    String
-  customerId   String?
-  invoiceId    String?
-  returnNumber String
-  returnDate   DateTime @default(now())
-  totalAmount  Decimal  @db.Decimal(12, 2)
-  notes        String?
-  createdAt    DateTime @default(now())
+  id             String         @id @default(cuid())
+  companyId      String
+  customerId     String?
+  invoiceId      String?
+  returnNumber   String
+  returnDate     DateTime       @default(now())
+  totalAmount    Decimal        @db.Decimal(12, 2)
+  notes          String?
+  status         DocumentStatus @default(DRAFT)
+  reversedAt     DateTime?
+  reversedBy     String?
+  reversalReason String?
+  createdAt      DateTime       @default(now())
 
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer Customer?        @relation(fields: [customerId], references: [id])
@@ -506,16 +532,20 @@ model SaleReturnItem {
 // ─── Payments ────────────────────────────────────────────────────────────────
 
 model CustomerPayment {
-  id          String      @id @default(cuid())
-  companyId   String
-  customerId  String
-  invoiceId   String?
-  amount      Decimal     @db.Decimal(12, 2)
-  paymentMode PaymentMode
-  paymentDate DateTime    @default(now())
-  reference   String?
-  notes       String?
-  createdAt   DateTime    @default(now())
+  id             String         @id @default(cuid())
+  companyId      String
+  customerId     String
+  invoiceId      String?
+  amount         Decimal        @db.Decimal(12, 2)
+  paymentMode    PaymentMode
+  paymentDate    DateTime       @default(now())
+  reference      String?
+  notes          String?
+  status         DocumentStatus @default(DRAFT)
+  reversedAt     DateTime?
+  reversedBy     String?
+  reversalReason String?
+  createdAt      DateTime       @default(now())
 
   company  Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer Customer     @relation(fields: [customerId], references: [id])
@@ -526,20 +556,22 @@ model CustomerPayment {
 }
 
 model SupplierPayment {
-  id              String      @id @default(cuid())
+  id              String         @id @default(cuid())
   companyId       String
   supplierId      String
   purchaseOrderId String?
-  amount          Decimal     @db.Decimal(12, 2)
+  amount          Decimal        @db.Decimal(12, 2)
   paymentMode     PaymentMode
-  paymentDate     DateTime    @default(now())
+  paymentDate     DateTime       @default(now())
   reference       String?
   notes           String?
-  isVoided        Boolean     @default(false)
+  isVoided        Boolean        @default(false)
+  status          DocumentStatus @default(DRAFT)
+  reversalReason  String?
   voidedAt        DateTime?
   voidedBy        String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   supplier      Supplier       @relation(fields: [supplierId], references: [id])
@@ -572,20 +604,24 @@ model Account {
 }
 
 model JournalEntry {
-  id              String      @id @default(cuid())
+  id              String         @id @default(cuid())
   companyId       String
   voucherType     VoucherType
   voucherNumber   String
-  entryDate       DateTime    @default(now())
+  entryDate       DateTime       @default(now())
   description     String
-  totalAmount     Decimal     @db.Decimal(12, 2)
+  totalAmount     Decimal        @db.Decimal(12, 2)
   reference       String?
   sourceType      String?
   sourceId        String?
-  postingKey      String?     @unique
-  isReversal      Boolean     @default(false)
-  reversesEntryId String?     @unique
-  createdAt       DateTime    @default(now())
+  postingKey      String?        @unique
+  isReversal      Boolean        @default(false)
+  reversesEntryId String?        @unique
+  status          DocumentStatus @default(DRAFT)
+  reversedAt      DateTime?
+  reversedBy      String?
+  reversalReason  String?
+  createdAt       DateTime       @default(now())
 
   company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   lines    JournalLine[]
@@ -613,16 +649,19 @@ model JournalLine {
 // ─── Audit ───────────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  companyId String
-  userId    String
-  userName  String
-  action    String
-  entity    String?
-  entityId  String?
-  detail    String?
-  ipAddress String?
-  createdAt DateTime @default(now())
+  id                 String   @id @default(cuid())
+  companyId          String
+  userId             String
+  userName           String
+  action             String
+  entity             String?
+  entityId           String?
+  detail             String?
+  reason             String?
+  originalDocumentId String?
+  reversalDocumentId String?
+  ipAddress          String?
+  createdAt          DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])
@@ -688,18 +727,22 @@ model SalesTarget {
 // ─── Expenses ─────────────────────────────────────────────────────────────────
 
 model Expense {
-  id          String          @id @default(cuid())
-  companyId   String
-  userId      String
-  category    ExpenseCategory
-  description String
-  amount      Decimal         @db.Decimal(12, 2)
-  expenseDate DateTime
-  paymentMode PaymentMode
-  reference   String?
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  companyId      String
+  userId         String
+  category       ExpenseCategory
+  description    String
+  amount         Decimal         @db.Decimal(12, 2)
+  expenseDate    DateTime
+  paymentMode    PaymentMode
+  reference      String?
+  notes          String?
+  status         DocumentStatus  @default(DRAFT)
+  reversedAt     DateTime?
+  reversedBy     String?
+  reversalReason String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])

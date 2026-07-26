@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 import { ExpenseCategory, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
 import { postExpense, reversePosting } from "@/lib/accounting/posting-service"
+import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 
 type ActionState = { error: string } | null
 
@@ -38,6 +39,7 @@ export async function createExpense(_prev: ActionState, formData: FormData): Pro
 
   const expense = await db.$transaction(async tx => {
     const created = await tx.expense.create({ data: {
+      status: "POSTED",
       companyId,
       userId,
       category: category as ExpenseCategory,
@@ -65,11 +67,9 @@ export async function deleteExpense(_prev: ActionState, formData: FormData): Pro
 
   const expense = await db.expense.findFirst({ where: { id, companyId } })
   if (!expense) return { error: "Expense not found" }
-
-  await db.$transaction(async tx => {
-    await reversePosting(tx, companyId, "EXPENSE", id, `Expense voided: ${expense.description}`)
-    // Source rows remain as immutable accounting evidence.
-  })
+  const postings = await db.journalEntry.count({ where: { companyId, sourceType: "EXPENSE", sourceId: id } })
+  try { assertDocumentCanBeDeleted(expense.status, { journalEntries: postings }) } catch (error) { return { error: (error as Error).message } }
+  await db.expense.delete({ where: { id } })
 
   await writeAuditLog({
     companyId,
@@ -81,4 +81,19 @@ export async function deleteExpense(_prev: ActionState, formData: FormData): Pro
   })
 
   redirect("/expenses")
+}
+
+export async function reverseExpense(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions); const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string; const id = String(formData.get("id") || "")
+  let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
+  try { await db.$transaction(async tx => {
+    const expense = await tx.expense.findFirst({ where: { id, companyId } })
+    if (!expense || expense.status !== "POSTED") throw new Error("Only a posted expense can be reversed")
+    const journal = await reversePosting(tx, companyId, "EXPENSE", id, reason); if (!journal) throw new Error("Expense accounting entry was not found")
+    await tx.expense.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "Expense", originalDocumentId: id, reversalDocumentId: journal.id, reason })
+  }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse expense" } }
+  redirect(`/expenses/${id}`)
 }

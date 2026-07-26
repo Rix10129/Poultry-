@@ -351,3 +351,18 @@ ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "reversesEntryId" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "JournalEntry_postingKey_key" ON "JournalEntry"("postingKey");
 CREATE UNIQUE INDEX IF NOT EXISTS "JournalEntry_reversesEntryId_key" ON "JournalEntry"("reversesEntryId");
 CREATE INDEX IF NOT EXISTS "JournalEntry_companyId_sourceType_sourceId_idx" ON "JournalEntry"("companyId", "sourceType", "sourceId");
+
+-- ─── Phase 8: Immutable document lifecycle and reversal audit ────────────────
+DO $$ BEGIN CREATE TYPE "DocumentStatus" AS ENUM ('DRAFT', 'POSTED', 'CANCELLED', 'REVERSED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE "StockMovement" ADD COLUMN IF NOT EXISTS "sourceType" TEXT, ADD COLUMN IF NOT EXISTS "sourceId" TEXT;
+CREATE INDEX IF NOT EXISTS "StockMovement_companyId_sourceType_sourceId_idx" ON "StockMovement"("companyId", "sourceType", "sourceId");
+ALTER TABLE "PurchaseOrder" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "PurchaseReturn" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "SaleInvoice" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "SaleReturn" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "CustomerPayment" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "SupplierPayment" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "Expense" ADD COLUMN IF NOT EXISTS "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT', ADD COLUMN IF NOT EXISTS "reversedAt" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS "reversedBy" TEXT, ADD COLUMN IF NOT EXISTS "reversalReason" TEXT;
+ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "reason" TEXT, ADD COLUMN IF NOT EXISTS "originalDocumentId" TEXT, ADD COLUMN IF NOT EXISTS "reversalDocumentId" TEXT;
+UPDATE "PurchaseOrder" SET "status"='POSTED' WHERE "status"='DRAFT'; UPDATE "PurchaseReturn" SET "status"='POSTED' WHERE "status"='DRAFT'; UPDATE "SaleInvoice" SET "status"='POSTED' WHERE "status"='DRAFT'; UPDATE "SaleReturn" SET "status"='POSTED' WHERE "status"='DRAFT'; UPDATE "CustomerPayment" SET "status"='POSTED' WHERE "status"='DRAFT'; UPDATE "SupplierPayment" SET "status"=CASE WHEN "isVoided" THEN 'REVERSED'::"DocumentStatus" ELSE 'POSTED'::"DocumentStatus" END WHERE "status"='DRAFT'; UPDATE "JournalEntry" SET "status"='POSTED' WHERE "status"='DRAFT'; UPDATE "Expense" SET "status"='POSTED' WHERE "status"='DRAFT';
