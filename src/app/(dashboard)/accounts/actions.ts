@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { allocateDocumentNumber } from "@/lib/document-number"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -14,14 +15,6 @@ type ActionState = { error: string } | null
 
 const VALID_ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"] as const
 const VALID_VOUCHER_TYPES = ["CASH_RECEIPT", "CASH_PAYMENT", "BANK_RECEIPT", "BANK_PAYMENT", "JOURNAL"] as const
-
-const VOUCHER_PREFIXES: Record<string, string> = {
-  CASH_RECEIPT: "CR",
-  CASH_PAYMENT: "CP",
-  BANK_RECEIPT: "BR",
-  BANK_PAYMENT: "BP",
-  JOURNAL: "JV",
-}
 
 type LineInput = {
   debitAccountId: string | null
@@ -158,17 +151,16 @@ export async function createVoucher(
 
   try {
     await db.$transaction(async (tx) => {
-      const count = await tx.journalEntry.count({ where: { companyId, voucherType: voucherTypeRaw as VoucherType } })
-      const year = new Date().getFullYear()
-      const prefix = VOUCHER_PREFIXES[voucherTypeRaw]
-      const voucherNumber = `${prefix}-${year}-${String(count + 1).padStart(5, "0")}`
+      const entryDateValue = new Date(entryDate)
+      const sequenceType = voucherTypeRaw as "CASH_RECEIPT" | "CASH_PAYMENT" | "BANK_RECEIPT" | "BANK_PAYMENT" | "JOURNAL"
+      const voucherNumber = await allocateDocumentNumber(tx, companyId, sequenceType, entryDateValue)
 
       const entry = await tx.journalEntry.create({
         data: {
           companyId,
           voucherType: voucherTypeRaw as VoucherType,
           voucherNumber,
-          entryDate: new Date(entryDate),
+          entryDate: entryDateValue,
           description,
           totalAmount,
           reference,
@@ -210,7 +202,9 @@ export async function reverseVoucher(_prev: ActionState, formData: FormData): Pr
   try { await db.$transaction(async tx => {
     const entry = await tx.journalEntry.findFirst({ where: { id, companyId }, include: { lines: true } })
     if (!entry || entry.status !== "POSTED" || entry.isReversal) throw new Error("Only a posted original voucher can be reversed")
-    const reversal = await tx.journalEntry.create({ data: { companyId, voucherType: VoucherType.JOURNAL, voucherNumber: `REV-${entry.voucherNumber}`, entryDate: new Date(), description: reason, totalAmount: entry.totalAmount, reference: entry.voucherNumber, sourceType: "VOUCHER_REVERSAL", sourceId: entry.id, postingKey: `${companyId}:VOUCHER_REVERSAL:${entry.id}`, isReversal: true, reversesEntryId: entry.id, status: "POSTED", lines: { create: entry.lines.map(line => ({ debitAccountId: line.creditAccountId, creditAccountId: line.debitAccountId, amount: line.amount, description: reason })) } } })
+    const reversalDate = new Date()
+    const reversalNumber = await allocateDocumentNumber(tx, companyId, "JOURNAL_ENTRY", reversalDate)
+    const reversal = await tx.journalEntry.create({ data: { companyId, voucherType: VoucherType.JOURNAL, voucherNumber: reversalNumber, entryDate: reversalDate, description: reason, totalAmount: entry.totalAmount, reference: entry.voucherNumber, sourceType: "VOUCHER_REVERSAL", sourceId: entry.id, postingKey: `${companyId}:VOUCHER_REVERSAL:${entry.id}`, isReversal: true, reversesEntryId: entry.id, status: "POSTED", lines: { create: entry.lines.map(line => ({ debitAccountId: line.creditAccountId, creditAccountId: line.debitAccountId, amount: line.amount, description: reason })) } } })
     await tx.journalEntry.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
     await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "JournalEntry", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
   }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse voucher" } }

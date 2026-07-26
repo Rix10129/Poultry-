@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { allocateDocumentNumber } from "@/lib/document-number"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -104,9 +105,8 @@ export async function createPurchaseReturn(
 
   try {
     await db.$transaction(async (tx) => {
-      const count = await tx.purchaseReturn.count({ where: { companyId } })
-      const year = new Date().getFullYear()
-      const returnNumber = `PR-${year}-${String(count + 1).padStart(5, "0")}`
+      const returnDateValue = new Date(returnDate)
+      const returnNumber = await allocateDocumentNumber(tx, companyId, "PURCHASE_RETURN", returnDateValue)
 
       const totalAmount = lines.reduce((s, l) => s + l.quantity * l.purchasePrice, 0)
 
@@ -117,7 +117,7 @@ export async function createPurchaseReturn(
           supplierId,
           purchaseOrderId: purchaseOrderId || null,
           returnNumber,
-          returnDate: new Date(returnDate),
+          returnDate: returnDateValue,
           totalAmount,
           notes,
         },
@@ -231,10 +231,8 @@ export async function createPurchase(
 
   try {
     await db.$transaction(async (tx) => {
-      // Generate sequential PO number
-      const count = await tx.purchaseOrder.count({ where: { companyId } })
-      const year = new Date().getFullYear()
-      const poNumber = `PO-${year}-${String(count + 1).padStart(5, "0")}`
+      const orderDateValue = new Date(orderDate)
+      const poNumber = await allocateDocumentNumber(tx, companyId, "PURCHASE_ORDER", orderDateValue)
 
       // Compute totals
       let totalAmount = 0
@@ -254,7 +252,7 @@ export async function createPurchase(
           supplierId,
           userId,
           poNumber,
-          orderDate: new Date(orderDate),
+          orderDate: orderDateValue,
           totalAmount,
           discountAmount,
           taxAmount,

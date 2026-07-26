@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { allocateDocumentNumber } from "@/lib/document-number"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -49,9 +50,8 @@ export async function createQuotation(
 
   try {
     await db.$transaction(async (tx) => {
-      const count = await tx.quotation.count({ where: { companyId } })
-      const year = new Date().getFullYear()
-      const quoteNumber = `QT-${year}-${String(count + 1).padStart(5, "0")}`
+      const quoteDateValue = new Date(quoteDate)
+      const quoteNumber = await allocateDocumentNumber(tx, companyId, "QUOTATION", quoteDateValue)
 
       let totalAmount = 0
       let taxAmount = 0
@@ -68,7 +68,7 @@ export async function createQuotation(
           userId,
           customerId: customerId || null,
           quoteNumber,
-          quoteDate: new Date(quoteDate),
+          quoteDate: quoteDateValue,
           validUntil: validUntil ? new Date(validUntil) : null,
           totalAmount,
           discountAmount,
