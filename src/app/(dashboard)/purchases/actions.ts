@@ -8,6 +8,7 @@ import { redirect } from "next/navigation"
 import { MovementType } from "@prisma/client"
 import { postPurchase, postPurchaseReturn, reversePosting } from "@/lib/accounting/posting-service"
 import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
+import { authorize, forbiddenAction } from "@/lib/authorization"
 
 type ActionState = { error: string } | null
 
@@ -15,10 +16,10 @@ export async function deletePurchase(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("PURCHASE_CANCEL")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  const companyId = user.companyId
   const id = (formData.get("id") as string)?.trim()
 
   try {
@@ -42,9 +43,10 @@ export async function deletePurchase(
 }
 
 export async function reversePurchase(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions); const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string; const id = String(formData.get("id") || "").trim()
+  const authorization = await authorize("PURCHASE_CANCEL")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  const companyId = user.companyId; const id = String(formData.get("id") || "").trim()
   let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
   try { await db.$transaction(async tx => {
     const po = await tx.purchaseOrder.findFirst({ where: { id, companyId }, include: { items: { include: { batch: true } }, payments: true, returns: true } })
@@ -187,12 +189,11 @@ export async function createPurchase(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-
-  const companyId = user.companyId as string
-  const userId = user.id as string
+  const authorization = await authorize("PURCHASE_CREATE")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  const companyId = user.companyId
+  const userId = user.id
 
   const supplierId = (formData.get("supplierId") as string)?.trim()
   if (!supplierId) return { error: "Supplier is required" }

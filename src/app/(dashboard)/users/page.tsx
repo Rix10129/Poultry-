@@ -14,12 +14,16 @@ export const metadata = { title: "Users" }
 const ROLE_VARIANTS: Record<string, "success" | "info" | "default" | "warning"> = {
   OWNER: "success",
   ADMIN: "info",
+  ACCOUNTANT: "info",
+  STOREKEEPER: "default",
   CASHIER: "default",
   SALESMAN: "warning",
 }
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Owner",
   ADMIN: "Admin",
+  ACCOUNTANT: "Accountant",
+  STOREKEEPER: "Storekeeper",
   CASHIER: "Cashier",
   SALESMAN: "Salesman",
 }

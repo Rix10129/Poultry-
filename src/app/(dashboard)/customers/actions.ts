@@ -9,6 +9,7 @@ import { CustomerType, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
 import { postCustomerReceipt, reversePosting } from "@/lib/accounting/posting-service"
 import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
+import { authorize, forbiddenAction, hasPermission } from "@/lib/authorization"
 
 type ActionState = { error: string } | null
 
@@ -77,7 +78,7 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
   const area = (formData.get("area") as string)?.trim() || null
   const creditLimit = Math.max(0, parseFloat(formData.get("creditLimit") as string) || 0)
   const openingBalanceRaw = formData.get("openingBalance")
-  const canAdjustOpeningBalance = user.role === "OWNER" || user.role === "ADMIN"
+  const canAdjustOpeningBalance = hasPermission(user.role, "OPENING_BALANCE_CORRECT")
   if (openingBalanceRaw !== null && !canAdjustOpeningBalance)
     return { error: "Only owners and admins can change opening balances" }
 
@@ -181,10 +182,10 @@ export async function deleteCustomer(
 }
 
 export async function recordPayment(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("PAYMENT_RECORD")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  const companyId = user.companyId
 
   const customerId = (formData.get("customerId") as string)?.trim()
   const invoiceId = (formData.get("invoiceId") as string)?.trim() || null
@@ -244,8 +245,9 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
 }
 
 export async function reverseCustomerPayment(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions); const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
+  const authorization = await authorize("PAYMENT_CORRECT")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
   const companyId = user.companyId as string; const id = String(formData.get("paymentId") || "")
   let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
   let customerId = ""; let invoiceId: string | null = null

@@ -18,19 +18,23 @@ interface Props {
 }
 
 const ROLE_HIERARCHY: Record<string, UserRole[]> = {
-  OWNER: ["OWNER", "ADMIN", "CASHIER", "SALESMAN"],
-  ADMIN: ["CASHIER", "SALESMAN"],
+  OWNER: ["OWNER", "ADMIN", "ACCOUNTANT", "STOREKEEPER", "CASHIER", "SALESMAN"],
+  ADMIN: ["ACCOUNTANT", "STOREKEEPER", "CASHIER", "SALESMAN"],
 }
 
 const ROLE_VARIANTS: Record<string, "success" | "info" | "default" | "warning"> = {
   OWNER: "success",
   ADMIN: "info",
+  ACCOUNTANT: "info",
+  STOREKEEPER: "default",
   CASHIER: "default",
   SALESMAN: "warning",
 }
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Owner",
   ADMIN: "Admin",
+  ACCOUNTANT: "Accountant",
+  STOREKEEPER: "Storekeeper",
   CASHIER: "Cashier",
   SALESMAN: "Salesman",
 }

@@ -8,6 +8,7 @@ import { redirect } from "next/navigation"
 import { AccountType, VoucherType } from "@prisma/client"
 import { assertBalanced } from "@/lib/accounting/posting-service"
 import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
+import { authorize, forbiddenAction } from "@/lib/authorization"
 
 type ActionState = { error: string } | null
 
@@ -32,10 +33,9 @@ type LineInput = {
 // ── Accounts ──────────────────────────────────────────────────────────────────
 
 export async function createAccount(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("ACCOUNTING_MANAGE")
+  if (!authorization.ok) return forbiddenAction
+  const { companyId } = authorization.actor
 
   const code = (formData.get("code") as string)?.trim()
   const name = (formData.get("name") as string)?.trim()
@@ -62,10 +62,9 @@ export async function createAccount(_: ActionState, formData: FormData): Promise
 }
 
 export async function updateAccount(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("ACCOUNTING_MANAGE")
+  if (!authorization.ok) return forbiddenAction
+  const { companyId } = authorization.actor
 
   const id = (formData.get("id") as string)?.trim()
   const code = (formData.get("code") as string)?.trim()
@@ -117,10 +116,9 @@ export async function createVoucher(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("JOURNAL_POST")
+  if (!authorization.ok) return forbiddenAction
+  const { companyId } = authorization.actor
 
   const voucherTypeRaw = (formData.get("voucherType") as string) || "JOURNAL"
   if (!VALID_VOUCHER_TYPES.includes(voucherTypeRaw as any))
@@ -204,9 +202,10 @@ export async function createVoucher(
 }
 
 export async function reverseVoucher(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions); const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string; const id = String(formData.get("id") || "")
+  const authorization = await authorize("JOURNAL_POST")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  const companyId = user.companyId; const id = String(formData.get("id") || "")
   let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }
   try { await db.$transaction(async tx => {
     const entry = await tx.journalEntry.findFirst({ where: { id, companyId }, include: { lines: true } })

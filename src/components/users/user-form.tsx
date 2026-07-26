@@ -4,11 +4,13 @@ import { useActionState } from "react"
 import { createUser, updateUser } from "@/app/(dashboard)/users/actions"
 import { Button } from "@/components/ui/button"
 
-type UserRole = "OWNER" | "ADMIN" | "CASHIER" | "SALESMAN"
+type UserRole = "OWNER" | "ADMIN" | "ACCOUNTANT" | "STOREKEEPER" | "CASHIER" | "SALESMAN"
 
 const ROLE_LABELS: Record<UserRole, string> = {
   OWNER: "Owner",
   ADMIN: "Admin",
+  ACCOUNTANT: "Accountant",
+  STOREKEEPER: "Storekeeper",
   CASHIER: "Cashier",
   SALESMAN: "Salesman",
 }
