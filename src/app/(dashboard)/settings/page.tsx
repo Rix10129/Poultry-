@@ -118,8 +118,8 @@ export default async function SettingsPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-1">Restore from Backup</h2>
             <p className="text-sm text-slate-500 mb-4">
               Upload a previously exported JSON backup file to restore your customers, suppliers,
-              products, and current stock. Records that already exist will be skipped automatically
-              — it is safe to run this on an active account.
+              products, and current stock. Every row is validated and previewed before one atomic
+              transaction. Duplicate files and supplier/batch combinations require explicit approval.
             </p>
             <ImportBackupForm />
           </div>

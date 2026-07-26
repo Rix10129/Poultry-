@@ -122,6 +122,16 @@ enum DocumentStatus {
   REVERSED
 }
 
+enum ImportStatus {
+  COMMITTED
+  ROLLED_BACK
+}
+
+enum ImportRowStatus {
+  CREATED
+  REUSED
+}
+
 // ─── Tenant Root ─────────────────────────────────────────────────────────────
 
 model Company {
@@ -163,6 +173,8 @@ model Company {
   quotations               Quotation[]
   supplierPaymentSchedules SupplierPaymentSchedule[]
   documentSequences        DocumentSequence[]
+  inventoryImports         InventoryImport[]
+  inventoryOpeningStocks   InventoryOpeningStock[]
 }
 
 // Transactional counters for human-readable business document numbers.
@@ -209,6 +221,7 @@ model User {
   routes       Route[]
   routeVisits  RouteVisit[]
   quotations   Quotation[]
+  inventoryImports InventoryImport[]
 
   @@unique([email, companyId])
   @@index([companyId])
@@ -367,6 +380,68 @@ model StockMovement {
   @@index([productId, createdAt])
   @@index([companyId, createdAt])
   @@index([companyId, sourceType, sourceId])
+}
+
+// Immutable import evidence. Rollback changes status and appends compensating
+// movements; it never removes these records or their opening-stock valuation.
+model InventoryImport {
+  id             String       @id
+  companyId      String
+  userId         String
+  sourceFilename String
+  checksum       String
+  status         ImportStatus @default(COMMITTED)
+  importedAt     DateTime     @default(now())
+  rolledBackAt   DateTime?
+  rolledBackBy   String?
+  rollbackReason String?
+
+  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  rows         InventoryImportRow[]
+  openingStocks InventoryOpeningStock[]
+
+  @@index([companyId, importedAt])
+  @@index([companyId, checksum])
+}
+
+model InventoryImportRow {
+  id           String          @id @default(cuid())
+  importId     String
+  rowNumber    Int
+  status       ImportRowStatus
+  supplierName String
+  productName  String
+  batchNumber  String
+  quantity     Int
+  purchasePrice Decimal        @db.Decimal(12, 2)
+  salePrice     Decimal        @db.Decimal(12, 2)
+  result       Json
+
+  inventoryImport InventoryImport @relation(fields: [importId], references: [id], onDelete: Restrict)
+
+  @@unique([importId, rowNumber])
+}
+
+model InventoryOpeningStock {
+  id             String         @id @default(cuid())
+  companyId      String
+  importId       String
+  productId      String
+  batchId        String
+  quantity       Int
+  unitCost       Decimal        @db.Decimal(12, 2)
+  totalValue     Decimal        @db.Decimal(14, 2)
+  status         DocumentStatus @default(POSTED)
+  reversedAt     DateTime?
+  reversedBy     String?
+  reversalReason String?
+  createdAt      DateTime       @default(now())
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  inventoryImport InventoryImport @relation(fields: [importId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, importId])
 }
 
 // ─── Purchases ───────────────────────────────────────────────────────────────
