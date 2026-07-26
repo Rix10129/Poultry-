@@ -535,7 +535,11 @@ model SupplierPayment {
   paymentDate     DateTime    @default(now())
   reference       String?
   notes           String?
+  isVoided        Boolean     @default(false)
+  voidedAt        DateTime?
+  voidedBy        String?
   createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   supplier      Supplier       @relation(fields: [supplierId], references: [id])

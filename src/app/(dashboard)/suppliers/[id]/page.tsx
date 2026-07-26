@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { DeleteButton } from "@/components/ui/delete-button"
 import { deleteSupplier } from "@/app/(dashboard)/suppliers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { calculatePurchaseBalance, calculateSupplierBalance } from "@/lib/supplier-ledger"
+import { SupplierPaymentControls, SupplierPaymentForm } from "@/components/suppliers/payment-form"
 
 export const dynamic = "force-dynamic"
 
@@ -28,6 +30,8 @@ export default async function SupplierDetailPage({ params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
+  const role = (session.user as any).role as string
+  const canManagePayments = role === "OWNER" || role === "ADMIN"
 
   const supplier = await db.supplier.findFirst({
     where: { id, companyId },
@@ -41,22 +45,20 @@ export default async function SupplierDetailPage({ params }: Props) {
           orderDate: true,
           netAmount: true,
           paidAmount: true,
+          payments: { select: { amount: true, isVoided: true } },
         },
       },
+      payments: { orderBy: { paymentDate: "desc" } },
+      purchaseReturns: { select: { totalAmount: true } },
     },
   })
 
   if (!supplier) notFound()
 
-  const totalNet = supplier.purchases.reduce(
-    (s, p) => s + parseFloat(p.netAmount.toString()),
-    0
-  )
-  const totalPaid = supplier.purchases.reduce(
-    (s, p) => s + parseFloat(p.paidAmount.toString()),
-    0
-  )
-  const outstanding = parseFloat(supplier.openingBalance.toString()) + totalNet - totalPaid
+  const balance = calculateSupplierBalance({ openingBalance: supplier.openingBalance,
+    purchases: supplier.purchases, payments: supplier.payments, returns: supplier.purchaseReturns })
+  const purchaseOptions = supplier.purchases.map(po => ({ id: po.id, poNumber: po.poNumber,
+    balance: calculatePurchaseBalance(po, po.payments) })).filter(po => po.balance > 0.001)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -95,6 +97,8 @@ export default async function SupplierDetailPage({ params }: Props) {
         </div>
       </div>
 
+      <SupplierPaymentForm supplierId={supplier.id} purchases={purchaseOptions} />
+
       {/* Info + balance cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
@@ -120,16 +124,24 @@ export default async function SupplierDetailPage({ params }: Props) {
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Total Purchases</span>
-              <span>{formatCurrency(totalNet)}</span>
+              <span>{formatCurrency(balance.purchased)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Total Paid</span>
-              <span>{formatCurrency(totalPaid)}</span>
+              <span>Purchase-time Paid</span>
+              <span>{formatCurrency(balance.purchaseTimePaid)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Later Payments</span>
+              <span>{formatCurrency(balance.laterPaid)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Returns</span>
+              <span>{formatCurrency(balance.returned)}</span>
             </div>
             <div className="border-t border-slate-200 pt-2 flex justify-between font-semibold">
               <span className="text-slate-900">Outstanding</span>
-              <span className={outstanding > 0.001 ? "text-red-600" : "text-green-600"}>
-                {outstanding > 0.001 ? formatCurrency(outstanding) : "—"}
+              <span className={balance.closingBalance > 0.001 ? "text-red-600" : "text-green-600"}>
+                {balance.closingBalance > 0.001 ? formatCurrency(balance.closingBalance) : "—"}
               </span>
             </div>
           </div>
@@ -160,8 +172,8 @@ export default async function SupplierDetailPage({ params }: Props) {
             <tbody className="divide-y divide-slate-100">
               {supplier.purchases.map((po) => {
                 const net = parseFloat(po.netAmount.toString())
-                const paid = parseFloat(po.paidAmount.toString())
-                const bal = net - paid
+                const paid = parseFloat(po.paidAmount.toString()) + po.payments.filter(p => !p.isVoided).reduce((sum, p) => sum + Number(p.amount), 0)
+                const bal = calculatePurchaseBalance(po, po.payments)
                 const isPaid = bal <= 0.001
                 const isPartial = !isPaid && paid > 0.001
                 return (
@@ -203,6 +215,15 @@ export default async function SupplierDetailPage({ params }: Props) {
             </tbody>
           </table>
         )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b bg-slate-50"><h2 className="text-sm font-semibold">Supplier Payments</h2></div>
+        {supplier.payments.length === 0 ? <p className="p-8 text-center text-sm text-slate-400">No later payments recorded</p> :
+          <div className="divide-y">{supplier.payments.map(payment => <div key={payment.id} className={`p-4 ${payment.isVoided ? "opacity-50 bg-slate-50" : ""}`}>
+            <div className="flex items-start justify-between gap-4"><div><p className="font-semibold">{formatCurrency(Number(payment.amount))} <span className="text-xs font-normal text-slate-500">via {payment.paymentMode}</span></p><p className="text-xs text-slate-500">{formatDate(payment.paymentDate)}{payment.reference ? ` · ${payment.reference}` : ""}{payment.notes ? ` · ${payment.notes}` : ""}</p>{payment.isVoided && <Badge variant="danger">Voided</Badge>}</div>
+              {canManagePayments && !payment.isVoided && <SupplierPaymentControls purchases={purchaseOptions} payment={{ id: payment.id, amount: payment.amount.toString(), paymentMode: payment.paymentMode, paymentDate: payment.paymentDate.toISOString().slice(0, 10), purchaseOrderId: payment.purchaseOrderId, reference: payment.reference, notes: payment.notes }} />}
+            </div></div>)}</div>}
       </div>
     </div>
   )

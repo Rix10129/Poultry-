@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { calculatePurchaseBalance } from "@/lib/supplier-ledger"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Purchase Report" }
@@ -40,6 +41,7 @@ export default async function PurchaseReportPage({
       include: {
         supplier: { select: { name: true } },
         user: { select: { name: true } },
+        payments: { select: { amount: true, isVoided: true } },
       },
     }),
     db.supplier.findMany({
@@ -50,7 +52,7 @@ export default async function PurchaseReportPage({
   ])
 
   const totalNet = orders.reduce((s, o) => s + parseFloat(o.netAmount.toString()), 0)
-  const totalPaid = orders.reduce((s, o) => s + parseFloat(o.paidAmount.toString()), 0)
+  const totalPaid = orders.reduce((s, o) => s + parseFloat(o.netAmount.toString()) - calculatePurchaseBalance(o, o.payments), 0)
   const totalOutstanding = totalNet - totalPaid
 
   // Group by supplier
@@ -60,7 +62,7 @@ export default async function PurchaseReportPage({
     if (!bySupplier[sid]) bySupplier[sid] = { name: order.supplier.name, count: 0, net: 0, paid: 0 }
     bySupplier[sid].count++
     bySupplier[sid].net += parseFloat(order.netAmount.toString())
-    bySupplier[sid].paid += parseFloat(order.paidAmount.toString())
+    bySupplier[sid].paid += parseFloat(order.netAmount.toString()) - calculatePurchaseBalance(order, order.payments)
   }
 
   return (
@@ -191,7 +193,7 @@ export default async function PurchaseReportPage({
             <tbody className="divide-y divide-slate-50">
               {orders.map((order) => {
                 const net = parseFloat(order.netAmount.toString())
-                const paid = parseFloat(order.paidAmount.toString())
+                const paid = net - calculatePurchaseBalance(order, order.payments)
                 return (
                   <tr key={order.id} className="hover:bg-slate-50">
                     <td className="px-5 py-2.5">

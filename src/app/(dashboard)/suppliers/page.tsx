@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Plus, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
+import { calculateSupplierBalance } from "@/lib/supplier-ledger"
 
 export const metadata = { title: "Suppliers" }
 
@@ -28,6 +29,8 @@ export default async function SuppliersPage({
     include: {
       _count: { select: { purchases: true } },
       purchases: { select: { netAmount: true, paidAmount: true } },
+      payments: { select: { amount: true, isVoided: true } },
+      purchaseReturns: { select: { totalAmount: true } },
     },
     orderBy: { name: "asc" },
   })
@@ -87,16 +90,8 @@ export default async function SuppliersPage({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {suppliers.map((s) => {
-                const totalNet = s.purchases.reduce(
-                  (sum, p) => sum + parseFloat(p.netAmount.toString()),
-                  0
-                )
-                const totalPaid = s.purchases.reduce(
-                  (sum, p) => sum + parseFloat(p.paidAmount.toString()),
-                  0
-                )
-                const outstanding =
-                  parseFloat(s.openingBalance.toString()) + totalNet - totalPaid
+                const outstanding = calculateSupplierBalance({ openingBalance: s.openingBalance,
+                  purchases: s.purchases, payments: s.payments, returns: s.purchaseReturns }).closingBalance
 
                 return (
                   <tr key={s.id} className="hover:bg-slate-50 transition-colors">
