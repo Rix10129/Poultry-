@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { writeAuditLog } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -51,19 +52,66 @@ export async function updateSupplier(_: ActionState, formData: FormData): Promis
   const email = (formData.get("email") as string)?.trim() || null
   const address = (formData.get("address") as string)?.trim() || null
   const taxNumber = (formData.get("taxNumber") as string)?.trim() || null
+  const openingBalanceRaw = formData.get("openingBalance")
+  const canAdjustOpeningBalance = user.role === "OWNER" || user.role === "ADMIN"
+  if (openingBalanceRaw !== null && !canAdjustOpeningBalance)
+    return { error: "Only owners and admins can change opening balances" }
 
+  const openingBalance = openingBalanceRaw === null ? null : Number(openingBalanceRaw)
+  if (openingBalance !== null && (!Number.isFinite(openingBalance) || openingBalance < 0))
+    return { error: "Opening balance must be a valid non-negative number" }
+
+  let oldOpeningBalance = ""
   try {
-    const count = await db.supplier.updateMany({
-      where: { id, companyId },
-      data: { name, phone, email, address, taxNumber },
+    oldOpeningBalance = await db.$transaction(async (tx) => {
+      const existing = await tx.supplier.findFirst({
+        where: { id, companyId },
+        select: { openingBalance: true },
+      })
+      if (!existing) throw new Error("SUPPLIER_NOT_FOUND")
+
+      await tx.supplier.update({
+        where: { id: id! },
+        data: {
+          name,
+          phone,
+          email,
+          address,
+          taxNumber,
+          ...(openingBalance !== null ? { openingBalance } : {}),
+        },
+      })
+      return existing.openingBalance.toString()
     })
-    if (!count.count) return { error: "Supplier not found" }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "SUPPLIER_NOT_FOUND")
+      return { error: "Supplier not found" }
     return { error: "Failed to update supplier" }
+  }
+
+  const openingBalanceChanged =
+    openingBalance !== null && Number(oldOpeningBalance) !== openingBalance
+  if (openingBalanceChanged) {
+    await writeAuditLog({
+      companyId,
+      userId: user.id,
+      action: "UPDATE_OPENING_BALANCE",
+      entity: "Supplier",
+      entityId: id,
+      oldValues: { openingBalance: oldOpeningBalance },
+      newValues: { openingBalance },
+    })
   }
 
   revalidatePath("/suppliers")
   revalidatePath(`/suppliers/${id}`)
+  if (openingBalanceChanged) {
+    revalidatePath(`/suppliers/${id}/statement`)
+    revalidatePath("/")
+    revalidatePath("/reports/recovery")
+    revalidatePath("/reports/balance-sheet")
+    revalidatePath("/reports", "layout")
+  }
   redirect(`/suppliers/${id}`)
 }
 

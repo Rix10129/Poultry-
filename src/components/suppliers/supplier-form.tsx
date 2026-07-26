@@ -19,9 +19,10 @@ export type SupplierData = {
 
 interface Props {
   supplier?: SupplierData
+  canAdjustOpeningBalance?: boolean
 }
 
-export function SupplierForm({ supplier }: Props) {
+export function SupplierForm({ supplier, canAdjustOpeningBalance = false }: Props) {
   const action = supplier ? updateSupplier : createSupplier
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -84,7 +85,7 @@ export function SupplierForm({ supplier }: Props) {
             placeholder="Optional"
           />
         </div>
-        {!supplier && (
+        {(!supplier || canAdjustOpeningBalance) && (
           <div className="space-y-1.5">
             <Label htmlFor="openingBalance">Opening Balance (owed to them)</Label>
             <Input
@@ -93,9 +94,14 @@ export function SupplierForm({ supplier }: Props) {
               type="number"
               min="0"
               step="0.01"
-              defaultValue="0"
+              defaultValue={supplier?.openingBalance ?? "0"}
               placeholder="0.00"
             />
+            {supplier && (
+              <p className="text-xs text-slate-500">
+                Changing this affects the supplier&apos;s historical balances and all related reports.
+              </p>
+            )}
           </div>
         )}
       </div>

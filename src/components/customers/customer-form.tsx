@@ -22,6 +22,7 @@ export type CustomerData = {
 
 interface Props {
   customer?: CustomerData
+  canAdjustOpeningBalance?: boolean
 }
 
 const TYPE_OPTIONS = [
@@ -31,7 +32,7 @@ const TYPE_OPTIONS = [
   { value: "SUB_DEALER", label: "Sub-Dealer" },
 ]
 
-export function CustomerForm({ customer }: Props) {
+export function CustomerForm({ customer, canAdjustOpeningBalance = false }: Props) {
   const action = customer ? updateCustomer : createCustomer
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -114,23 +115,25 @@ export function CustomerForm({ customer }: Props) {
             placeholder="0.00"
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="openingBalance">Opening Balance (they owe us)</Label>
-          <Input
-            id="openingBalance"
-            name="openingBalance"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={customer?.openingBalance ?? "0"}
-            placeholder="0.00"
-          />
-          {customer && (
-            <p className="text-xs text-slate-500">
-              Updating this changes the customer&apos;s outstanding balance.
-            </p>
-          )}
-        </div>
+        {(!customer || canAdjustOpeningBalance) && (
+          <div className="space-y-1.5">
+            <Label htmlFor="openingBalance">Opening Balance (they owe us)</Label>
+            <Input
+              id="openingBalance"
+              name="openingBalance"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={customer?.openingBalance ?? "0"}
+              placeholder="0.00"
+            />
+            {customer && (
+              <p className="text-xs text-slate-500">
+                Changing this affects the customer&apos;s historical balances and all related reports.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3 pt-2">
