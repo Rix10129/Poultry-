@@ -1,47 +1,35 @@
-import { createHash } from "node:crypto"
-import { db } from "@/lib/db"
+import { NextResponse } from "next/server"
 import { authorize, forbiddenResponse } from "@/lib/authorization"
-import { commitInventoryImport, ImportProblem, previewInventoryImport, rollbackInventoryImport } from "@/lib/inventory-import"
-import { NextRequest, NextResponse } from "next/server"
+import { decryptBackup, issueRestoreApproval, validateRestoredBackup, verifyRestoreApproval } from "@/lib/company-backup"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-function errorResponse(error: unknown) {
-  if (error instanceof ImportProblem) return NextResponse.json({ error: error.message }, { status: error.status })
-  if (typeof error === "object" && error && "code" in error && error.code === "P2034") {
-    return NextResponse.json({ error: "The import conflicted with another import; preview and try again." }, { status: 409 })
+/**
+ * Two-phase restore gate. `stage` decrypts and validates the backup as an isolated empty-company
+ * candidate and returns a short-lived, checksum-bound approval. Production restore is deliberately
+ * refused unless that exact artifact passed staging. Database application is handled by the
+ * operator recovery runbook, which preserves a rollback snapshot and maintenance window.
+ */
+export async function POST(request: Request) {
+  const authorization = await authorize("BACKUP_RESTORE")
+  if (!authorization.ok) return forbiddenResponse()
+  const actor = authorization.actor
+  if (actor.role !== "OWNER") return forbiddenResponse()
+  const form = await request.formData(), file = form.get("file"), passphrase = String(form.get("passphrase") ?? process.env.BACKUP_ENCRYPTION_KEY ?? "")
+  if (!(file instanceof File) || !passphrase) return NextResponse.json({ error: "Encrypted backup file and passphrase are required." }, { status: 400 })
+  try {
+    const backup = decryptBackup(JSON.parse(await file.text()), passphrase)
+    const validation = validateRestoredBackup(backup)
+    if (!validation.ok) return NextResponse.json({ error: "Test-company restoration validation failed.", validation }, { status: 422 })
+    const signingKey = process.env.RESTORE_APPROVAL_SECRET ?? process.env.NEXTAUTH_SECRET
+    if (!signingKey) return NextResponse.json({ error: "RESTORE_APPROVAL_SECRET is not configured." }, { status: 503 })
+    const action = String(form.get("action") ?? "stage")
+    if (action === "stage") return NextResponse.json({ ok: true, phase: "test-company", validation, approvalToken: issueRestoreApproval(backup.manifest.checksum.value, actor.companyId, signingKey), expiresInSeconds: 900 })
+    const approval = String(form.get("approvalToken") ?? "")
+    if (!verifyRestoreApproval(approval, backup.manifest.checksum.value, actor.companyId, signingKey)) return NextResponse.json({ error: "Stage this exact backup before production recovery." }, { status: 409 })
+    return NextResponse.json({ ok: true, phase: "production-approved", validation, message: "Artifact approved. Follow docs/BACKUP-RECOVERY.md to apply it during the recovery window." })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Backup could not be read." }, { status: 400 })
   }
-  console.error("Inventory import failed", error)
-  return NextResponse.json({ error: "Import failed without changing any data." }, { status: 500 })
-}
-
-export async function POST(req: NextRequest) {
-  const authorization = await authorize("BACKUP_RESTORE")
-  if (!authorization.ok) return forbiddenResponse()
-  try {
-    const body = await req.json()
-    if (typeof body.sourceText !== "string" || body.sourceText.length > 25_000_000) throw new ImportProblem("A valid backup file of at most 25 MB is required", 400)
-    let payload: unknown
-    try { payload = JSON.parse(body.sourceText) } catch { throw new ImportProblem("The selected file is not valid JSON", 400) }
-    const checksum = createHash("sha256").update(body.sourceText).digest("hex")
-    const filename = typeof body.filename === "string" ? body.filename.slice(0, 255) : ""
-    const preview = await previewInventoryImport(db, authorization.actor, filename, checksum, payload)
-    if (body.mode === "preview") return NextResponse.json({ preview })
-    if (body.mode !== "commit") throw new ImportProblem("Import mode must be preview or commit", 400)
-    const result = await commitInventoryImport(db, authorization.actor, preview, body.confirmDuplicates === true)
-    return NextResponse.json({ ok: true, ...result, message: `Import ${result.importId} committed ${result.rows} opening-stock rows.` })
-  } catch (error) { return errorResponse(error) }
-}
-
-/** Controlled reversal: records compensating movements and preserves import evidence. */
-export async function DELETE(req: NextRequest) {
-  const authorization = await authorize("BACKUP_RESTORE")
-  if (!authorization.ok) return forbiddenResponse()
-  try {
-    const body = await req.json()
-    if (typeof body.importId !== "string") throw new ImportProblem("Import ID is required", 400)
-    const result = await rollbackInventoryImport(db, authorization.actor, body.importId, typeof body.reason === "string" ? body.reason : "")
-    return NextResponse.json({ ok: true, ...result, message: `Import ${result.importId} was reversed with ${result.reversedRows} compensating stock movements.` })
-  } catch (error) { return errorResponse(error) }
 }
