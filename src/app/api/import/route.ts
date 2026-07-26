@@ -1,7 +1,6 @@
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { NextRequest, NextResponse } from "next/server"
+import { authorize, forbiddenResponse } from "@/lib/authorization"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -12,10 +11,9 @@ export const maxDuration = 60
 // Transactional history (invoices, purchases) is not restored because the export
 // snapshot omits IDs needed for full remapping.
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const actor = session?.user as any
-  if (!actor?.companyId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  if (actor.role !== "OWNER") return NextResponse.json({ error: "Owner access required" }, { status: 403 })
+  const authorization = await authorize("BACKUP_RESTORE")
+  if (!authorization.ok) return forbiddenResponse()
+  const actor = authorization.actor
 
   const companyId = actor.companyId as string
 

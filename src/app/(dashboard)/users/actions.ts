@@ -13,8 +13,8 @@ type ActionState = { error: string } | null
 type PasswordState = { error: string } | { ok: true } | null
 
 const ROLE_HIERARCHY: Record<string, UserRole[]> = {
-  OWNER: ["OWNER", "ADMIN", "CASHIER", "SALESMAN"],
-  ADMIN: ["CASHIER", "SALESMAN"],
+  OWNER: ["OWNER", "ADMIN", "ACCOUNTANT", "STOREKEEPER", "CASHIER", "SALESMAN"],
+  ADMIN: ["ACCOUNTANT", "STOREKEEPER", "CASHIER", "SALESMAN"],
 }
 
 function canManage(actorRole: string, targetRole: string): boolean {

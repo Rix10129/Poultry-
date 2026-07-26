@@ -9,8 +9,8 @@ import { UserRole } from "@prisma/client"
 export const metadata = { title: "New User" }
 
 const ROLE_HIERARCHY: Record<string, UserRole[]> = {
-  OWNER: ["OWNER", "ADMIN", "CASHIER", "SALESMAN"],
-  ADMIN: ["CASHIER", "SALESMAN"],
+  OWNER: ["OWNER", "ADMIN", "ACCOUNTANT", "STOREKEEPER", "CASHIER", "SALESMAN"],
+  ADMIN: ["ACCOUNTANT", "STOREKEEPER", "CASHIER", "SALESMAN"],
 }
 
 export default async function NewUserPage() {

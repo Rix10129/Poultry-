@@ -1,8 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { authorize, forbiddenAction } from "@/lib/authorization"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType } from "@prisma/client"
@@ -13,10 +12,9 @@ export async function createStockAdjustment(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("STOCK_ADJUST")
+  if (!authorization.ok) return forbiddenAction
+  const companyId = authorization.actor.companyId
 
   const batchId = (formData.get("batchId") as string)?.trim()
   const productId = (formData.get("productId") as string)?.trim()

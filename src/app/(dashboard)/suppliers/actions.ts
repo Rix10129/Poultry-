@@ -9,6 +9,7 @@ import { writeAuditLog } from "@/lib/audit"
 import { PaymentMode } from "@prisma/client"
 import { postSupplierPayment, reversePosting } from "@/lib/accounting/posting-service"
 import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
+import { authorize, forbiddenAction, hasPermission } from "@/lib/authorization"
 
 type ActionState = { error: string } | null
 const PAYMENT_MODES = ["CASH", "BANK", "CHEQUE"] as const
@@ -37,10 +38,10 @@ function paymentFields(formData: FormData) {
 }
 
 export async function recordSupplierPayment(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return { error: "Not authenticated" }
-  const companyId = user.companyId as string
+  const authorization = await authorize("PAYMENT_RECORD")
+  if (!authorization.ok) return forbiddenAction
+  const user = authorization.actor
+  const companyId = user.companyId
   const supplierId = String(formData.get("supplierId") || "").trim()
   const fields = paymentFields(formData)
   if (!supplierId) return { error: "Supplier is required" }
@@ -161,7 +162,7 @@ export async function updateSupplier(_: ActionState, formData: FormData): Promis
   const address = (formData.get("address") as string)?.trim() || null
   const taxNumber = (formData.get("taxNumber") as string)?.trim() || null
   const openingBalanceRaw = formData.get("openingBalance")
-  const canAdjustOpeningBalance = user.role === "OWNER" || user.role === "ADMIN"
+  const canAdjustOpeningBalance = hasPermission(user.role, "OPENING_BALANCE_CORRECT")
   if (openingBalanceRaw !== null && !canAdjustOpeningBalance)
     return { error: "Only owners and admins can change opening balances" }
 
