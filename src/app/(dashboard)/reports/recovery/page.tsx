@@ -1,3 +1,4 @@
+import { calculateCustomerBalance } from "@/lib/customer-ledger"
 import { db } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -46,8 +47,9 @@ export default async function RecoveryReportPage({
     },
     orderBy: { name: "asc" },
     include: {
-      invoices: { select: { netAmount: true, paidAmount: true } },
+      invoices: { select: { netAmount: true } },
       payments: { select: { amount: true } },
+      saleReturns: { select: { totalAmount: true } },
     },
   })
 
@@ -57,12 +59,11 @@ export default async function RecoveryReportPage({
         (s, i) => s + parseFloat(i.netAmount.toString()),
         0
       )
-      const totalPaid = c.invoices.reduce(
-        (s, i) => s + parseFloat(i.paidAmount.toString()),
-        0
-      )
-      const opening = parseFloat(c.openingBalance.toString())
-      const outstanding = opening + totalInvoiced - totalPaid
+      const balance = calculateCustomerBalance({ openingBalance: c.openingBalance,
+        invoices: c.invoices, payments: c.payments, returns: c.saleReturns })
+      const totalPaid = balance.paid + balance.returned
+      const opening = balance.opening
+      const outstanding = balance.closingBalance
       return { customer: c, opening, totalInvoiced, totalPaid, outstanding }
     })
     .filter((r) => showAll || r.outstanding > 0.001)

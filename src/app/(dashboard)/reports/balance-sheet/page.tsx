@@ -1,3 +1,4 @@
+import { calculateCustomerBalance } from "@/lib/customer-ledger"
 import { db } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -23,7 +24,9 @@ export default async function BalanceSheetPage() {
       where: { companyId },
       select: {
         openingBalance: true,
-        invoices: { select: { netAmount: true, paidAmount: true } },
+        invoices: { select: { netAmount: true } },
+        payments: { select: { amount: true } },
+        saleReturns: { select: { totalAmount: true } },
       },
     }),
     db.supplier.findMany({
@@ -42,11 +45,9 @@ export default async function BalanceSheetPage() {
   )
 
   const accountsReceivable = customers.reduce((total, c) => {
-    const invoiceNet = c.invoices.reduce(
-      (s, inv) => s + parseFloat(inv.netAmount.toString()) - parseFloat(inv.paidAmount.toString()),
-      0
-    )
-    return total + Math.max(0, parseFloat(c.openingBalance.toString()) + invoiceNet)
+    const balance = calculateCustomerBalance({ openingBalance: c.openingBalance,
+      invoices: c.invoices, payments: c.payments, returns: c.saleReturns }).closingBalance
+    return total + Math.max(0, balance)
   }, 0)
 
   const totalCurrentAssets = inventoryValue + accountsReceivable

@@ -11,6 +11,7 @@ import { WhatsAppReminderButton } from "@/components/customers/whatsapp-reminder
 import { DeleteButton } from "@/components/ui/delete-button"
 import { deleteCustomer } from "@/app/(dashboard)/customers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { calculateCustomerBalance, calculateInvoicePaidAmount } from "@/lib/customer-ledger"
 
 export const dynamic = "force-dynamic"
 
@@ -45,7 +46,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const [customer, invoices, payments] = await Promise.all([
+  const [customer, invoices, payments, returns] = await Promise.all([
     db.customer.findFirst({ where: { id, companyId } }),
     db.saleInvoice.findMany({
       where: { customerId: id, companyId },
@@ -55,14 +56,12 @@ export default async function CustomerDetailPage({ params }: Props) {
         invoiceNumber: true,
         invoiceDate: true,
         netAmount: true,
-        paidAmount: true,
         paymentMode: true,
       },
     }),
     db.customerPayment.findMany({
       where: { customerId: id, companyId },
       orderBy: { paymentDate: "desc" },
-      take: 30,
       select: {
         id: true,
         amount: true,
@@ -73,36 +72,42 @@ export default async function CustomerDetailPage({ params }: Props) {
         invoiceId: true,
       },
     }),
+    db.saleReturn.findMany({
+      where: { customerId: id, companyId },
+      select: { id: true, returnNumber: true, returnDate: true, totalAmount: true },
+    }),
   ])
 
   if (!customer) notFound()
 
   const openingBal = parseFloat(customer.openingBalance.toString())
-  const totalNet = invoices.reduce((s, inv) => s + parseFloat(inv.netAmount.toString()), 0)
-  const totalPaid = invoices.reduce((s, inv) => s + parseFloat(inv.paidAmount.toString()), 0)
-  const outstanding = openingBal + totalNet - totalPaid
+  const balance = calculateCustomerBalance({ openingBalance: customer.openingBalance,
+    invoices, payments, returns })
+  const outstanding = balance.closingBalance
+  const totalNet = balance.invoiced
+  const totalPaid = balance.paid + balance.returned
   const creditLimit = parseFloat(customer.creditLimit.toString())
   const overLimit = creditLimit > 0 && outstanding > creditLimit
 
   // Unpaid/partial invoices for the payment dropdown
   const unpaidInvoices = invoices
     .filter((inv) => {
-      const bal =
-        parseFloat(inv.netAmount.toString()) - parseFloat(inv.paidAmount.toString())
+      const bal = parseFloat(inv.netAmount.toString()) -
+        calculateInvoicePaidAmount(payments.filter((payment) => payment.invoiceId === inv.id))
       return bal > 0.001
     })
     .map((inv) => ({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
-      balance:
-        parseFloat(inv.netAmount.toString()) - parseFloat(inv.paidAmount.toString()),
+      balance: parseFloat(inv.netAmount.toString()) -
+        calculateInvoicePaidAmount(payments.filter((payment) => payment.invoiceId === inv.id)),
     }))
 
   // Build ledger: merge invoices + payments, sort by date
   type LedgerRow = {
     key: string
     date: Date
-    type: "invoice" | "payment"
+    type: "invoice" | "payment" | "return"
     description: string
     href?: string
     debit: number
@@ -117,7 +122,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       description: inv.invoiceNumber,
       href: `/sales/${inv.id}`,
       debit: parseFloat(inv.netAmount.toString()),
-      credit: parseFloat(inv.paidAmount.toString()),
+      credit: 0,
     })),
     ...payments.map((p) => ({
       key: `pay-${p.id}`,
@@ -126,6 +131,14 @@ export default async function CustomerDetailPage({ params }: Props) {
       description: `Payment${p.reference ? ` — ${p.reference}` : ""}`,
       debit: 0,
       credit: parseFloat(p.amount.toString()),
+    })),
+    ...returns.map((r) => ({
+      key: `ret-${r.id}`,
+      date: r.returnDate,
+      type: "return" as const,
+      description: `Return ${r.returnNumber}`,
+      debit: 0,
+      credit: parseFloat(r.totalAmount.toString()),
     })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime())
 

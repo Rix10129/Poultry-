@@ -279,6 +279,20 @@ export async function createInvoice(
 
       invoiceId = invoice.id
 
+      // CustomerPayment is the authoritative receipt event; paidAmount is only
+      // a derived cache for invoice-oriented views.
+      if (customerId && paidAmount > 0) {
+        await tx.customerPayment.create({
+          data: {
+            companyId, customerId, invoiceId: invoice.id,
+            amount: Math.min(paidAmount, netAmount + 0.001),
+            paymentMode: paymentModeRaw as PaymentMode,
+            paymentDate: new Date(invoiceDate),
+            notes: "Receipt recorded with invoice",
+          },
+        })
+      }
+
       // Process each line item
       for (const line of lines) {
         // Verify batch belongs to company and the right product

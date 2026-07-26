@@ -1,3 +1,4 @@
+import { calculateCustomerBalance } from "@/lib/customer-ledger"
 import { db } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -59,7 +60,9 @@ export default async function CustomersPage({
     db.customer.findMany({
       where,
       include: {
-        invoices: { select: { netAmount: true, paidAmount: true } },
+        invoices: { select: { netAmount: true } },
+        payments: { select: { amount: true } },
+        saleReturns: { select: { totalAmount: true } },
         _count: { select: { invoices: true } },
       },
       orderBy: { name: "asc" },
@@ -143,16 +146,8 @@ export default async function CustomersPage({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {customers.map((c) => {
-                const totalNet = c.invoices.reduce(
-                  (s, inv) => s + parseFloat(inv.netAmount.toString()),
-                  0
-                )
-                const totalPaid = c.invoices.reduce(
-                  (s, inv) => s + parseFloat(inv.paidAmount.toString()),
-                  0
-                )
-                const outstanding =
-                  parseFloat(c.openingBalance.toString()) + totalNet - totalPaid
+                const outstanding = calculateCustomerBalance({ openingBalance: c.openingBalance,
+                  invoices: c.invoices, payments: c.payments, returns: c.saleReturns }).closingBalance
                 const creditLimit = parseFloat(c.creditLimit.toString())
                 const overLimit = creditLimit > 0 && outstanding > creditLimit
 

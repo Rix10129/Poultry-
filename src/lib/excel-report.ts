@@ -1,3 +1,4 @@
+import { calculateCustomerBalance } from "@/lib/customer-ledger"
 import ExcelJS from "exceljs"
 import { db } from "@/lib/db"
 
@@ -90,8 +91,9 @@ export async function generateReport(
     db.customer.findMany({
       where: { companyId },
       include: {
-        invoices: { select: { netAmount: true, paidAmount: true } },
+        invoices: { select: { netAmount: true } },
         payments: { select: { amount: true } },
+        saleReturns: { select: { totalAmount: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -186,16 +188,17 @@ export async function generateReport(
   let totalOut = 0
   customers.forEach((c, i) => {
     const invoiced = c.invoices.reduce((s, inv) => s + parseFloat(inv.netAmount.toString()), 0)
-    const paidOnInv = c.invoices.reduce((s, inv) => s + parseFloat(inv.paidAmount.toString()), 0)
-    const directPay = c.payments.reduce((s, p) => s + parseFloat(p.amount.toString()), 0)
-    const outstanding = parseFloat(c.openingBalance.toString()) + invoiced - paidOnInv - directPay
+    const balance = calculateCustomerBalance({ openingBalance: c.openingBalance,
+      invoices: c.invoices, payments: c.payments, returns: c.saleReturns })
+    const paid = balance.paid + balance.returned
+    const outstanding = balance.closingBalance
     const creditLimit = parseFloat(c.creditLimit.toString())
     totalOut += Math.max(0, outstanding)
 
     const status = outstanding <= 0 ? "CLEAR" : outstanding > creditLimit ? "OVER LIMIT" : "WITHIN LIMIT"
     const row = s4.addRow([
       i + 1, c.name, c.type.replace("_", " "), c.area ?? "—",
-      invoiced, paidOnInv + directPay, outstanding, creditLimit, status,
+      invoiced, paid, outstanding, creditLimit, status,
     ])
     styleRow(row, i)
     const sc = row.getCell(9)
