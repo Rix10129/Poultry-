@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { ExpenseCategory, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
+import { postExpense, reversePosting } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
 
@@ -35,8 +36,8 @@ export async function createExpense(_prev: ActionState, formData: FormData): Pro
   if (!paymentMode || !VALID_MODES.includes(paymentMode as PaymentMode))
     return { error: "Invalid payment mode" }
 
-  const expense = await db.expense.create({
-    data: {
+  const expense = await db.$transaction(async tx => {
+    const created = await tx.expense.create({ data: {
       companyId,
       userId,
       category: category as ExpenseCategory,
@@ -46,7 +47,9 @@ export async function createExpense(_prev: ActionState, formData: FormData): Pro
       paymentMode: paymentMode as PaymentMode,
       reference: reference?.trim() || null,
       notes: notes?.trim() || null,
-    },
+    } })
+    await postExpense(tx, { companyId, sourceId: created.id, number: created.id, date: created.expenseDate, amount: created.amount, paymentMode: created.paymentMode, description: created.description })
+    return created
   })
 
   redirect(`/expenses/${expense.id}`)
@@ -63,7 +66,10 @@ export async function deleteExpense(_prev: ActionState, formData: FormData): Pro
   const expense = await db.expense.findFirst({ where: { id, companyId } })
   if (!expense) return { error: "Expense not found" }
 
-  await db.expense.delete({ where: { id } })
+  await db.$transaction(async tx => {
+    await reversePosting(tx, companyId, "EXPENSE", id, `Expense voided: ${expense.description}`)
+    // Source rows remain as immutable accounting evidence.
+  })
 
   await writeAuditLog({
     companyId,

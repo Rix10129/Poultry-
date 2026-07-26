@@ -303,8 +303,8 @@ model ProductBatch {
   expiryDate      DateTime
   purchasePrice   Decimal   @db.Decimal(12, 2)
   salePrice       Decimal   @db.Decimal(12, 2)
-  quantity        Int       // current stock in this batch
-  initialQuantity Int       // quantity at time of purchase receipt
+  quantity        Int // current stock in this batch
+  initialQuantity Int // quantity at time of purchase receipt
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -327,8 +327,8 @@ model StockMovement {
   productId String
   batchId   String?
   type      MovementType
-  quantity  Int          // positive = stock in, negative = stock out
-  reference String?      // invoice/PO number
+  quantity  Int // positive = stock in, negative = stock out
+  reference String? // invoice/PO number
   notes     String?
   createdAt DateTime     @default(now())
 
@@ -481,9 +481,9 @@ model SaleReturn {
   notes        String?
   createdAt    DateTime @default(now())
 
-  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer Customer?       @relation(fields: [customerId], references: [id])
-  invoice  SaleInvoice?    @relation(fields: [invoiceId], references: [id])
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer?        @relation(fields: [customerId], references: [id])
+  invoice  SaleInvoice?     @relation(fields: [invoiceId], references: [id])
   items    SaleReturnItem[]
 
   @@unique([returnNumber, companyId])
@@ -498,8 +498,8 @@ model SaleReturnItem {
   salePrice    Decimal @db.Decimal(12, 2)
   totalAmount  Decimal @db.Decimal(12, 2)
 
-  saleReturn SaleReturn   @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
-  product    Product      @relation(fields: [productId], references: [id])
+  saleReturn SaleReturn    @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
+  product    Product       @relation(fields: [productId], references: [id])
   batch      ProductBatch? @relation(fields: [batchId], references: [id])
 }
 
@@ -572,21 +572,29 @@ model Account {
 }
 
 model JournalEntry {
-  id            String      @id @default(cuid())
-  companyId     String
-  voucherType   VoucherType
-  voucherNumber String
-  entryDate     DateTime    @default(now())
-  description   String
-  totalAmount   Decimal     @db.Decimal(12, 2)
-  reference     String?
-  createdAt     DateTime    @default(now())
+  id              String      @id @default(cuid())
+  companyId       String
+  voucherType     VoucherType
+  voucherNumber   String
+  entryDate       DateTime    @default(now())
+  description     String
+  totalAmount     Decimal     @db.Decimal(12, 2)
+  reference       String?
+  sourceType      String?
+  sourceId        String?
+  postingKey      String?     @unique
+  isReversal      Boolean     @default(false)
+  reversesEntryId String?     @unique
+  createdAt       DateTime    @default(now())
 
-  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lines   JournalLine[]
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines    JournalLine[]
+  reverses JournalEntry? @relation("JournalReversal", fields: [reversesEntryId], references: [id])
+  reversal JournalEntry? @relation("JournalReversal")
 
   @@unique([voucherNumber, companyId])
   @@index([companyId, entryDate])
+  @@index([companyId, sourceType, sourceId])
 }
 
 model JournalLine {

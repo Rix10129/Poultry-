@@ -342,3 +342,12 @@ WHERE i."customerId" IS NOT NULL AND i."paidAmount" > COALESCE(p.paid, 0);
 UPDATE "SaleInvoice" i SET "paidAmount" = COALESCE(p.paid, 0)
 FROM (SELECT i2."id", SUM(cp."amount") paid FROM "SaleInvoice" i2 LEFT JOIN "CustomerPayment" cp ON cp."invoiceId" = i2."id" GROUP BY i2."id") p
 WHERE p."id" = i."id";
+-- Idempotent, traceable accounting source references and immutable reversals.
+ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceType" TEXT;
+ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceId" TEXT;
+ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postingKey" TEXT;
+ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "isReversal" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "reversesEntryId" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "JournalEntry_postingKey_key" ON "JournalEntry"("postingKey");
+CREATE UNIQUE INDEX IF NOT EXISTS "JournalEntry_reversesEntryId_key" ON "JournalEntry"("reversesEntryId");
+CREATE INDEX IF NOT EXISTS "JournalEntry_companyId_sourceType_sourceId_idx" ON "JournalEntry"("companyId", "sourceType", "sourceId");

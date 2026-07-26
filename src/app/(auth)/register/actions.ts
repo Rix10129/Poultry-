@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { randomUUID } from "crypto"
 import { sendAdminApprovalRequest } from "@/lib/email"
+import { ensureSystemAccounts } from "@/lib/accounting/system-accounts"
 
 const APP_URL = (process.env.NEXTAUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")
 
@@ -57,6 +58,7 @@ export async function registerCompany(
           approvalToken,
         },
       })
+      await ensureSystemAccounts(tx, company.id)
       await tx.user.create({
         data: {
           companyId: company.id,

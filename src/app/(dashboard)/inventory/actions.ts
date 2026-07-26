@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { productSchema, batchSchema } from "@/lib/validations/inventory"
 import { MovementType, Species, UnitType } from "@prisma/client"
+import { postStockAdjustment } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
 type InventoryTx = Pick<typeof db, "product" | "productBatch" | "stockMovement">
@@ -191,9 +192,9 @@ export async function adjustStock(
   const newQty = batch.quantity + delta
   if (newQty < 0) throw new Error("Adjustment would make stock negative")
 
-  await db.$transaction([
-    db.productBatch.update({ where: { id: batchId }, data: { quantity: newQty } }),
-    db.stockMovement.create({
+  await db.$transaction(async tx => {
+    await tx.productBatch.update({ where: { id: batchId }, data: { quantity: newQty } })
+    const movement = await tx.stockMovement.create({
       data: {
         companyId,
         productId,
@@ -202,8 +203,10 @@ export async function adjustStock(
         quantity: delta,
         notes,
       },
-    }),
-  ])
+    })
+    const unitCost = Number(batch.purchasePrice)
+    await postStockAdjustment(tx, { companyId, sourceId: movement.id, number: movement.id, date: movement.createdAt, amount: Math.abs(delta) * unitCost, increase: delta > 0, description: notes || "Stock adjustment" })
+  })
 
   revalidatePath(`/inventory/${productId}`)
 }

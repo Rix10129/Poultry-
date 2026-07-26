@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { writeAuditLog } from "@/lib/audit"
 import { PaymentMode } from "@prisma/client"
+import { postSupplierPayment, reversePosting } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
 const PAYMENT_MODES = ["CASH", "BANK", "CHEQUE"] as const
@@ -55,11 +56,15 @@ export async function recordSupplierPayment(_: ActionState, formData: FormData):
   if (!supplier) return { error: "Supplier not found" }
   if (fields.purchaseOrderId && !purchase) return { error: "Purchase order does not belong to this supplier" }
 
-  const payment = await db.supplierPayment.create({ data: {
-    companyId, supplierId, amount: fields.amount, paymentMode: fields.paymentMode as PaymentMode,
-    paymentDate: fields.paymentDate, purchaseOrderId: fields.purchaseOrderId,
-    reference: fields.reference, notes: fields.notes,
-  } })
+  const payment = await db.$transaction(async tx => {
+    const created = await tx.supplierPayment.create({ data: {
+      companyId, supplierId, amount: fields.amount, paymentMode: fields.paymentMode as PaymentMode,
+      paymentDate: fields.paymentDate, purchaseOrderId: fields.purchaseOrderId,
+      reference: fields.reference, notes: fields.notes,
+    } })
+    await postSupplierPayment(tx, { companyId, sourceId: created.id, number: created.id, date: created.paymentDate, amount: created.amount, paymentMode: created.paymentMode })
+    return created
+  })
   await writeAuditLog({ companyId, userId: user.id, action: "CREATE_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: payment.id, newValues: fields })
   refreshSupplierPaymentPaths(supplierId, fields.purchaseOrderId)
   redirect(`/suppliers/${supplierId}`)
@@ -97,7 +102,10 @@ export async function voidSupplierPayment(_: ActionState, formData: FormData): P
   const id = String(formData.get("paymentId") || "").trim()
   const existing = await db.supplierPayment.findFirst({ where: { id, companyId, isVoided: false } })
   if (!existing) return { error: "Active payment not found" }
-  await db.supplierPayment.update({ where: { id }, data: { isVoided: true, voidedAt: new Date(), voidedBy: user.id } })
+  await db.$transaction(async tx => {
+    await reversePosting(tx, companyId, "SUPPLIER_PAYMENT", id, "Supplier payment voided")
+    await tx.supplierPayment.update({ where: { id }, data: { isVoided: true, voidedAt: new Date(), voidedBy: user.id } })
+  })
   await writeAuditLog({ companyId, userId: user.id, action: "VOID_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: id, oldValues: { isVoided: false, amount: existing.amount.toString() }, newValues: { isVoided: true } })
   refreshSupplierPaymentPaths(existing.supplierId, existing.purchaseOrderId)
   redirect(`/suppliers/${existing.supplierId}`)

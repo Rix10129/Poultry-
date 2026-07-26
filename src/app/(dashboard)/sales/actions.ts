@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
 import { writeAuditLog, logAudit } from "@/lib/audit"
+import { postCustomerReceipt, postSaleInvoice, postSaleReturn, reversePosting } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
 
@@ -32,6 +33,8 @@ export async function deleteInvoice(
       if (invoice.payments.length > 0)
         throw new Error("Cannot delete — this invoice has recorded payments. Delete the payments first.")
       invoiceNumber = invoice.invoiceNumber
+
+      await reversePosting(tx, companyId, "SALE_INVOICE", invoice.id, `Invoice ${invoice.invoiceNumber} voided`)
 
       for (const item of invoice.items) {
         await tx.productBatch.update({
@@ -148,6 +151,7 @@ export async function createSaleReturn(
           },
         })
       }
+      await postSaleReturn(tx, { companyId, sourceId: ret.id, number: returnNumber, date: ret.returnDate, amount: ret.totalAmount })
     })
   } catch (e: any) {
     return { error: e?.message ?? "Failed to create sale return" }
@@ -282,7 +286,7 @@ export async function createInvoice(
       // CustomerPayment is the authoritative receipt event; paidAmount is only
       // a derived cache for invoice-oriented views.
       if (customerId && paidAmount > 0) {
-        await tx.customerPayment.create({
+        const receipt = await tx.customerPayment.create({
           data: {
             companyId, customerId, invoiceId: invoice.id,
             amount: Math.min(paidAmount, netAmount + 0.001),
@@ -291,6 +295,7 @@ export async function createInvoice(
             notes: "Receipt recorded with invoice",
           },
         })
+        await postCustomerReceipt(tx, { companyId, sourceId: receipt.id, number: receipt.id, date: receipt.paymentDate, amount: receipt.amount, paymentMode: receipt.paymentMode })
       }
 
       // Process each line item
@@ -341,6 +346,7 @@ export async function createInvoice(
           },
         })
       }
+      await postSaleInvoice(tx, { companyId, sourceId: invoice.id, number: invoiceNumber, date: invoice.invoiceDate, amount: invoice.netAmount, tax: invoice.taxAmount, paid: customerId ? 0 : invoice.paidAmount, paymentMode: invoice.paymentMode })
     })
   } catch (e: any) {
     return { error: e?.message ?? "Failed to create invoice" }
