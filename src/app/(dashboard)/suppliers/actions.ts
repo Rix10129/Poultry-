@@ -8,6 +8,7 @@ import { redirect } from "next/navigation"
 import { writeAuditLog } from "@/lib/audit"
 import { PaymentMode } from "@prisma/client"
 import { postSupplierPayment, reversePosting } from "@/lib/accounting/posting-service"
+import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 
 type ActionState = { error: string } | null
 const PAYMENT_MODES = ["CASH", "BANK", "CHEQUE"] as const
@@ -58,6 +59,7 @@ export async function recordSupplierPayment(_: ActionState, formData: FormData):
 
   const payment = await db.$transaction(async tx => {
     const created = await tx.supplierPayment.create({ data: {
+      status: "POSTED",
       companyId, supplierId, amount: fields.amount, paymentMode: fields.paymentMode as PaymentMode,
       paymentDate: fields.paymentDate, purchaseOrderId: fields.purchaseOrderId,
       reference: fields.reference, notes: fields.notes,
@@ -100,11 +102,15 @@ export async function voidSupplierPayment(_: ActionState, formData: FormData): P
   if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Only owners and admins can void payments" }
   const companyId = user.companyId as string
   const id = String(formData.get("paymentId") || "").trim()
+  let reason: string
+  try { reason = requireReversalReason(formData.get("reason")) } catch (error) { return { error: (error as Error).message } }
   const existing = await db.supplierPayment.findFirst({ where: { id, companyId, isVoided: false } })
   if (!existing) return { error: "Active payment not found" }
   await db.$transaction(async tx => {
-    await reversePosting(tx, companyId, "SUPPLIER_PAYMENT", id, "Supplier payment voided")
-    await tx.supplierPayment.update({ where: { id }, data: { isVoided: true, voidedAt: new Date(), voidedBy: user.id } })
+    const reversal = await reversePosting(tx, companyId, "SUPPLIER_PAYMENT", id, reason)
+    if (!reversal) throw new Error("Supplier payment accounting entry was not found")
+    await tx.supplierPayment.update({ where: { id }, data: { isVoided: true, status: "REVERSED", voidedAt: new Date(), voidedBy: user.id, reversalReason: reason } })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "SupplierPayment", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
   })
   await writeAuditLog({ companyId, userId: user.id, action: "VOID_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: id, oldValues: { isVoided: false, amount: existing.amount.toString() }, newValues: { isVoided: true } })
   refreshSupplierPaymentPaths(existing.supplierId, existing.purchaseOrderId)

@@ -9,6 +9,7 @@ import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
 import { writeAuditLog, logAudit } from "@/lib/audit"
 import { postCustomerReceipt, postSaleInvoice, postSaleReturn, reversePosting } from "@/lib/accounting/posting-service"
+import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 
 type ActionState = { error: string } | null
 
@@ -27,22 +28,12 @@ export async function deleteInvoice(
     await db.$transaction(async (tx: any) => {
       const invoice = await tx.saleInvoice.findFirst({
         where: { id, companyId },
-        include: { items: true, payments: true },
+        include: { payments: true, returns: true, _count: { select: { items: true } } },
       })
       if (!invoice) throw new Error("Invoice not found")
-      if (invoice.payments.length > 0)
-        throw new Error("Cannot delete — this invoice has recorded payments. Delete the payments first.")
+      const postings = await tx.journalEntry.count({ where: { companyId, sourceType: "SALE_INVOICE", sourceId: id } })
+      assertDocumentCanBeDeleted(invoice.status, { stockMovements: invoice._count.items, payments: invoice.payments.length, returns: invoice.returns.length, journalEntries: postings })
       invoiceNumber = invoice.invoiceNumber
-
-      await reversePosting(tx, companyId, "SALE_INVOICE", invoice.id, `Invoice ${invoice.invoiceNumber} voided`)
-
-      for (const item of invoice.items) {
-        await tx.productBatch.update({
-          where: { id: item.batchId },
-          data: { quantity: { increment: item.quantity } },
-        })
-      }
-      await tx.stockMovement.deleteMany({ where: { reference: invoice.invoiceNumber } })
       await tx.saleInvoice.delete({ where: { id } })
     })
   } catch (e: any) {
@@ -61,6 +52,33 @@ export async function deleteInvoice(
   revalidatePath("/sales")
   revalidatePath("/inventory")
   redirect("/sales")
+}
+
+export async function reverseInvoice(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+  const id = String(formData.get("id") || "").trim()
+  let reason: string
+  try { reason = requireReversalReason(formData.get("reason")) } catch (error) { return { error: (error as Error).message } }
+  try {
+    await db.$transaction(async tx => {
+      const invoice = await tx.saleInvoice.findFirst({ where: { id, companyId }, include: { items: true, payments: true, returns: true } })
+      if (!invoice) throw new Error("Invoice not found")
+      if (invoice.status !== "POSTED") throw new Error("Only posted invoices can be reversed")
+      if (invoice.payments.length || invoice.returns.length) throw new Error("Reverse linked payments and returns before reversing this invoice")
+      for (const item of invoice.items) {
+        await tx.productBatch.update({ where: { id: item.batchId }, data: { quantity: { increment: item.quantity } } })
+        await tx.stockMovement.create({ data: { companyId, productId: item.productId, batchId: item.batchId, type: MovementType.SALE_RETURN, quantity: item.quantity, reference: `REV-${invoice.invoiceNumber}`, sourceType: "SALE_INVOICE_REVERSAL", sourceId: invoice.id, notes: reason } })
+      }
+      const journal = await reversePosting(tx, companyId, "SALE_INVOICE", invoice.id, reason)
+      if (!journal) throw new Error("Invoice accounting entry was not found")
+      await tx.saleInvoice.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
+      await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "SaleInvoice", originalDocumentId: id, reversalDocumentId: journal.id, reason })
+    })
+  } catch (error) { return { error: error instanceof Error ? error.message : "Failed to reverse invoice" } }
+  revalidatePath("/sales"); revalidatePath("/inventory"); redirect(`/sales/${id}`)
 }
 
 type ReturnLineInput = {
@@ -106,6 +124,7 @@ export async function createSaleReturn(
 
       const ret = await tx.saleReturn.create({
         data: {
+          status: "POSTED",
           companyId,
           customerId: customerId || null,
           invoiceId: invoiceId || null,
@@ -145,6 +164,8 @@ export async function createSaleReturn(
             productId: line.productId,
             batchId: line.batchId,
             type: MovementType.SALE_RETURN,
+            sourceType: "SALE_RETURN",
+            sourceId: ret.id,
             quantity: line.quantity,
             reference: returnNumber,
             notes: `Sale Return ${returnNumber}`,
@@ -263,6 +284,7 @@ export async function createInvoice(
       // Create invoice
       const invoice = await tx.saleInvoice.create({
         data: {
+          status: "POSTED",
           companyId,
           userId,
           customerId: customerId || null,
@@ -288,6 +310,7 @@ export async function createInvoice(
       if (customerId && paidAmount > 0) {
         const receipt = await tx.customerPayment.create({
           data: {
+            status: "POSTED",
             companyId, customerId, invoiceId: invoice.id,
             amount: Math.min(paidAmount, netAmount + 0.001),
             paymentMode: paymentModeRaw as PaymentMode,
@@ -340,6 +363,8 @@ export async function createInvoice(
             productId: line.productId,
             batchId: line.batchId,
             type: MovementType.SALE,
+            sourceType: "SALE_INVOICE",
+            sourceId: invoice.id,
             quantity: -line.quantity,
             reference: invoiceNumber,
             notes: `Sale ${invoiceNumber}`,
@@ -495,6 +520,8 @@ export async function updateInvoice(
             productId: line.productId,
             batchId: line.batchId,
             type: MovementType.SALE,
+            sourceType: "SALE_INVOICE",
+            sourceId: invoice.id,
             quantity: -line.quantity,
             reference: invoice.invoiceNumber,
             notes: `Sale ${invoice.invoiceNumber} (edited)`,

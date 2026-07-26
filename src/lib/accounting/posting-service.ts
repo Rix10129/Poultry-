@@ -15,6 +15,13 @@ export function assertBalanced(debits: Side[], credits: Side[]) {
   if (debit.lte(0)) throw new Error("Journal entry total must be greater than zero")
   return debit
 }
+export function swapJournalSides<T extends { debitAccountId: string | null; creditAccountId: string | null; amount: Amount }>(lines: T[]) {
+  return lines.map(line => ({
+    debitAccountId: line.creditAccountId,
+    creditAccountId: line.debitAccountId,
+    amount: line.amount,
+  }))
+}
 function funds(mode?: PaymentMode): SystemAccount { return mode === "BANK" || mode === "CHEQUE" ? "BANK" : "CASH" }
 
 async function post(tx: Tx, sourceType: string, p: Posting, debits: Side[], credits: Side[]) {
@@ -26,7 +33,7 @@ async function post(tx: Tx, sourceType: string, p: Posting, debits: Side[], cred
   return tx.journalEntry.create({ data: {
     companyId: p.companyId, voucherType: VoucherType.JOURNAL, voucherNumber: `${sourceType}-${p.number}`,
     entryDate: p.date, description: p.description ?? `${sourceType} ${p.number}`, totalAmount: total.toFixed(2),
-    reference: p.number, sourceType, sourceId: p.sourceId, postingKey,
+    reference: p.number, sourceType, sourceId: p.sourceId, postingKey, status: "POSTED",
     lines: { create: [
       ...debits.filter(x => money(x.amount).gt(0)).map(x => ({ debitAccountId: accounts[x.account].id, amount: money(x.amount).toFixed(2), description: x.description })),
       ...credits.filter(x => money(x.amount).gt(0)).map(x => ({ creditAccountId: accounts[x.account].id, amount: money(x.amount).toFixed(2), description: x.description })),
@@ -51,5 +58,6 @@ export async function reversePosting(tx: Tx, companyId: string, sourceType: stri
   const accounts = await tx.account.findMany({ where: { companyId } }); const keys=new Map(accounts.map(a=>[a.id,Object.entries(SYSTEM_ACCOUNTS).find(([,v])=>v.code===a.code)?.[0] as SystemAccount]))
   for (const l of original.lines) { if(l.creditAccountId) debits.push({account:keys.get(l.creditAccountId)!,amount:l.amount}); if(l.debitAccountId) credits.push({account:keys.get(l.debitAccountId)!,amount:l.amount}) }
   const reversal = await post(tx,`${sourceType}_REVERSAL`,{companyId,sourceId,date,number:`REV-${original.voucherNumber}`,amount:original.totalAmount,description:reason},debits,credits)
-  return tx.journalEntry.update({ where:{id:reversal.id}, data:{isReversal:true,reversesEntryId:original.id} })
+  await tx.journalEntry.update({ where: { id: original.id }, data: { status: "REVERSED", reversedAt: date, reversalReason: reason } })
+  return tx.journalEntry.update({ where:{id:reversal.id}, data:{isReversal:true,reversesEntryId:original.id,status:"POSTED"} })
 }
