@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, Scale } from "lucide-react"
+import { ReportExportButton } from "@/components/reports/report-export-button"
 import { formatCurrency } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -60,6 +61,11 @@ export default async function TrialBalancePage({
 
   return (
     <div className="space-y-6 max-w-4xl">
+
+      <div className="flex justify-end">
+        <ReportExportButton report="trial-balance" />
+      </div>
+
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">

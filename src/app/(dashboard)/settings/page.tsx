@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { CompanySettingsForm } from "@/components/settings/company-settings-form"
-import { ReportDownloadButton } from "@/components/settings/report-download-button"
 import { ImportBackupForm } from "@/components/settings/import-backup-form"
 import Link from "next/link"
 import { Download } from "lucide-react"
@@ -14,7 +13,7 @@ export const metadata = { title: "Settings" }
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
-  const actor = session.user as any
+  const actor = session.user as { companyId: string; role?: string }
 
   const company = await db.company.findUnique({
     where: { id: actor.companyId },
@@ -81,27 +80,13 @@ export default async function SettingsPage() {
         )}
       </div>
 
-      {/* Excel Report Download — available to all roles */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <h2 className="text-base font-semibold text-slate-900 mb-1">Download Business Report</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          Export a complete Excel report with Sales, Purchases, Inventory, and Receivables.
-          Automatically emailed to the owner every 15 days.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <ReportDownloadButton days={15} label="Last 15 Days" />
-          <ReportDownloadButton days={30} label="Last 30 Days" />
-          <ReportDownloadButton days={90} label="Last 90 Days" />
-        </div>
-      </div>
-
       {/* Data Export + Import — owner only */}
       {isOwner && (
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
           <div>
-            <h2 className="text-base font-semibold text-slate-900 mb-1">Export All Data</h2>
+            <h2 className="text-base font-semibold text-slate-900 mb-1">Owner JSON Backup</h2>
             <p className="text-sm text-slate-500 mb-4">
-              Download a full JSON backup of all your company data — customers, suppliers, products,
+              Download an owner-only JSON backup of all your company data — customers, suppliers, products,
               invoices, purchases, and expenses. Save this file somewhere safe (email it to yourself,
               Google Drive, USB drive). You can use it to restore your data if anything is ever lost.
             </p>
@@ -110,14 +95,14 @@ export default async function SettingsPage() {
               className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
             >
               <Download className="h-4 w-4" />
-              Export JSON Backup
+              Download Owner JSON Backup
             </Link>
           </div>
 
           <div className="border-t border-slate-100 pt-5">
             <h2 className="text-base font-semibold text-slate-900 mb-1">Restore from Backup</h2>
             <p className="text-sm text-slate-500 mb-4">
-              Upload a previously exported JSON backup file to restore your customers, suppliers,
+              Upload a previously exported Owner JSON Backup file to restore your customers, suppliers,
               products, and current stock. Records that already exist will be skipped automatically
               — it is safe to run this on an active account.
             </p>
