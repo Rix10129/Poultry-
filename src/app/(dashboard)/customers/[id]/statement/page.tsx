@@ -100,6 +100,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
           <Download className="h-4 w-4" />
           Export Excel
         </a>
+        <a href={`/api/customers/${id}/statement/export?from=${isoDate(fromDate)}&to=${isoDate(toDate)}&format=pdf`} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50"><Download className="h-4 w-4" />Export PDF</a>
         <StatementPrintButton />
         </div>
       </div>
