@@ -40,3 +40,14 @@ export function calculatePurchaseBalance(
   const laterPaid = sum(payments.filter((payment) => !payment.isVoided), (payment) => payment.amount)
   return number(purchase.netAmount) - number(purchase.paidAmount) - laterPaid
 }
+
+/** Statement totals deliberately delegate to the authoritative balance formula. */
+export function buildSupplierStatement(input: SupplierBalanceInput) {
+  const summary = calculateSupplierBalance(input)
+  return {
+    openingBalance: summary.opening,
+    debit: summary.purchased,
+    credit: summary.totalPaid + summary.returned,
+    closingBalance: summary.closingBalance,
+  }
+}
