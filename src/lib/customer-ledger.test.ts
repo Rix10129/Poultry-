@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildCustomerLedger, calculateCustomerBalance, parseOpeningBalanceCorrections } from "./customer-ledger"
+import { buildCustomerLedger, calculateCustomerBalance, parseCustomerOpeningBalanceCorrectionLogs } from "./customer-ledger"
 
 const date = (value: string) => new Date(`${value}T12:00:00.000Z`)
 
@@ -95,7 +95,7 @@ test("date-filtered statement carries all earlier invoices and credits into open
 })
 
 test("opening-balance audit corrections are declared and counted once", () => {
-  const corrections = parseOpeningBalanceCorrections([{ createdAt: date("2026-01-03"),
+  const corrections = parseCustomerOpeningBalanceCorrectionLogs([{ createdAt: date("2026-01-03"),
     detail: JSON.stringify({ oldValues: { openingBalance: "50" }, newValues: { openingBalance: 80 } }) }])
   const ledger = buildCustomerLedger({ ...scenario, corrections,
     fromDate: date("2026-01-01"), toDate: date("2026-12-31") })

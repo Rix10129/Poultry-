@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { buildCustomerLedger, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
+import { buildCustomerLedger, parseCustomerOpeningBalanceCorrectionLogs } from "@/lib/customer-ledger"
 import { pdfResponse } from "@/lib/report-export"
 import { authorize } from "@/lib/authorization"
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     invoices,
     payments,
     returns,
-    corrections: parseOpeningBalanceCorrections(correctionLogs),
+    corrections: parseCustomerOpeningBalanceCorrectionLogs(correctionLogs),
   })
 
   if (req.nextUrl.searchParams.get("format") === "pdf") {

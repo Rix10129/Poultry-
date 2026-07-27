@@ -70,6 +70,24 @@ export function parseOpeningBalanceCorrections(logs: Array<{ detail: string | nu
   return corrections
 }
 
+/** Customer statement export adapter; deliberately distinct from legacy parsers. */
+export function parseCustomerOpeningBalanceCorrectionLogs(logs: Array<{ detail: string | null; createdAt: Date }>) {
+  const corrections: OpeningBalanceCorrection[] = []
+  for (const log of logs) {
+    try {
+      const detail = JSON.parse(log.detail ?? "{}")
+      const oldAmount = detail.oldValues?.openingBalance
+      const newAmount = detail.newValues?.openingBalance
+      if (oldAmount !== undefined && newAmount !== undefined &&
+          Number.isFinite(amount(oldAmount)) && Number.isFinite(amount(newAmount)))
+        corrections.push({ date: log.createdAt, oldAmount, newAmount })
+    } catch {
+      // Ignore malformed legacy audit details; they are not ledger events.
+    }
+  }
+  return corrections
+}
+
 export function buildCustomerLedger({ customerOpeningBalance, fromDate, toDate, invoices, payments, returns, corrections = [] }: {
   customerOpeningBalance: Numeric; fromDate: Date; toDate: Date; invoices: CustomerLedgerInvoice[]; payments: CustomerLedgerPayment[]; returns: CustomerLedgerReturn[]; corrections?: OpeningBalanceCorrection[]
 }) {
