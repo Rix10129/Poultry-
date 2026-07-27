@@ -66,10 +66,11 @@ export async function generateReport(
 ): Promise<Buffer> {
   const [invoices, purchases, products, customers] = await Promise.all([
     db.saleInvoice.findMany({
-      where: { companyId, invoiceDate: { gte: from, lte: to } },
+      where: { companyId, status: "POSTED", invoiceDate: { gte: from, lte: to } },
       include: {
         customer: { select: { name: true } },
         user: { select: { name: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
       },
       orderBy: { invoiceDate: "asc" },
     }),
@@ -92,9 +93,9 @@ export async function generateReport(
     db.customer.findMany({
       where: { companyId },
       include: {
-        invoices: { select: { netAmount: true } },
-        payments: { select: { amount: true } },
-        saleReturns: { select: { totalAmount: true } },
+        invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -112,7 +113,7 @@ export async function generateReport(
   let sNet = 0, sPaid = 0
   invoices.forEach((inv, i) => {
     const net = parseFloat(inv.netAmount.toString())
-    const paid = parseFloat(inv.paidAmount.toString())
+    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
     const bal = net - paid
     sNet += net; sPaid += paid
     const status = bal <= 0 ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID"

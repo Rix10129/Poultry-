@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { buildCustomerLedger, calculateCustomerBalance } from "./customer-ledger"
+import { buildCustomerLedger, calculateCustomerBalance, parseCustomerOpeningBalanceCorrectionLogs } from "./customer-ledger"
 
 const date = (value: string) => new Date(`${value}T12:00:00.000Z`)
 
@@ -49,7 +49,7 @@ const scenario = {
   ],
 }
 
-test("counts invoice-time and later payment events exactly once", () => {
+test("reconciles opening balances, invoice receipts, direct credits, returns, and later payments exactly once", () => {
   const ledger = buildCustomerLedger({
     ...scenario,
     fromDate: date("2026-01-01"),
@@ -92,4 +92,13 @@ test("date-filtered statement carries all earlier invoices and credits into open
   assert.deepEqual(ledger.totals, { debit: 0, credit: 55 })
   assert.equal(ledger.closingBalance, 95)
   assert.deepEqual(ledger.rows.map((row) => row.balance), [120, 95])
+})
+
+test("opening-balance audit corrections are declared and counted once", () => {
+  const corrections = parseCustomerOpeningBalanceCorrectionLogs([{ createdAt: date("2026-01-03"),
+    detail: JSON.stringify({ oldValues: { openingBalance: "50" }, newValues: { openingBalance: 80 } }) }])
+  const ledger = buildCustomerLedger({ ...scenario, corrections,
+    fromDate: date("2026-01-01"), toDate: date("2026-12-31") })
+  assert.equal(ledger.rows.find(row => row.description === "Opening balance correction")?.debit, 30)
+  assert.equal(ledger.closingBalance, 125)
 })

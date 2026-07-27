@@ -306,6 +306,12 @@ export async function createInvoice(
         taxAmount += lineBase * line.taxRate / 100
       }
       const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      if (customerId && paidAmount > netAmount + 0.001)
+        throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
+      if (customerId) {
+        const customer = await tx.customer.findFirst({ where: { id: customerId, companyId }, select: { id: true } })
+        if (!customer) throw new Error("Customer not found")
+      }
 
       // Create invoice
       const invoice = await tx.saleInvoice.create({
@@ -321,7 +327,7 @@ export async function createInvoice(
           discountAmount,
           taxAmount,
           netAmount,
-          paidAmount: Math.min(paidAmount, netAmount + 0.001),
+          paidAmount: customerId ? paidAmount : Math.min(paidAmount, netAmount),
           paymentMode: paymentModeRaw as PaymentMode,
           isCashSale: !customerId,
           schemeNotes: schemeNotes || null,
@@ -338,7 +344,7 @@ export async function createInvoice(
           data: {
             status: "POSTED",
             companyId, customerId, invoiceId: invoice.id,
-            amount: Math.min(paidAmount, netAmount + 0.001),
+            amount: paidAmount,
             paymentMode: paymentModeRaw as PaymentMode,
             paymentDate: new Date(invoiceDate),
             notes: "Receipt recorded with invoice",
@@ -431,7 +437,6 @@ export async function updateInvoice(
   const invoiceDate = (formData.get("invoiceDate") as string) || new Date().toISOString()
   const dueDate = (formData.get("dueDate") as string) || null
   const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
-  const paidAmount = Math.max(0, parseFloat(formData.get("paidAmount") as string) || 0)
   const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
   const notes = (formData.get("notes") as string) || null
   const linesJson = formData.get("linesJson") as string
@@ -486,6 +491,13 @@ export async function updateInvoice(
         taxAmount += lineBase * line.taxRate / 100
       }
       const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      const postedPaidAmount = invoice.payments
+        .filter((payment: { status: string }) => payment.status === "POSTED")
+        .reduce((total: number, payment: { amount: { toString(): string } }) => total + Number(payment.amount.toString()), 0)
+      if (postedPaidAmount > netAmount + 0.001)
+        throw new Error(`Invoice total cannot be reduced below recorded payments of ${postedPaidAmount.toFixed(2)}`)
+      if (invoice.payments.length && customerId !== invoice.customerId)
+        throw new Error("Cannot change the customer on an invoice with recorded payments")
 
       await tx.saleInvoice.update({
         where: { id: invoice.id },
@@ -497,7 +509,9 @@ export async function updateInvoice(
           discountAmount,
           taxAmount,
           netAmount,
-          paidAmount: Math.min(paidAmount, netAmount + 0.001),
+          // CustomerPayment rows are authoritative; never manufacture a
+          // second receipt by accepting the editable summary field.
+          paidAmount: postedPaidAmount,
           paymentMode: paymentModeRaw as PaymentMode,
           isCashSale: !customerId,
           notes: notes || null,

@@ -49,17 +49,17 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
 
   const [invoices, payments, returns] = await Promise.all([
     db.saleInvoice.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true },
       orderBy: { invoiceDate: "asc" },
     }),
     db.customerPayment.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } },
       orderBy: { paymentDate: "asc" },
     }),
     db.saleReturn.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true },
       orderBy: { returnDate: "asc" },
     }),

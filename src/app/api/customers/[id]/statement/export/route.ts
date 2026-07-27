@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { buildCustomerLedger } from "@/lib/customer-ledger"
+import { buildCustomerLedger, parseCustomerOpeningBalanceCorrectionLogs } from "@/lib/customer-ledger"
 import { pdfResponse } from "@/lib/report-export"
 import { authorize } from "@/lib/authorization"
 
@@ -27,14 +27,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const customer = await db.customer.findFirst({
     where: { id, companyId },
-    select: { name: true, openingBalance: true },
+    select: { name: true, openingBalance: true, createdAt: true },
   })
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 })
 
-  const [invoices, payments, returns] = await Promise.all([
-    db.saleInvoice.findMany({ where: { customerId: id, companyId }, select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, paidAmount: true, schemeNotes: true }, orderBy: { invoiceDate: "asc" } }),
-    db.customerPayment.findMany({ where: { customerId: id, companyId }, select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
-    db.saleReturn.findMany({ where: { customerId: id, companyId }, select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true }, orderBy: { returnDate: "asc" } }),
+  const [invoices, payments, returns, correctionLogs] = await Promise.all([
+    db.saleInvoice.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true }, orderBy: { invoiceDate: "asc" } }),
+    db.customerPayment.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
+    db.saleReturn.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true }, orderBy: { returnDate: "asc" } }),
+    db.auditLog.findMany({
+      where: { companyId, entity: "Customer", entityId: id, action: "UPDATE_OPENING_BALANCE" },
+      select: { detail: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ])
 
   const ledger = buildCustomerLedger({
@@ -44,6 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     invoices,
     payments,
     returns,
+    corrections: parseCustomerOpeningBalanceCorrectionLogs(correctionLogs),
   })
 
   if (req.nextUrl.searchParams.get("format") === "pdf") {

@@ -34,6 +34,7 @@ export default async function AgingReportPage() {
   const invoices = await db.saleInvoice.findMany({
     where: {
       companyId,
+      status: "POSTED",
       customer: { isNot: null },
     },
     select: {
@@ -42,7 +43,7 @@ export default async function AgingReportPage() {
       invoiceDate: true,
       dueDate: true,
       netAmount: true,
-      paidAmount: true,
+      payments: { where: { status: "POSTED" }, select: { amount: true } },
       customer: { select: { id: true, name: true, area: true } },
     },
     orderBy: { invoiceDate: "asc" },
@@ -65,7 +66,8 @@ export default async function AgingReportPage() {
 
   for (const inv of invoices) {
     if (!inv.customer) continue
-    const balance = parseFloat(inv.netAmount.toString()) - parseFloat(inv.paidAmount.toString())
+    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+    const balance = parseFloat(inv.netAmount.toString()) - paid
     if (balance < 0.01) continue
 
     const refDate = inv.dueDate ?? inv.invoiceDate
