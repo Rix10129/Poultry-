@@ -73,7 +73,6 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
     closingBalance,
   } = buildCustomerLedger({
     customerOpeningBalance: customer.openingBalance,
-    customerCreatedAt: customer.createdAt,
     corrections: parseOpeningBalanceCorrections(correctionLogs),
     fromDate,
     toDate,

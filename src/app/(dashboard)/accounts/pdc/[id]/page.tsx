@@ -36,6 +36,7 @@ export default async function PDCDetailPage({ params }: Props) {
       supplier: { select: { id: true, name: true, phone: true } },
     },
   })
+  const hasLinkedPayment = !!(cheque?.customerPaymentId || cheque?.supplierPaymentId)
 
   if (!cheque) notFound()
 
@@ -134,7 +135,7 @@ export default async function PDCDetailPage({ params }: Props) {
       </div>
 
       {/* Update status */}
-      {cheque.status === "PENDING" && (
+      {cheque.status !== "BOUNCED" && (
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h2 className="text-sm font-semibold text-slate-900 mb-4">Update Status</h2>
           <PDCStatusForm id={cheque.id} />
@@ -142,15 +143,17 @@ export default async function PDCDetailPage({ params }: Props) {
       )}
 
       {/* Delete */}
-      <div className="bg-white rounded-xl border border-red-200 p-5">
-        <p className="text-sm text-slate-500 mb-3">Remove this cheque record permanently.</p>
-        <DeleteButton
-          action={deletePDC}
-          id={cheque.id}
-          label="Delete Cheque"
-          confirmMessage="Delete this cheque record? This cannot be undone."
-        />
-      </div>
+      {!hasLinkedPayment && (
+        <div className="bg-white rounded-xl border border-red-200 p-5">
+          <p className="text-sm text-slate-500 mb-3">Remove this cheque record permanently.</p>
+          <DeleteButton
+            action={deletePDC}
+            id={cheque.id}
+            label="Delete Cheque"
+            confirmMessage="Delete this cheque record? This cannot be undone."
+          />
+        </div>
+      )}
     </div>
   )
 }

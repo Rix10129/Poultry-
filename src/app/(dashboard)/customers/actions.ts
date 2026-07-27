@@ -1,8 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { CustomerType, PaymentMode } from "@prisma/client"
@@ -18,7 +17,7 @@ const VALID_TYPES = ["FARM", "VET_SHOP", "SUB_DEALER", "RETAIL"] as const
 const VALID_PAYMENT_MODES = ["CASH", "BANK", "CHEQUE", "CREDIT"] as const
 
 export async function createCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string
@@ -61,7 +60,7 @@ export async function createCustomer(_: ActionState, formData: FormData): Promis
 }
 
 export async function updateCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string
@@ -147,7 +146,7 @@ export async function deleteCustomer(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
 

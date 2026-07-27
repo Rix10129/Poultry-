@@ -3,8 +3,7 @@
 import { db } from "@/lib/db"
 import { allocateDocumentNumber } from "@/lib/document-number"
 import { daysUntilExpiry } from "@/lib/utils"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
@@ -14,6 +13,7 @@ import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason 
 import { authorize, forbiddenAction } from "@/lib/authorization"
 import { persistInvoiceDraft, type InvoiceDraftData } from "@/lib/invoice-draft"
 import { reserveBatchStock } from "@/lib/inventory-reconciliation"
+import { getCustomerOutstandingBalance } from "@/lib/customer-balance"
 
 type ActionState = { error: string } | null
 
@@ -117,7 +117,7 @@ export async function createSaleReturn(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string
@@ -251,7 +251,9 @@ export async function createInvoice(
   }
   if (!Array.isArray(lines) || lines.length === 0) return { error: "Add at least one line item" }
 
-  // Credit limit check
+  // Credit limit check (fast pre-check outside the transaction; the
+  // authoritative check re-runs on the same canonical formula inside the
+  // transaction below, immediately before the invoice is created).
   if (customerId && !bypassCreditLimit) {
     const customer = await db.customer.findFirst({
       where: { id: customerId, companyId },
@@ -260,12 +262,8 @@ export async function createInvoice(
     if (customer) {
       const creditLimit = parseFloat(customer.creditLimit.toString())
       if (creditLimit > 0) {
-        const invoiceAgg = await db.saleInvoice.aggregate({
-          where: { customerId, companyId },
-          _sum: { netAmount: true, paidAmount: true },
-        })
-        const outstanding = (parseFloat(invoiceAgg._sum.netAmount?.toString() ?? "0")) -
-                            (parseFloat(invoiceAgg._sum.paidAmount?.toString() ?? "0"))
+        const balance = await getCustomerOutstandingBalance(db, companyId, customerId)
+        const outstanding = balance?.closingBalance ?? 0
 
         // Estimate new invoice net amount from lines
         let estTotal = 0
@@ -274,7 +272,7 @@ export async function createInvoice(
         }
         const estNet = Math.max(0, estTotal - discountAmount)
 
-        if (outstanding + estNet > creditLimit) {
+        if (outstanding + estNet - paidAmount > creditLimit) {
           const role = user.role as string
           if (role !== "OWNER" && role !== "ADMIN") {
             return {
@@ -309,8 +307,27 @@ export async function createInvoice(
       if (customerId && paidAmount > netAmount + 0.001)
         throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
       if (customerId) {
-        const customer = await tx.customer.findFirst({ where: { id: customerId, companyId }, select: { id: true } })
+        const customer = await tx.customer.findFirst({
+          where: { id: customerId, companyId },
+          select: { id: true, name: true, creditLimit: true },
+        })
         if (!customer) throw new Error("Customer not found")
+
+        if (!bypassCreditLimit) {
+          const creditLimit = parseFloat(customer.creditLimit.toString())
+          if (creditLimit > 0) {
+            const role = user.role as string
+            if (role !== "OWNER" && role !== "ADMIN") {
+              const balance = await getCustomerOutstandingBalance(tx, companyId, customerId)
+              const outstanding = balance?.closingBalance ?? 0
+              if (outstanding + netAmount - paidAmount > creditLimit) {
+                throw new Error(
+                  `Credit limit exceeded. ${customer.name} has PKR ${outstanding.toLocaleString()} outstanding against a limit of PKR ${creditLimit.toLocaleString()}. Ask your manager to approve this sale.`
+                )
+              }
+            }
+          }
+        }
       }
 
       // Create invoice
@@ -362,6 +379,18 @@ export async function createInvoice(
         if (!batch) throw new Error(`Batch not found`)
         if (daysUntilExpiry(batch.expiryDate) < 0) {
           throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
+        }
+        // FEFO is enforced server-side: the client may only sell from the
+        // earliest-expiring batch that still has stock for this product.
+        const earliestAvailable = await tx.productBatch.findFirst({
+          where: { companyId, productId: line.productId, quantity: { gt: 0 } },
+          orderBy: { expiryDate: "asc" },
+          select: { id: true, expiryDate: true, batchNumber: true },
+        })
+        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate < batch.expiryDate) {
+          throw new Error(
+            `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
+          )
         }
         const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
 

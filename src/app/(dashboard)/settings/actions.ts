@@ -1,14 +1,13 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 
 type ActionState = { error: string } | { success: string } | null
 
 export async function updateCompany(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const actor = session?.user as any
   if (!actor?.companyId) return { error: "Not authenticated" }
   if (actor.role !== "OWNER") return { error: "Only the Owner can change company settings" }

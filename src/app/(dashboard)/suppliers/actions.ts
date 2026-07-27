@@ -1,8 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { writeAuditLog } from "@/lib/audit"
@@ -74,7 +73,7 @@ export async function recordSupplierPayment(_: ActionState, formData: FormData):
 }
 
 export async function updateSupplierPayment(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Only owners and admins can edit payments" }
@@ -97,7 +96,7 @@ export async function updateSupplierPayment(_: ActionState, formData: FormData):
 }
 
 export async function voidSupplierPayment(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   if (user.role !== "OWNER" && user.role !== "ADMIN") return { error: "Only owners and admins can void payments" }
@@ -119,7 +118,7 @@ export async function voidSupplierPayment(_: ActionState, formData: FormData): P
 }
 
 export async function createSupplier(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string
@@ -148,7 +147,7 @@ export async function createSupplier(_: ActionState, formData: FormData): Promis
 }
 
 export async function updateSupplier(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string
@@ -228,7 +227,7 @@ export async function deleteSupplier(
   _prev: { error: string } | null,
   formData: FormData
 ): Promise<{ error: string } | null> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
 

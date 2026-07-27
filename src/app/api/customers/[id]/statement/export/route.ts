@@ -44,14 +44,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const ledger = buildCustomerLedger({
     customerOpeningBalance: customer.openingBalance,
-    customerCreatedAt: customer.createdAt,
     corrections: parseOpeningBalanceCorrections(correctionLogs),
     fromDate: from,
     toDate: to,
     invoices,
     payments,
     returns,
-    corrections: parseOpeningBalanceCorrections(correctionLogs),
   })
 
   if (req.nextUrl.searchParams.get("format") === "pdf") {

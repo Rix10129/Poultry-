@@ -89,7 +89,6 @@ export async function registerCompany(
         to: adminEmail,
         from: process.env.RESEND_FROM_EMAIL ?? "(not set)",
         apiKeySet: !!process.env.RESEND_API_KEY,
-        apiKeyPrefix: process.env.RESEND_API_KEY?.slice(0, 8) ?? "(not set)",
         error: String(err),
       })
     })

@@ -14,6 +14,7 @@ export type AuditAction =
   | "DELETE_QUOTATION"
   | "CREATE_EXPENSE"
   | "DELETE_EXPENSE"
+  | "DELETE_ACCOUNT"
 
 interface AuditParams {
   companyId: string

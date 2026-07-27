@@ -18,24 +18,11 @@ const amount = (value: Numeric) => Number(value.toString())
 const sum = <T>(rows: T[], get: (row: T) => Numeric) => rows.reduce((total, row) => total + amount(get(row)), 0)
 const onOrBefore = (date: Date | undefined, asOf?: Date) => !asOf || !date || date <= asOf
 
-/** Converts opening-balance audit records into typed, usable correction events. */
-export function parseOpeningBalanceCorrections(rows: Array<{ createdAt: Date; detail: string | null }>): OpeningBalanceCorrection[] {
-  return rows.flatMap((row) => {
-    try {
-      const values = JSON.parse(row.detail ?? "{}")
-      const oldBalance = values.oldValues?.openingBalance
-      const newBalance = values.newValues?.openingBalance
-      if (oldBalance == null || newBalance == null || !Number.isFinite(amount(oldBalance)) || !Number.isFinite(amount(newBalance))) return []
-      return [{ createdAt: row.createdAt, oldBalance, newBalance }]
-    } catch { return [] }
-  }).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-}
-
 /** Effective opening balance at a date, reconstructed by reversing later corrections. */
 export function effectiveOpeningBalance(current: Numeric, corrections: OpeningBalanceCorrection[] = [], asOf?: Date) {
   if (!asOf) return amount(current)
-  return corrections.filter((entry) => entry.createdAt > asOf)
-    .reduceRight((balance, entry) => balance - (amount(entry.newBalance) - amount(entry.oldBalance)), amount(current))
+  return corrections.filter((entry) => entry.date > asOf)
+    .reduceRight((balance, entry) => balance - (amount(entry.newAmount) - amount(entry.oldAmount)), amount(current))
 }
 
 /** The one authoritative formula used by every customer balance surface. */

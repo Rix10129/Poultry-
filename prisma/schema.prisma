@@ -805,7 +805,13 @@ model PDCCheque {
   chequeDate   DateTime
   amount       Decimal   @db.Decimal(12, 2)
   status       PDCStatus @default(PENDING)
+  // Links to the CustomerPayment (type RECEIVABLE) or SupplierPayment (type
+  // PAYABLE) created alongside this register entry — only one is ever set.
+  // Not a Prisma relation because it targets one of two different tables.
+  customerPaymentId String?
+  supplierPaymentId String?
   depositedAt  DateTime?
+  bouncedAt    DateTime?
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

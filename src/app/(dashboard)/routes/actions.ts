@@ -1,8 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
@@ -12,7 +11,7 @@ export async function createRoute(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
 
@@ -42,7 +41,7 @@ export async function updateRoute(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
 
@@ -70,7 +69,7 @@ export async function updateRoute(
 }
 
 export async function logVisit(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return
 
@@ -91,7 +90,7 @@ export async function logVisit(formData: FormData): Promise<void> {
 }
 
 export async function assignCustomerToRoute(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return
 
@@ -118,7 +117,7 @@ export async function deleteRoute(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
 
