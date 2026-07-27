@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { buildCustomerLedger } from "@/lib/customer-ledger"
+import { buildCustomerLedger, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
 import { pdfResponse } from "@/lib/report-export"
 import { authorize } from "@/lib/authorization"
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const customer = await db.customer.findFirst({
     where: { id, companyId },
-    select: { name: true, openingBalance: true },
+    select: { name: true, openingBalance: true, createdAt: true },
   })
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 })
 
@@ -39,6 +39,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const ledger = buildCustomerLedger({
     customerOpeningBalance: customer.openingBalance,
+    customerCreatedAt: customer.createdAt,
+    corrections: parseOpeningBalanceCorrections(correctionLogs),
     fromDate: from,
     toDate: to,
     invoices,

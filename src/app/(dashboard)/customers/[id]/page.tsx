@@ -11,7 +11,7 @@ import { WhatsAppReminderButton } from "@/components/customers/whatsapp-reminder
 import { DeleteButton } from "@/components/ui/delete-button"
 import { deleteCustomer } from "@/app/(dashboard)/customers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { calculateCustomerBalance, calculateInvoicePaidAmount } from "@/lib/customer-ledger"
+import { buildCustomerLedger, calculateCustomerBalance, calculateInvoicePaidAmount, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
 
 export const dynamic = "force-dynamic"
 
@@ -46,7 +46,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const [customer, invoices, payments, returns] = await Promise.all([
+  const [customer, invoices, payments, returns, correctionLogs] = await Promise.all([
     db.customer.findFirst({ where: { id, companyId } }),
     db.saleInvoice.findMany({
       where: { customerId: id, companyId, status: "POSTED" },
@@ -76,13 +76,15 @@ export default async function CustomerDetailPage({ params }: Props) {
       where: { customerId: id, companyId, status: "POSTED" },
       select: { id: true, returnNumber: true, returnDate: true, totalAmount: true },
     }),
+    db.auditLog.findMany({ where: { companyId, entity: "Customer", entityId: id, action: "UPDATE_OPENING_BALANCE" }, select: { createdAt: true, detail: true }, orderBy: { createdAt: "asc" } }),
   ])
 
   if (!customer) notFound()
 
-  const openingBal = parseFloat(customer.openingBalance.toString())
+  const corrections = parseOpeningBalanceCorrections(correctionLogs)
   const balance = calculateCustomerBalance({ openingBalance: customer.openingBalance,
-    invoices, payments, returns })
+    invoices, payments, returns, corrections })
+  const openingBal = balance.opening
   const outstanding = balance.closingBalance
   const totalNet = balance.invoiced
   const totalPaid = balance.paid + balance.returned
@@ -103,51 +105,21 @@ export default async function CustomerDetailPage({ params }: Props) {
         calculateInvoicePaidAmount(payments.filter((payment) => payment.invoiceId === inv.id)),
     }))
 
-  // Build ledger: merge invoices + payments, sort by date
-  type LedgerRow = {
-    key: string
-    date: Date
-    type: "invoice" | "payment" | "return"
-    description: string
-    href?: string
-    debit: number
-    credit: number
-  }
-
-  const ledgerRows: LedgerRow[] = [
-    ...invoices.map((inv) => ({
-      key: `inv-${inv.id}`,
-      date: inv.invoiceDate,
-      type: "invoice" as const,
-      description: inv.invoiceNumber,
-      href: `/sales/${inv.id}`,
-      debit: parseFloat(inv.netAmount.toString()),
-      credit: 0,
-    })),
-    ...payments.map((p) => ({
-      key: `pay-${p.id}`,
-      date: p.paymentDate,
-      type: "payment" as const,
-      description: `Payment${p.reference ? ` — ${p.reference}` : ""}`,
-      debit: 0,
-      credit: parseFloat(p.amount.toString()),
-    })),
-    ...returns.map((r) => ({
-      key: `ret-${r.id}`,
-      date: r.returnDate,
-      type: "return" as const,
-      description: `Return ${r.returnNumber}`,
-      debit: 0,
-      credit: parseFloat(r.totalAmount.toString()),
-    })),
-  ].sort((a, b) => a.date.getTime() - b.date.getTime())
-
-  // Running balance starting from opening balance
-  let runningBalance = openingBal
-  const ledger = ledgerRows.map((row) => {
-    runningBalance += row.debit - row.credit
-    return { ...row, balance: runningBalance }
-  })
+  const ledger = buildCustomerLedger({
+    customerOpeningBalance: customer.openingBalance,
+    customerCreatedAt: customer.createdAt,
+    corrections,
+    fromDate: new Date(0),
+    toDate: new Date(8640000000000000),
+    invoices: invoices.map((invoice) => ({ ...invoice })),
+    payments,
+    returns,
+  }).rows.map((row, index) => ({
+    ...row,
+    key: `ledger-${index}`,
+    type: row.debit > 0 ? "invoice" as const : "payment" as const,
+    href: undefined as string | undefined,
+  }))
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

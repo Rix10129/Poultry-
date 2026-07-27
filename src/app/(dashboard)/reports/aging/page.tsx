@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { calculateCustomerBalance } from "@/lib/customer-ledger"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
@@ -46,20 +47,12 @@ export default async function AgingReportPage() {
       payments: { where: { status: "POSTED" }, select: { amount: true } },
       customer: { select: { id: true, name: true, area: true } },
     },
-    orderBy: { invoiceDate: "asc" },
   })
 
-  // Group by customer and bucket outstanding by age
   type CustomerRow = {
-    id: string
-    name: string
-    area: string | null
-    b0_30: number
-    b31_60: number
-    b61_90: number
-    b90plus: number
-    total: number
-    invoiceCount: number
+    id: string; name: string; area: string | null
+    b0_30: number; b31_60: number; b61_90: number; b90plus: number
+    total: number; invoiceCount: number
   }
 
   const customerMap = new Map<string, CustomerRow>()
@@ -214,7 +207,7 @@ export default async function AgingReportPage() {
       )}
 
       <p className="text-xs text-slate-400">
-        Age is calculated from due date (if set) or invoice date. Fully paid invoices are excluded.
+        The reconciled customer balance includes opening balances, invoices, payments, and returns, and is aged from the oldest debit source.
       </p>
     </div>
   )
