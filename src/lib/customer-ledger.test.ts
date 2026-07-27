@@ -93,3 +93,28 @@ test("date-filtered statement carries all earlier invoices and credits into open
   assert.equal(ledger.closingBalance, 95)
   assert.deepEqual(ledger.rows.map((row) => row.balance), [120, 95])
 })
+
+test("PKR 10,000 opening plus invoice less payment and return is PKR 11,000", () => {
+  const balance = calculateCustomerBalance({
+    openingBalance: "10000",
+    invoices: [{ netAmount: "5000", invoiceDate: date("2026-01-02") }],
+    payments: [{ amount: "3000", paymentDate: date("2026-01-03") }],
+    returns: [{ totalAmount: "1000", returnDate: date("2026-01-04") }],
+  })
+  assert.equal(balance.closingBalance, 11000)
+})
+
+test("opening corrections take effect on their audit date", () => {
+  const corrections = [{ createdAt: date("2026-02-01"), oldBalance: "8000", newBalance: "10000" }]
+  const input = { openingBalance: "10000", corrections, invoices: [], payments: [], returns: [] }
+  assert.equal(calculateCustomerBalance({ ...input, asOf: date("2026-01-31") }).closingBalance, 8000)
+  assert.equal(calculateCustomerBalance({ ...input, asOf: date("2026-02-01") }).closingBalance, 10000)
+
+  const ledger = buildCustomerLedger({
+    customerOpeningBalance: "10000", customerCreatedAt: date("2026-01-01"), corrections,
+    fromDate: date("2026-02-01"), toDate: date("2026-02-28"), invoices: [], payments: [], returns: [],
+  })
+  assert.equal(ledger.openingBalance, 8000)
+  assert.equal(ledger.rows[0].description, "Opening Balance Correction")
+  assert.equal(ledger.closingBalance, 10000)
+})

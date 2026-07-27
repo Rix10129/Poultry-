@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, Download } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { StatementPrintButton } from "@/components/customers/statement-print-button"
-import { buildCustomerLedger } from "@/lib/customer-ledger"
+import { buildCustomerLedger, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
 
 export const dynamic = "force-dynamic"
 
@@ -35,7 +35,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
 
   const customer = await db.customer.findFirst({
     where: { id, companyId },
-    select: { id: true, name: true, phone: true, address: true, area: true, openingBalance: true },
+    select: { id: true, name: true, phone: true, address: true, area: true, openingBalance: true, createdAt: true },
   })
   if (!customer) notFound()
 
@@ -47,22 +47,23 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
   const fromDate = from ? new Date(from + "T00:00:00") : defaultFrom
   const toDate = to ? new Date(to + "T23:59:59") : new Date(isoDate(defaultTo) + "T23:59:59")
 
-  const [invoices, payments, returns] = await Promise.all([
+  const [invoices, payments, returns, correctionLogs] = await Promise.all([
     db.saleInvoice.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true },
       orderBy: { invoiceDate: "asc" },
     }),
     db.customerPayment.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } },
       orderBy: { paymentDate: "asc" },
     }),
     db.saleReturn.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true },
       orderBy: { returnDate: "asc" },
     }),
+    db.auditLog.findMany({ where: { companyId, entity: "Customer", entityId: id, action: "UPDATE_OPENING_BALANCE" }, select: { createdAt: true, detail: true }, orderBy: { createdAt: "asc" } }),
   ])
 
   const {
@@ -72,6 +73,8 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
     closingBalance,
   } = buildCustomerLedger({
     customerOpeningBalance: customer.openingBalance,
+    customerCreatedAt: customer.createdAt,
+    corrections: parseOpeningBalanceCorrections(correctionLogs),
     fromDate,
     toDate,
     invoices,

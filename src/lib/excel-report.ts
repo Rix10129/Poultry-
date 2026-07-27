@@ -66,7 +66,7 @@ export async function generateReport(
 ): Promise<Buffer> {
   const [invoices, purchases, products, customers] = await Promise.all([
     db.saleInvoice.findMany({
-      where: { companyId, invoiceDate: { gte: from, lte: to } },
+      where: { companyId, status: "POSTED", invoiceDate: { gte: from, lte: to } },
       include: {
         customer: { select: { name: true } },
         user: { select: { name: true } },
@@ -92,9 +92,9 @@ export async function generateReport(
     db.customer.findMany({
       where: { companyId },
       include: {
-        invoices: { select: { netAmount: true } },
-        payments: { select: { amount: true } },
-        saleReturns: { select: { totalAmount: true } },
+        invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
       },
       orderBy: { name: "asc" },
     }),
