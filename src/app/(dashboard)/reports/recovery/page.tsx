@@ -47,9 +47,9 @@ export default async function RecoveryReportPage({
     },
     orderBy: { name: "asc" },
     include: {
-      invoices: { select: { netAmount: true } },
-      payments: { select: { amount: true } },
-      saleReturns: { select: { totalAmount: true } },
+      invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
+      payments: { where: { status: "POSTED" }, select: { amount: true } },
+      saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
     },
   })
 

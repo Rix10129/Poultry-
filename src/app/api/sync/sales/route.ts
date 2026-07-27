@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { allocateDocumentNumber } from "@/lib/document-number"
 import { MovementType, PaymentMode } from "@prisma/client"
+import { postCustomerReceipt, postSaleInvoice } from "@/lib/accounting/posting-service"
+import { reserveBatchStock } from "@/lib/inventory-reconciliation"
 
 const VALID_PAYMENT_MODES = ["CASH", "BANK", "CHEQUE", "CREDIT"] as const
 
@@ -77,9 +79,16 @@ export async function POST(req: NextRequest) {
         taxAmount += base * line.taxRate / 100
       }
       const netAmount = Math.max(0, totalAmount - disc + taxAmount)
+      if (customerId && paid > netAmount + 0.001)
+        throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
+      if (customerId) {
+        const customer = await tx.customer.findFirst({ where: { id: customerId, companyId }, select: { id: true } })
+        if (!customer) throw new Error("Customer not found")
+      }
 
       const invoice = await tx.saleInvoice.create({
         data: {
+          status: "POSTED",
           companyId,
           userId,
           customerId: customerId || null,
@@ -90,7 +99,7 @@ export async function POST(req: NextRequest) {
           discountAmount: disc,
           taxAmount,
           netAmount,
-          paidAmount: Math.min(paid, netAmount + 0.001),
+          paidAmount: customerId ? paid : Math.min(paid, netAmount),
           paymentMode: paymentMode as PaymentMode,
           isCashSale: !customerId,
           notes: notes || null,
@@ -100,15 +109,18 @@ export async function POST(req: NextRequest) {
       invoiceId = invoice.id
 
       if (customerId && paid > 0) {
-        await tx.customerPayment.create({
+        const receipt = await tx.customerPayment.create({
           data: {
+            status: "POSTED",
             companyId, customerId, invoiceId: invoice.id,
-            amount: Math.min(paid, netAmount + 0.001),
+            amount: paid,
             paymentMode: paymentMode as PaymentMode,
             paymentDate: new Date(invoiceDate || Date.now()),
             notes: "Receipt recorded with invoice",
           },
         })
+        await postCustomerReceipt(tx, { companyId, sourceId: receipt.id, number: receipt.id,
+          date: receipt.paymentDate, amount: receipt.amount, paymentMode: receipt.paymentMode })
       }
 
       for (const line of lines) {
@@ -137,10 +149,8 @@ export async function POST(req: NextRequest) {
           },
         })
 
-        await tx.productBatch.update({
-          where: { id: line.batchId },
-          data: { quantity: { decrement: line.quantity } },
-        })
+        await reserveBatchStock(tx, { batchId: line.batchId, companyId, productId: line.productId,
+          quantity: line.quantity })
 
         await tx.stockMovement.create({
           data: {
@@ -148,12 +158,17 @@ export async function POST(req: NextRequest) {
             productId: line.productId,
             batchId: line.batchId,
             type: MovementType.SALE,
+            sourceType: "SALE_INVOICE",
+            sourceId: invoice.id,
             quantity: -line.quantity,
             reference: invoiceNumber,
             notes: `Sale ${invoiceNumber} (offline sync)`,
           },
         })
       }
+      await postSaleInvoice(tx, { companyId, sourceId: invoice.id, number: invoiceNumber,
+        date: invoice.invoiceDate, amount: invoice.netAmount, tax: invoice.taxAmount,
+        paid: customerId ? 0 : invoice.paidAmount, paymentMode: invoice.paymentMode })
     })
   } catch (e: any) {
     return NextResponse.json(

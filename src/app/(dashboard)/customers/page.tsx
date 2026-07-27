@@ -60,9 +60,9 @@ export default async function CustomersPage({
     db.customer.findMany({
       where,
       include: {
-        invoices: { select: { netAmount: true } },
-        payments: { select: { amount: true } },
-        saleReturns: { select: { totalAmount: true } },
+        invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
         _count: { select: { invoices: true } },
       },
       orderBy: { name: "asc" },
