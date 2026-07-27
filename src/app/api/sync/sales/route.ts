@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { db } from "@/lib/db"
 import { allocateDocumentNumber } from "@/lib/document-number"
+import { daysUntilExpiry } from "@/lib/utils"
 import { MovementType, PaymentMode } from "@prisma/client"
 import { postCustomerReceipt, postSaleInvoice } from "@/lib/accounting/posting-service"
 import { reserveBatchStock } from "@/lib/inventory-reconciliation"
@@ -19,7 +19,7 @@ type LineInput = {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
@@ -131,6 +131,21 @@ export async function POST(req: NextRequest) {
         if (batch.quantity < line.quantity) {
           throw new Error(
             `Only ${batch.quantity} units available (you requested ${line.quantity}). Inventory changed while offline.`
+          )
+        }
+        if (daysUntilExpiry(batch.expiryDate) < 0) {
+          throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
+        }
+        // FEFO is enforced server-side: the client may only sell from the
+        // earliest-expiring batch that still has stock for this product.
+        const earliestAvailable = await tx.productBatch.findFirst({
+          where: { companyId, productId: line.productId, quantity: { gt: 0 } },
+          orderBy: { expiryDate: "asc" },
+          select: { id: true, expiryDate: true, batchNumber: true },
+        })
+        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate < batch.expiryDate) {
+          throw new Error(
+            `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
           )
         }
 

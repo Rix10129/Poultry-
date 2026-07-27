@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
+import { secureEquals } from "@/lib/secure-compare"
 
-// Simple endpoint to test Resend config — GET /api/admin/test-email?secret=YOUR_CRON_SECRET
+// Simple endpoint to test Resend config.
+// curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/admin/test-email
 export async function GET(req: Request) {
-  const secret = new URL(req.url).searchParams.get("secret")
+  const auth = req.headers.get("authorization")
 
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET || !secureEquals(auth, `Bearer ${process.env.CRON_SECRET}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -15,7 +17,6 @@ export async function GET(req: Request) {
 
   const config = {
     apiKeySet: !!apiKey,
-    apiKeyPrefix: apiKey?.slice(0, 8) ?? "(not set)",
     from,
     to: to ?? "(ADMIN_EMAIL not set)",
     nextauthUrl: process.env.NEXTAUTH_URL ?? "(not set)",

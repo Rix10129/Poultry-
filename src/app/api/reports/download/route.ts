@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { db } from "@/lib/db"
 import { generateReport } from "@/lib/excel-report"
 
@@ -8,7 +7,7 @@ export const runtime = "nodejs"
 export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const companyId = (session.user as any).companyId as string

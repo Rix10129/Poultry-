@@ -1,7 +1,6 @@
 import ExcelJS from "exceljs"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { authorize } from "@/lib/authorization"
 import { db } from "@/lib/db"
 
 export const runtime = "nodejs"
@@ -13,9 +12,9 @@ function dateParam(value: string | null, end = false) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  const companyId = (session?.user as { companyId?: string } | undefined)?.companyId
-  if (!companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const authorization = await authorize("EXPORT_DATA")
+  if (!authorization.ok) return NextResponse.json({ error: authorization.status === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization.status })
+  const companyId = authorization.actor.companyId
 
   const from = dateParam(req.nextUrl.searchParams.get("from"))
   const to = dateParam(req.nextUrl.searchParams.get("to"), true)

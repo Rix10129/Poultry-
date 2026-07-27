@@ -2,14 +2,13 @@
 
 import { db } from "@/lib/db"
 import { allocateDocumentNumber } from "@/lib/document-number"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { AccountType, VoucherType } from "@prisma/client"
 import { assertBalanced } from "@/lib/accounting/posting-service"
 import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction } from "@/lib/authorization"
+import { logAudit } from "@/lib/audit"
 
 type ActionState = { error: string } | null
 
@@ -86,15 +85,24 @@ export async function updateAccount(_: ActionState, formData: FormData): Promise
 }
 
 export async function deleteAccount(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
-  if (!user?.companyId) return
+  const authorization = await authorize("ACCOUNTING_MANAGE")
+  if (!authorization.ok) return
+  const { companyId } = authorization.actor
 
-  const companyId = user.companyId as string
   const id = (formData.get("id") as string)?.trim()
 
   try {
-    await db.account.deleteMany({ where: { id, companyId, isSystem: false } })
+    const { count } = await db.account.deleteMany({ where: { id, companyId, isSystem: false } })
+    if (count) {
+      logAudit({
+        companyId,
+        userId: authorization.actor.id,
+        userName: authorization.actor.name ?? "",
+        action: "DELETE_ACCOUNT",
+        entity: "Account",
+        entityId: id,
+      })
+    }
   } catch {
     // Has linked journal lines — silently redirect
   }

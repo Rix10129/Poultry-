@@ -2,8 +2,7 @@
 
 import { db } from "@/lib/db"
 import { allocateDocumentNumber } from "@/lib/document-number"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType } from "@prisma/client"
@@ -77,7 +76,7 @@ export async function createPurchaseReturn(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string

@@ -1,8 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { ExpenseCategory, PaymentMode } from "@prisma/client"
 import { writeAuditLog } from "@/lib/audit"
@@ -15,7 +14,7 @@ const VALID_CATEGORIES = Object.values(ExpenseCategory)
 const VALID_MODES = Object.values(PaymentMode)
 
 export async function createExpense(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   if (!session) return { error: "Not authenticated" }
   const companyId = (session.user as any).companyId as string
   const userId = (session.user as any).id as string
@@ -58,7 +57,7 @@ export async function createExpense(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function deleteExpense(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   if (!session) return { error: "Not authenticated" }
   const companyId = (session.user as any).companyId as string
 
@@ -84,7 +83,7 @@ export async function deleteExpense(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function reverseExpense(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions); const user = session?.user as any
+  const session = await getActiveSession(); const user = session?.user as any
   if (!user?.companyId) return { error: "Not authenticated" }
   const companyId = user.companyId as string; const id = String(formData.get("id") || "")
   let reason: string; try { reason = requireReversalReason(formData.get("reason")) } catch (e) { return { error: (e as Error).message } }

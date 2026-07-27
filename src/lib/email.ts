@@ -1,8 +1,28 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"
 const APP_URL = (process.env.NEXTAUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")
+
+// Constructed lazily — this app runs fully offline on a LAN server for many
+// installs, and the `resend` package throws synchronously if instantiated
+// without an API key, which would otherwise crash module import (and, on
+// Next.js, the production build itself) whenever email is left unconfigured.
+let resendClient: Resend | null | undefined
+function getResendClient(): Resend | null {
+  if (resendClient === undefined) {
+    resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+  }
+  return resendClient
+}
+
+async function send(params: Parameters<Resend["emails"]["send"]>[0]): Promise<void> {
+  const client = getResendClient()
+  if (!client) {
+    console.warn(`[email] RESEND_API_KEY not set — skipped sending "${params.subject}" to ${params.to}`)
+    return
+  }
+  await client.emails.send(params)
+}
 
 function baseTemplate(content: string) {
   return `
@@ -27,7 +47,7 @@ export async function sendVerificationEmail(
   token: string
 ): Promise<void> {
   const url = `${APP_URL}/verify-email?token=${token}`
-  await resend.emails.send({
+  await send({
     from: FROM,
     to,
     subject: "Verify your email — Poultry Vet System",
@@ -57,7 +77,7 @@ export async function sendAdminApprovalRequest(opts: {
   approveUrl: string
   rejectUrl: string
 }): Promise<void> {
-  await resend.emails.send({
+  await send({
     from: FROM,
     to: opts.to,
     subject: `[Action Required] New company registration: ${opts.companyName}`,
@@ -96,7 +116,7 @@ export async function sendApprovalConfirmationEmail(
   companyName: string
 ): Promise<void> {
   const loginUrl = `${APP_URL}/login`
-  await resend.emails.send({
+  await send({
     from: FROM,
     to,
     subject: `Your ${companyName} account is approved — Poultry Vet System`,
@@ -120,7 +140,7 @@ export async function sendRejectionEmail(
   name: string,
   companyName: string
 ): Promise<void> {
-  await resend.emails.send({
+  await send({
     from: FROM,
     to,
     subject: `Registration update — Poultry Vet System`,
@@ -139,7 +159,7 @@ export async function sendPasswordResetEmail(
   companyName: string
 ): Promise<void> {
   const url = `${APP_URL}/reset-password?token=${token}`
-  await resend.emails.send({
+  await send({
     from: FROM,
     to,
     subject: `Reset your password — ${companyName}`,

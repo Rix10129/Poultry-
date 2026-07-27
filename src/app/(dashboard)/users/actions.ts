@@ -1,8 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { UserRole } from "@prisma/client"
@@ -28,7 +27,7 @@ function requireManager(actor: any): string | null {
 }
 
 export async function createUser(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const actor = session?.user as any
   const err = requireManager(actor)
   if (err) return { error: err }
@@ -71,7 +70,7 @@ export async function createUser(_: ActionState, formData: FormData): Promise<Ac
 }
 
 export async function updateUser(_: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const actor = session?.user as any
   const err = requireManager(actor)
   if (err) return { error: err }
@@ -113,7 +112,7 @@ export async function updateUser(_: ActionState, formData: FormData): Promise<Ac
 }
 
 export async function changePassword(_: PasswordState, formData: FormData): Promise<PasswordState> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const actor = session?.user as any
   const err = requireManager(actor)
   if (err) return { error: err }
@@ -138,7 +137,7 @@ export async function changePassword(_: PasswordState, formData: FormData): Prom
 }
 
 export async function toggleActive(formData: FormData): Promise<void> {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const actor = session?.user as any
   if (!actor?.companyId || (actor.role !== "OWNER" && actor.role !== "ADMIN")) return
 

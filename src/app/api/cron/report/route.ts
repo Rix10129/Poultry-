@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { db } from "@/lib/db"
 import { generateReport } from "@/lib/excel-report"
+import { secureEquals } from "@/lib/secure-compare"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -9,7 +10,7 @@ export const maxDuration = 60
 export async function GET(req: NextRequest) {
   // Vercel sends this header automatically for cron jobs
   const auth = req.headers.get("authorization")
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || !secureEquals(auth, `Bearer ${process.env.CRON_SECRET}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

@@ -23,7 +23,13 @@ export function swapJournalSides<T extends { debitAccountId: string | null; cred
     amount: line.amount,
   }))
 }
-function funds(mode?: PaymentMode): SystemAccount { return mode === "BANK" || mode === "CHEQUE" ? "BANK" : "CASH" }
+// A cheque isn't cleared cash — it sits in a clearing account until deposited
+// (receivable side) or presented (payable side). Direction picks which side.
+function funds(mode: PaymentMode | undefined, direction: "in" | "out"): SystemAccount {
+  if (mode === "BANK") return "BANK"
+  if (mode === "CHEQUE") return direction === "in" ? "CHEQUES_RECEIVABLE" : "CHEQUES_PAYABLE"
+  return "CASH"
+}
 
 async function post(tx: Tx, sourceType: string, p: Posting, debits: Side[], credits: Side[]) {
   const total = assertBalanced(debits, credits)
@@ -43,14 +49,23 @@ async function post(tx: Tx, sourceType: string, p: Posting, debits: Side[], cred
   } })
 }
 
-export async function postSaleInvoice(tx: Tx, p: Posting) { const total=money(p.amount), tax=money(p.tax), paid=Decimal.min(money(p.paid),total); return post(tx,"SALE_INVOICE",p,[{account:funds(p.paymentMode),amount:paid},{account:"ACCOUNTS_RECEIVABLE",amount:total.minus(paid)}],[{account:"SALES",amount:total.minus(tax)},{account:"OUTPUT_TAX",amount:tax}]) }
-export async function postCustomerReceipt(tx: Tx, p: Posting) { return post(tx,"CUSTOMER_RECEIPT",p,[{account:funds(p.paymentMode),amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
+export async function postSaleInvoice(tx: Tx, p: Posting) { const total=money(p.amount), tax=money(p.tax), paid=Decimal.min(money(p.paid),total); return post(tx,"SALE_INVOICE",p,[{account:funds(p.paymentMode,"in"),amount:paid},{account:"ACCOUNTS_RECEIVABLE",amount:total.minus(paid)}],[{account:"SALES",amount:total.minus(tax)},{account:"OUTPUT_TAX",amount:tax}]) }
+export async function postCustomerReceipt(tx: Tx, p: Posting) { return post(tx,"CUSTOMER_RECEIPT",p,[{account:funds(p.paymentMode,"in"),amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
 export async function postSaleReturn(tx: Tx, p: Posting) { return post(tx,"SALE_RETURN",p,[{account:"SALES",amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
-export async function postPurchase(tx: Tx, p: Posting) { const total=money(p.amount),tax=money(p.tax),paid=Decimal.min(money(p.paid),total); return post(tx,"PURCHASE",p,[{account:"INVENTORY",amount:total.minus(tax)},{account:"INPUT_TAX",amount:tax}],[{account:funds(p.paymentMode),amount:paid},{account:"ACCOUNTS_PAYABLE",amount:total.minus(paid)}]) }
-export async function postSupplierPayment(tx: Tx, p: Posting) { return post(tx,"SUPPLIER_PAYMENT",p,[{account:"ACCOUNTS_PAYABLE",amount:p.amount}],[{account:funds(p.paymentMode),amount:p.amount}]) }
+export async function postPurchase(tx: Tx, p: Posting) { const total=money(p.amount),tax=money(p.tax),paid=Decimal.min(money(p.paid),total); return post(tx,"PURCHASE",p,[{account:"INVENTORY",amount:total.minus(tax)},{account:"INPUT_TAX",amount:tax}],[{account:funds(p.paymentMode,"out"),amount:paid},{account:"ACCOUNTS_PAYABLE",amount:total.minus(paid)}]) }
+export async function postSupplierPayment(tx: Tx, p: Posting) { return post(tx,"SUPPLIER_PAYMENT",p,[{account:"ACCOUNTS_PAYABLE",amount:p.amount}],[{account:funds(p.paymentMode,"out"),amount:p.amount}]) }
 export async function postPurchaseReturn(tx: Tx, p: Posting) { return post(tx,"PURCHASE_RETURN",p,[{account:"ACCOUNTS_PAYABLE",amount:p.amount}],[{account:"INVENTORY",amount:p.amount}]) }
-export async function postExpense(tx: Tx, p: Posting) { return post(tx,"EXPENSE",p,[{account:"EXPENSE",amount:p.amount}],[{account:funds(p.paymentMode),amount:p.amount}]) }
+export async function postExpense(tx: Tx, p: Posting) { return post(tx,"EXPENSE",p,[{account:"EXPENSE",amount:p.amount}],[{account:funds(p.paymentMode,"out"),amount:p.amount}]) }
 export async function postStockAdjustment(tx: Tx, p: Posting & { opening?: boolean; increase: boolean }) { const contra: SystemAccount=p.opening?"OPENING_EQUITY":"STOCK_ADJUSTMENT"; return post(tx,p.opening?"OPENING_STOCK":"STOCK_ADJUSTMENT",p,p.increase?[{account:"INVENTORY",amount:p.amount}]:[{account:contra,amount:p.amount}],p.increase?[{account:contra,amount:p.amount}]:[{account:"INVENTORY",amount:p.amount}]) }
+
+// Transfers a cheque from the clearing account into Bank once it actually
+// clears. Receivable cheques (from customers) move Bank <- Cheques in Hand;
+// payable cheques (issued to suppliers) move Cheques Issued -> Bank.
+export async function postPDCDeposit(tx: Tx, p: Posting, type: "RECEIVABLE" | "PAYABLE") {
+  return type === "RECEIVABLE"
+    ? post(tx, "PDC_DEPOSIT", p, [{ account: "BANK", amount: p.amount }], [{ account: "CHEQUES_RECEIVABLE", amount: p.amount }])
+    : post(tx, "PDC_DEPOSIT", p, [{ account: "CHEQUES_PAYABLE", amount: p.amount }], [{ account: "BANK", amount: p.amount }])
+}
 
 export async function reversePosting(tx: Tx, companyId: string, sourceType: string, sourceId: string, reason: string, date = new Date()) {
   const original = await tx.journalEntry.findUnique({ where: { postingKey: `${companyId}:${sourceType}:${sourceId}` }, include: { lines: true } })

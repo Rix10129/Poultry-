@@ -1,13 +1,12 @@
 import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getActiveSession } from "@/lib/session"
 import { NextResponse } from "next/server"
 
 // Returns the minimal data needed for offline invoice creation.
 // Called by the client in the background every time the user is online
 // so the data stays fresh in IndexedDB.
 export async function GET() {
-  const session = await getServerSession(authOptions)
+  const session = await getActiveSession()
   const actor = session?.user as any
   if (!actor?.companyId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })

@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { Resend } from "resend"
 import { dumpCompanyBackup } from "@/lib/company-backup-data"
 import { encryptBackup } from "@/lib/company-backup"
+import { secureEquals } from "@/lib/secure-compare"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -62,7 +63,7 @@ async function uploadToR2(
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || !secureEquals(auth, `Bearer ${process.env.CRON_SECRET}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

@@ -107,7 +107,6 @@ export default async function CustomerDetailPage({ params }: Props) {
 
   const ledger = buildCustomerLedger({
     customerOpeningBalance: customer.openingBalance,
-    customerCreatedAt: customer.createdAt,
     corrections,
     fromDate: new Date(0),
     toDate: new Date(8640000000000000),
