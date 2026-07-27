@@ -208,6 +208,11 @@ export default async function InvoiceDetailPage({ params }: Props) {
                         {item.batch.batchNumber}
                       </span>
                       <ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} />
+                      {item.isBonus && (
+                        <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                          FREE / SCHEME
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-3 text-right text-slate-700">
@@ -227,7 +232,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
                       : "—"}
                   </td>
                   <td className="px-6 py-3 text-right font-semibold text-slate-900">
-                    {formatCurrency(lineTotal)}
+                    {item.isBonus ? <span className="text-amber-700">FREE</span> : formatCurrency(lineTotal)}
                   </td>
                 </tr>
               )

@@ -11,6 +11,7 @@ import { daysUntilExpiry, formatCurrency } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, Save } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
 import { INVOICE_DRAFT_VERSION, type InvoiceDraftData } from "@/lib/invoice-draft"
+import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ type LineItem = {
   salePrice: number
   discount: number   // percentage
   taxRate: number
+  isBonus: boolean   // scheme/bonus giveaway — deducts stock, contributes zero revenue
   savedAvailable: number
   savedCatalogPrice: number
 }
@@ -76,7 +78,7 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ products, customers, initialDraft, draftWarnings = [], drafts = [] }: InvoiceFormProps) {
-  const [lines, setLines] = useState<LineItem[]>(() => initialDraft?.lines.map(line => ({ ...line, key: crypto.randomUUID() })) ?? [])
+  const [lines, setLines] = useState<LineItem[]>(() => initialDraft?.lines.map(line => ({ ...line, isBonus: !!line.isBonus, key: crypto.randomUUID() })) ?? [])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "")
@@ -136,6 +138,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       salePrice: parseFloat(chosen.batch.salePrice) || parseFloat(product.salePrice) || 0,
       discount: 0,
       taxRate: parseFloat(product.taxRate) || 0,
+      isBonus: false,
       savedAvailable: chosen.batch.quantity,
       savedCatalogPrice: parseFloat(product.salePrice) || 0,
     }
@@ -154,16 +157,10 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
   const disc = parseFloat(discountAmount) || 0
   const paid = parseFloat(paidAmount) || 0
 
-  const { subtotal, taxTotal, net } = useMemo(() => {
-    const subtotal = lines.reduce(
-      (s, l) => s + l.quantity * l.salePrice * (1 - l.discount / 100), 0
-    )
-    const taxTotal = lines.reduce((s, l) => {
-      const base = l.quantity * l.salePrice * (1 - l.discount / 100)
-      return s + base * l.taxRate / 100
-    }, 0)
-    return { subtotal, taxTotal, net: Math.max(0, subtotal - disc + taxTotal) }
-  }, [lines, disc])
+  const { totalAmount: subtotal, taxAmount: taxTotal, netAmount: net } = useMemo(
+    () => calculateDocumentTotals(lines, l => l.salePrice, disc),
+    [lines, disc]
+  )
 
   const balance = net - paid
   const itemCountLabel = `${lines.length} line${lines.length === 1 ? "" : "s"}`
@@ -177,7 +174,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       productId: line.productId, productName: line.productName, unit: line.unit,
       batchId: line.batchId, batchNumber: line.batchNumber, expiryDate: line.expiryDate,
       quantity: line.quantity, salePrice: line.salePrice, discount: line.discount,
-      taxRate: line.taxRate, savedAvailable: line.savedAvailable, savedCatalogPrice: line.savedCatalogPrice,
+      taxRate: line.taxRate, isBonus: line.isBonus, savedAvailable: line.savedAvailable, savedCatalogPrice: line.savedCatalogPrice,
     })),
   }), [customerId, customers, invoiceDate, dueDate, paymentMode, paidAmount, discountAmount, notes, lines])
 
@@ -233,6 +230,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
             salePrice: l.salePrice,
             discount: l.discount,
             taxRate: l.taxRate,
+            isBonus: l.isBonus,
           }))),
         })
         setSavedOffline(true)
@@ -259,6 +257,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       salePrice: l.salePrice,
       discount: l.discount,
       taxRate: l.taxRate,
+      isBonus: l.isBonus,
     }))))
 
     try {
@@ -419,16 +418,17 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-24">Qty</th>
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-32">Unit Price</th>
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600 w-20">Disc%</th>
+                  <th className="text-center px-3 py-2.5 font-medium text-slate-600 w-16">Free</th>
                   <th className="text-right px-3 py-2.5 font-medium text-slate-600">Total</th>
                   <th className="w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {lines.map(line => {
-                  const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+                  const lineTotal = lineBase(line.quantity, line.salePrice, line.discount, line.isBonus)
                   const overQty = line.quantity > line.maxQty
                   return (
-                    <tr key={line.key} className={overQty ? "bg-red-50" : "hover:bg-slate-50"}>
+                    <tr key={line.key} className={overQty ? "bg-red-50" : line.isBonus ? "bg-amber-50" : "hover:bg-slate-50"}>
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-slate-900">{line.productName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
@@ -457,10 +457,11 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
                           min="0"
                           step="0.01"
                           value={line.salePrice}
+                          disabled={line.isBonus}
                           onChange={e =>
                             updateLine(line.key, { salePrice: parseFloat(e.target.value) || 0 })
                           }
-                          className="text-right"
+                          className="text-right disabled:opacity-50"
                         />
                       </td>
                       <td className="px-3 py-2.5">
@@ -470,14 +471,24 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
                           max="100"
                           step="0.01"
                           value={line.discount}
+                          disabled={line.isBonus}
                           onChange={e =>
                             updateLine(line.key, { discount: parseFloat(e.target.value) || 0 })
                           }
-                          className="text-right"
+                          className="text-right disabled:opacity-50"
+                        />
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={line.isBonus}
+                          onChange={e => updateLine(line.key, { isBonus: e.target.checked })}
+                          title="Scheme/bonus giveaway — deducts stock, no charge to the customer"
+                          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                         />
                       </td>
                       <td className="px-3 py-2.5 text-right font-semibold text-slate-900">
-                        {formatCurrency(lineTotal)}
+                        {line.isBonus ? <span className="text-amber-700">FREE</span> : formatCurrency(lineTotal)}
                       </td>
                       <td className="px-3 py-2.5">
                         <button

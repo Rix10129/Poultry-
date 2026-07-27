@@ -11,6 +11,7 @@ export type InvoiceDraftLine = {
   salePrice: number
   discount: number
   taxRate: number
+  isBonus?: boolean
   savedAvailable: number
   savedCatalogPrice: number
 }

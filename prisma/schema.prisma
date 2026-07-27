@@ -598,6 +598,9 @@ model SaleInvoiceItem {
   salePrice   Decimal @db.Decimal(12, 2)
   discount    Decimal @default(0) @db.Decimal(12, 2)
   taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  // Scheme/bonus giveaway (e.g. "buy 10 get 1 free") — still deducts stock
+  // via FEFO like any other line, but contributes zero to totalAmount/tax.
+  isBonus     Boolean @default(false)
   totalAmount Decimal @db.Decimal(12, 2)
 
   invoice SaleInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
