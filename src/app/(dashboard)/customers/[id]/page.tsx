@@ -49,7 +49,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   const [customer, invoices, payments, returns] = await Promise.all([
     db.customer.findFirst({ where: { id, companyId } }),
     db.saleInvoice.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       orderBy: { invoiceDate: "desc" },
       select: {
         id: true,
@@ -60,7 +60,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       },
     }),
     db.customerPayment.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       orderBy: { paymentDate: "desc" },
       select: {
         id: true,
@@ -73,7 +73,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       },
     }),
     db.saleReturn.findMany({
-      where: { customerId: id, companyId },
+      where: { customerId: id, companyId, status: "POSTED" },
       select: { id: true, returnNumber: true, returnDate: true, totalAmount: true },
     }),
   ])

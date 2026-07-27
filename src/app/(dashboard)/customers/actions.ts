@@ -10,6 +10,7 @@ import { writeAuditLog } from "@/lib/audit"
 import { postCustomerReceipt, reversePosting } from "@/lib/accounting/posting-service"
 import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction, hasPermission } from "@/lib/authorization"
+import { validateInvoicePayment } from "@/lib/customer-payment"
 
 type ActionState = { error: string } | null
 
@@ -204,6 +205,20 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
 
   try {
     await db.$transaction(async (tx) => {
+      let invoicePaidAmount: number | null = null
+      if (invoiceId) {
+        const invoice = await tx.saleInvoice.findFirst({
+          where: { id: invoiceId, companyId },
+          select: { id: true, companyId: true, customerId: true, netAmount: true, status: true },
+        })
+        const postedPayments = await tx.customerPayment.findMany({
+          where: { invoiceId, companyId, status: "POSTED" }, select: { amount: true },
+        })
+        invoicePaidAmount = validateInvoicePayment({
+          invoice, companyId, customerId, amount, postedPayments,
+        }).newPaidAmount
+      }
+
       const payment = await tx.customerPayment.create({
         data: {
           status: "POSTED",
@@ -220,19 +235,8 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
       await postCustomerReceipt(tx, { companyId, sourceId: payment.id, number: payment.id, date: payment.paymentDate, amount: payment.amount, paymentMode: payment.paymentMode, description: notes ?? "Customer receipt" })
 
       // Refresh the invoice cache from authoritative payment rows.
-      if (invoiceId) {
-        const invoice = await tx.saleInvoice.findFirst({
-          where: { id: invoiceId, companyId },
-          select: { id: true },
-        })
-        if (invoice) {
-          const aggregate = await tx.customerPayment.aggregate({
-            where: { invoiceId, companyId }, _sum: { amount: true },
-          })
-          const newPaid = Number(aggregate._sum.amount ?? 0)
-          await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: newPaid } })
-        }
-      }
+      if (invoiceId && invoicePaidAmount !== null)
+        await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: invoicePaidAmount } })
     })
   } catch (e: any) {
     return { error: e?.message ?? "Failed to record payment" }
