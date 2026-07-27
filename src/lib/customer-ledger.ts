@@ -5,23 +5,69 @@ export interface CustomerLedgerPayment { invoiceId?: string | null; paymentDate:
 export interface CustomerLedgerReturn { returnNumber: string; returnDate: Date; totalAmount: Numeric; notes?: string | null }
 export interface OpeningBalanceCorrection { date: Date; oldAmount: Numeric; newAmount: Numeric }
 export interface CustomerLedgerRow { date: Date; description: string; debit: number; credit: number; balance: number }
-export interface CustomerBalanceInput { openingBalance: Numeric; invoices: Array<{ netAmount: Numeric }>; payments: Array<{ amount: Numeric }>; returns: Array<{ totalAmount: Numeric }> }
+export interface CustomerBalanceInput {
+  openingBalance: Numeric
+  invoices: Array<{ netAmount: Numeric; invoiceDate?: Date }>
+  payments: Array<{ amount: Numeric; paymentDate?: Date }>
+  returns: Array<{ totalAmount: Numeric; returnDate?: Date }>
+  corrections?: OpeningBalanceCorrection[]
+  asOf?: Date
+}
 
 const amount = (value: Numeric) => Number(value.toString())
 const sum = <T>(rows: T[], get: (row: T) => Numeric) => rows.reduce((total, row) => total + amount(get(row)), 0)
+const onOrBefore = (date: Date | undefined, asOf?: Date) => !asOf || !date || date <= asOf
+
+/** Converts opening-balance audit records into typed, usable correction events. */
+export function parseOpeningBalanceCorrections(rows: Array<{ createdAt: Date; detail: string | null }>): OpeningBalanceCorrection[] {
+  return rows.flatMap((row) => {
+    try {
+      const values = JSON.parse(row.detail ?? "{}")
+      const oldBalance = values.oldValues?.openingBalance
+      const newBalance = values.newValues?.openingBalance
+      if (oldBalance == null || newBalance == null || !Number.isFinite(amount(oldBalance)) || !Number.isFinite(amount(newBalance))) return []
+      return [{ createdAt: row.createdAt, oldBalance, newBalance }]
+    } catch { return [] }
+  }).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+}
+
+/** Effective opening balance at a date, reconstructed by reversing later corrections. */
+export function effectiveOpeningBalance(current: Numeric, corrections: OpeningBalanceCorrection[] = [], asOf?: Date) {
+  if (!asOf) return amount(current)
+  return corrections.filter((entry) => entry.createdAt > asOf)
+    .reduceRight((balance, entry) => balance - (amount(entry.newBalance) - amount(entry.oldBalance)), amount(current))
+}
 
 /** The one authoritative formula used by every customer balance surface. */
 export function calculateCustomerBalance(input: CustomerBalanceInput) {
-  const invoiced = sum(input.invoices, (row) => row.netAmount)
-  const paid = sum(input.payments, (row) => row.amount)
-  const returned = sum(input.returns, (row) => row.totalAmount)
-  return { opening: amount(input.openingBalance), invoiced, paid, returned,
-    closingBalance: amount(input.openingBalance) + invoiced - paid - returned }
+  const invoices = input.invoices.filter((row) => onOrBefore(row.invoiceDate, input.asOf))
+  const payments = input.payments.filter((row) => onOrBefore(row.paymentDate, input.asOf))
+  const returns = input.returns.filter((row) => onOrBefore(row.returnDate, input.asOf))
+  const invoiced = sum(invoices, (row) => row.netAmount)
+  const paid = sum(payments, (row) => row.amount)
+  const returned = sum(returns, (row) => row.totalAmount)
+  const opening = effectiveOpeningBalance(input.openingBalance, input.corrections, input.asOf)
+  return { opening, invoiced, paid, returned, closingBalance: opening + invoiced - paid - returned }
 }
 
 /** Derives the SaleInvoice.paidAmount cache from its payment events. */
-export function calculateInvoicePaidAmount(payments: Array<{ amount: Numeric }>) {
-  return sum(payments, (row) => row.amount)
+export function calculateInvoicePaidAmount(payments: Array<{ amount: Numeric }>) { return sum(payments, (row) => row.amount) }
+
+export function parseOpeningBalanceCorrections(logs: Array<{ detail: string | null; createdAt: Date }>) {
+  const corrections: OpeningBalanceCorrection[] = []
+  for (const log of logs) {
+    try {
+      const detail = JSON.parse(log.detail ?? "{}")
+      const oldAmount = detail.oldValues?.openingBalance
+      const newAmount = detail.newValues?.openingBalance
+      if (oldAmount !== undefined && newAmount !== undefined &&
+          Number.isFinite(amount(oldAmount)) && Number.isFinite(amount(newAmount)))
+        corrections.push({ date: log.createdAt, oldAmount, newAmount })
+    } catch {
+      // Ignore malformed legacy audit details; they are not ledger events.
+    }
+  }
+  return corrections
 }
 
 /** Customer statement export adapter; deliberately distinct from legacy parsers. */
