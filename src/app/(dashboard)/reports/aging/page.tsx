@@ -31,15 +31,21 @@ export default async function AgingReportPage() {
   const today = new Date()
   today.setHours(23, 59, 59, 999)
 
-  // Fetch complete customer ledgers so returns, payments, and opening balances
-  // reconcile with every other receivables surface.
-  const customers = await db.customer.findMany({
-    where: { companyId },
+  // Fetch all invoices with outstanding balance
+  const invoices = await db.saleInvoice.findMany({
+    where: {
+      companyId,
+      status: "POSTED",
+      customer: { isNot: null },
+    },
     select: {
-      id: true, name: true, area: true, createdAt: true, openingBalance: true,
-      invoices: { where: { status: "POSTED" }, select: { invoiceDate: true, dueDate: true, netAmount: true } },
-      payments: { where: { status: "POSTED" }, select: { paymentDate: true, amount: true } },
-      saleReturns: { where: { status: "POSTED" }, select: { returnDate: true, totalAmount: true } },
+      id: true,
+      invoiceNumber: true,
+      invoiceDate: true,
+      dueDate: true,
+      netAmount: true,
+      payments: { where: { status: "POSTED" }, select: { amount: true } },
+      customer: { select: { id: true, name: true, area: true } },
     },
   })
 
@@ -50,28 +56,36 @@ export default async function AgingReportPage() {
   }
 
   const customerMap = new Map<string, CustomerRow>()
-  for (const customer of customers) {
-    const total = calculateCustomerBalance({
-      openingBalance: customer.openingBalance,
-      invoices: customer.invoices,
-      payments: customer.payments,
-      returns: customer.saleReturns,
-      asOf: today,
-    }).closingBalance
-    if (total < 0.01) continue
 
-    // Unallocated credits (payments and returns) affect the customer account as a
-    // whole, so age the reconciled balance from its oldest debit source.
-    const oldestDebitDate = customer.invoices.reduce((oldest, invoice) => {
-      const date = invoice.dueDate ?? invoice.invoiceDate
-      return date < oldest ? date : oldest
-    }, customer.createdAt)
-    const bucket = ageBucket(daysBetween(oldestDebitDate, today))
-    customerMap.set(customer.id, {
-      id: customer.id, name: customer.name, area: customer.area,
-      b0_30: 0, b31_60: 0, b61_90: 0, b90plus: 0,
-      total, invoiceCount: customer.invoices.length, [bucket]: total,
-    } as CustomerRow)
+  for (const inv of invoices) {
+    if (!inv.customer) continue
+    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+    const balance = parseFloat(inv.netAmount.toString()) - paid
+    if (balance < 0.01) continue
+
+    const refDate = inv.dueDate ?? inv.invoiceDate
+    const age = daysBetween(refDate, today)
+    const bucket = ageBucket(age)
+
+    const existing = customerMap.get(inv.customer.id)
+    if (existing) {
+      existing[bucket] += balance
+      existing.total += balance
+      existing.invoiceCount++
+    } else {
+      customerMap.set(inv.customer.id, {
+        id: inv.customer.id,
+        name: inv.customer.name,
+        area: inv.customer.area,
+        b0_30: 0,
+        b31_60: 0,
+        b61_90: 0,
+        b90plus: 0,
+        total: balance,
+        invoiceCount: 1,
+        [bucket]: balance,
+      } as CustomerRow)
+    }
   }
 
   const rows = Array.from(customerMap.values()).sort((a, b) => b.total - a.total)

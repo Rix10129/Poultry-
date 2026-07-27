@@ -49,7 +49,7 @@ const scenario = {
   ],
 }
 
-test("counts invoice-time and later payment events exactly once", () => {
+test("reconciles opening balances, invoice receipts, direct credits, returns, and later payments exactly once", () => {
   const ledger = buildCustomerLedger({
     ...scenario,
     fromDate: date("2026-01-01"),

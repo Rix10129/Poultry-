@@ -31,11 +31,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   })
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 })
 
-  const [invoices, payments, returns, correctionLogs] = await Promise.all([
-    db.saleInvoice.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, paidAmount: true, schemeNotes: true }, orderBy: { invoiceDate: "asc" } }),
+  const [invoices, payments, returns] = await Promise.all([
+    db.saleInvoice.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true }, orderBy: { invoiceDate: "asc" } }),
     db.customerPayment.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
     db.saleReturn.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true }, orderBy: { returnDate: "asc" } }),
-    db.auditLog.findMany({ where: { companyId, entity: "Customer", entityId: id, action: "UPDATE_OPENING_BALANCE" }, select: { createdAt: true, detail: true }, orderBy: { createdAt: "asc" } }),
   ])
 
   const ledger = buildCustomerLedger({

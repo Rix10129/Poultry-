@@ -70,6 +70,7 @@ export async function generateReport(
       include: {
         customer: { select: { name: true } },
         user: { select: { name: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
       },
       orderBy: { invoiceDate: "asc" },
     }),
@@ -112,7 +113,7 @@ export async function generateReport(
   let sNet = 0, sPaid = 0
   invoices.forEach((inv, i) => {
     const net = parseFloat(inv.netAmount.toString())
-    const paid = parseFloat(inv.paidAmount.toString())
+    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
     const bal = net - paid
     sNet += net; sPaid += paid
     const status = bal <= 0 ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID"

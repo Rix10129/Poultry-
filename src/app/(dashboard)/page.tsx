@@ -41,9 +41,9 @@ async function getStats(companyId: string) {
       where: { companyId },
       select: {
         openingBalance: true,
-        invoices: { select: { netAmount: true } },
-        payments: { select: { amount: true } },
-        saleReturns: { select: { totalAmount: true } },
+        invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
       },
     }),
     db.product.count({ where: { companyId, isActive: true } }),
@@ -64,6 +64,7 @@ async function getStats(companyId: string) {
         invoiceDate: true,
         netAmount: true,
         paidAmount: true,
+        payments: { where: { status: "POSTED" }, select: { amount: true } },
         customer: { select: { name: true } },
       },
     }),
@@ -173,7 +174,9 @@ export default async function DashboardPage() {
               <tbody className="divide-y divide-slate-50">
                 {stats.recentInvoices.map((inv) => {
                   const net = parseFloat(inv.netAmount.toString())
-                  const paid = parseFloat(inv.paidAmount.toString())
+                  const paid = inv.customer
+                    ? inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+                    : Number(inv.paidAmount)
                   const bal = net - paid
                   const isPaid = bal <= 0.001
                   const isPartial = !isPaid && paid > 0.001
