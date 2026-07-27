@@ -13,6 +13,7 @@ import { postCustomerReceipt, postSaleInvoice, postSaleReturn, reversePosting } 
 import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction } from "@/lib/authorization"
 import { persistInvoiceDraft, type InvoiceDraftData } from "@/lib/invoice-draft"
+import { reserveBatchStock } from "@/lib/inventory-reconciliation"
 
 type ActionState = { error: string } | null
 
@@ -356,10 +357,6 @@ export async function createInvoice(
         if (daysUntilExpiry(batch.expiryDate) < 0) {
           throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
         }
-        if (batch.quantity < line.quantity) {
-          throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
-        }
-
         const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
 
         await tx.saleInvoiceItem.create({
@@ -376,9 +373,8 @@ export async function createInvoice(
         })
 
         // Deduct from batch
-        await tx.productBatch.update({
-          where: { id: line.batchId },
-          data: { quantity: { decrement: line.quantity } },
+        await reserveBatchStock(tx, {
+          batchId: line.batchId, companyId, productId: line.productId, quantity: line.quantity,
         })
 
         // Record stock movement (negative = stock out)
@@ -516,10 +512,6 @@ export async function updateInvoice(
         if (daysUntilExpiry(batch.expiryDate) < 0) {
           throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
         }
-        if (batch.quantity < line.quantity) {
-          throw new Error(`Insufficient stock: ${batch.quantity} available, ${line.quantity} requested`)
-        }
-
         const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
 
         await tx.saleInvoiceItem.create({
@@ -535,9 +527,8 @@ export async function updateInvoice(
           },
         })
 
-        await tx.productBatch.update({
-          where: { id: line.batchId },
-          data: { quantity: { decrement: line.quantity } },
+        await reserveBatchStock(tx, {
+          batchId: line.batchId, companyId, productId: line.productId, quantity: line.quantity,
         })
 
         await tx.stockMovement.create({

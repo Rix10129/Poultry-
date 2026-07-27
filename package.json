@@ -13,7 +13,11 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "format:check": "prettier --check package.json .github src/lib/inventory-reconciliation.ts src/lib/inventory-reconciliation.test.ts src/lib/accounting/business-scenarios.integration.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "tsx --test $(find src -name \"*.test.ts\" ! -name \"*.integration.test.ts\" -print)",
+    "test:integration": "tsx --test $(find src -name \"*.integration.test.ts\" -print)"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -62,6 +66,7 @@
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "prettier": "^3.5.3"
   }
 }

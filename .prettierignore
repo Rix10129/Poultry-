@@ -1,0 +1,7 @@
+.next
+node_modules
+package-lock.json
+public/user-guide.html
+docs/SOFTWARE-GUIDE.html
+docker/CLIENT-INSTALLATION-GUIDE.html
+import-data
