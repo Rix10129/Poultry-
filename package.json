@@ -17,7 +17,7 @@
     "format:check": "prettier --check package.json .github src/lib/inventory-reconciliation.ts src/lib/inventory-reconciliation.test.ts src/lib/accounting/business-scenarios.integration.test.ts",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test $(find src -name \"*.test.ts\" ! -name \"*.integration.test.ts\" -print)",
-    "test:integration": "tsx --test $(find src -name \"*.integration.test.ts\" -print)"
+    "test:integration": "tsx --test --experimental-test-module-mocks $(find src -name \"*.integration.test.ts\" -print)"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

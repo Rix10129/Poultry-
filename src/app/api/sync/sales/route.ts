@@ -6,6 +6,7 @@ import { daysUntilExpiry } from "@/lib/utils"
 import { MovementType, PaymentMode } from "@prisma/client"
 import { postCustomerReceipt, postSaleInvoice } from "@/lib/accounting/posting-service"
 import { reserveBatchStock } from "@/lib/inventory-reconciliation"
+import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
 
 const VALID_PAYMENT_MODES = ["CASH", "BANK", "CHEQUE", "CREDIT"] as const
 
@@ -16,6 +17,7 @@ type LineInput = {
   salePrice: number
   discount: number
   taxRate: number
+  isBonus?: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -71,14 +73,7 @@ export async function POST(req: NextRequest) {
       const invoiceDateValue = new Date(body.invoiceDate || Date.now())
       const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
 
-      let totalAmount = 0
-      let taxAmount = 0
-      for (const line of lines) {
-        const base = line.quantity * line.salePrice * (1 - line.discount / 100)
-        totalAmount += base
-        taxAmount += base * line.taxRate / 100
-      }
-      const netAmount = Math.max(0, totalAmount - disc + taxAmount)
+      const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, disc)
       if (customerId && paid > netAmount + 0.001)
         throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
       if (customerId) {
@@ -149,7 +144,7 @@ export async function POST(req: NextRequest) {
           )
         }
 
-        const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+        const lineTotal = lineBase(line.quantity, line.salePrice, line.discount, line.isBonus)
 
         await tx.saleInvoiceItem.create({
           data: {
@@ -160,6 +155,7 @@ export async function POST(req: NextRequest) {
             salePrice: line.salePrice,
             discount: line.discount,
             taxRate: line.taxRate,
+            isBonus: !!line.isBonus,
             totalAmount: lineTotal,
           },
         })

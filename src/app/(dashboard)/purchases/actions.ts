@@ -9,6 +9,7 @@ import { MovementType } from "@prisma/client"
 import { postPurchase, postPurchaseReturn, reversePosting } from "@/lib/accounting/posting-service"
 import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction } from "@/lib/authorization"
+import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
 
 type ActionState = { error: string } | null
 
@@ -234,14 +235,7 @@ export async function createPurchase(
       const poNumber = await allocateDocumentNumber(tx, companyId, "PURCHASE_ORDER", orderDateValue)
 
       // Compute totals
-      let totalAmount = 0
-      let taxAmount = 0
-      for (const line of lines) {
-        const lineBase = line.quantity * line.purchasePrice * (1 - line.discount / 100)
-        totalAmount += lineBase
-        taxAmount += lineBase * line.taxRate / 100
-      }
-      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.purchasePrice, discountAmount)
 
       // Create purchase order
       const po = await tx.purchaseOrder.create({
@@ -265,8 +259,7 @@ export async function createPurchase(
 
       // Process each line: create batch, link to PO item, record movement
       for (const line of lines) {
-        const lineTotal =
-          line.quantity * line.purchasePrice * (1 - line.discount / 100)
+        const lineTotal = lineBase(line.quantity, line.purchasePrice, line.discount)
 
         // Create the batch — each purchase line always creates a fresh batch
         const batch = await tx.productBatch.create({

@@ -14,6 +14,7 @@ import { authorize, forbiddenAction } from "@/lib/authorization"
 import { persistInvoiceDraft, type InvoiceDraftData } from "@/lib/invoice-draft"
 import { reserveBatchStock } from "@/lib/inventory-reconciliation"
 import { getCustomerOutstandingBalance } from "@/lib/customer-balance"
+import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
 
 type ActionState = { error: string } | null
 
@@ -214,6 +215,7 @@ type LineInput = {
   salePrice: number
   discount: number
   taxRate: number
+  isBonus?: boolean
 }
 
 const VALID_PAYMENT_MODES = ["CASH", "BANK", "CHEQUE", "CREDIT"] as const
@@ -296,14 +298,7 @@ export async function createInvoice(
       const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
 
       // Compute totals
-      let totalAmount = 0
-      let taxAmount = 0
-      for (const line of lines) {
-        const lineBase = line.quantity * line.salePrice * (1 - line.discount / 100)
-        totalAmount += lineBase
-        taxAmount += lineBase * line.taxRate / 100
-      }
-      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, discountAmount)
       if (customerId && paidAmount > netAmount + 0.001)
         throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
       if (customerId) {
@@ -392,7 +387,7 @@ export async function createInvoice(
             `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
           )
         }
-        const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+        const lineTotal = lineBase(line.quantity, line.salePrice, line.discount, line.isBonus)
 
         await tx.saleInvoiceItem.create({
           data: {
@@ -403,6 +398,7 @@ export async function createInvoice(
             salePrice: line.salePrice,
             discount: line.discount,
             taxRate: line.taxRate,
+            isBonus: !!line.isBonus,
             totalAmount: lineTotal,
           },
         })
@@ -510,16 +506,11 @@ export async function updateInvoice(
       await tx.saleInvoiceItem.deleteMany({ where: { invoiceId: invoice.id } })
       await tx.stockMovement.deleteMany({ where: { companyId, reference: invoice.invoiceNumber } })
 
-      let totalAmount = 0
-      let taxAmount = 0
       for (const line of lines) {
         if (line.quantity < 1) throw new Error("Line quantities must be at least 1")
         if (line.discount < 0 || line.discount > 100) throw new Error("Line discount must be between 0 and 100")
-        const lineBase = line.quantity * line.salePrice * (1 - line.discount / 100)
-        totalAmount += lineBase
-        taxAmount += lineBase * line.taxRate / 100
       }
-      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, discountAmount)
       const postedPaidAmount = invoice.payments
         .filter((payment: { status: string }) => payment.status === "POSTED")
         .reduce((total: number, payment: { amount: { toString(): string } }) => total + Number(payment.amount.toString()), 0)
@@ -555,7 +546,19 @@ export async function updateInvoice(
         if (daysUntilExpiry(batch.expiryDate) < 0) {
           throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
         }
-        const lineTotal = line.quantity * line.salePrice * (1 - line.discount / 100)
+        // FEFO is enforced server-side: the client may only sell from the
+        // earliest-expiring batch that still has stock for this product.
+        const earliestAvailable = await tx.productBatch.findFirst({
+          where: { companyId, productId: line.productId, quantity: { gt: 0 } },
+          orderBy: { expiryDate: "asc" },
+          select: { id: true, expiryDate: true, batchNumber: true },
+        })
+        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate < batch.expiryDate) {
+          throw new Error(
+            `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
+          )
+        }
+        const lineTotal = lineBase(line.quantity, line.salePrice, line.discount, line.isBonus)
 
         await tx.saleInvoiceItem.create({
           data: {
@@ -566,6 +569,7 @@ export async function updateInvoice(
             salePrice: line.salePrice,
             discount: line.discount,
             taxRate: line.taxRate,
+            isBonus: !!line.isBonus,
             totalAmount: lineTotal,
           },
         })

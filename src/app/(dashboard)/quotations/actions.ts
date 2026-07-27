@@ -6,6 +6,7 @@ import { getActiveSession } from "@/lib/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { QuotationStatus } from "@prisma/client"
+import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
 
 type ActionState = { error: string } | null
 
@@ -52,14 +53,7 @@ export async function createQuotation(
       const quoteDateValue = new Date(quoteDate)
       const quoteNumber = await allocateDocumentNumber(tx, companyId, "QUOTATION", quoteDateValue)
 
-      let totalAmount = 0
-      let taxAmount = 0
-      for (const line of lines) {
-        const base = line.quantity * line.salePrice * (1 - line.discount / 100)
-        totalAmount += base
-        taxAmount += base * line.taxRate / 100
-      }
-      const netAmount = Math.max(0, totalAmount - discountAmount + taxAmount)
+      const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, discountAmount)
 
       const quote = await tx.quotation.create({
         data: {
@@ -81,8 +75,7 @@ export async function createQuotation(
       quoteId = quote.id
 
       for (const line of lines) {
-        const base = line.quantity * line.salePrice * (1 - line.discount / 100)
-        const lineTotal = base
+        const lineTotal = lineBase(line.quantity, line.salePrice, line.discount)
         await tx.quotationItem.create({
           data: {
             quotationId: quote.id,
