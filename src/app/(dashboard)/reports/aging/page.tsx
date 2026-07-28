@@ -184,7 +184,7 @@ export default async function AgingReportPage() {
                   <td className="px-4 py-3">
                     <WhatsAppCopyButton
                       customerName={row.name}
-                      amount={row.total.toLocaleString("en-PK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      amount={row.total}
                       companyName={companyName}
                     />
                   </td>

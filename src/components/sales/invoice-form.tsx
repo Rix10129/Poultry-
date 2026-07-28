@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice, deleteInvoiceDraft, saveInvoiceDraft } from "@/app/(dashboard)/sales/actions"
-import { daysUntilExpiry, formatCurrency } from "@/lib/utils"
+import { daysUntilExpiry, formatCurrency, CUSTOMER_TYPE_LABELS } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, Save } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
 import { INVOICE_DRAFT_VERSION, type InvoiceDraftData } from "@/lib/invoice-draft"
@@ -82,6 +82,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "")
+  const [customerSearch, setCustomerSearch] = useState("")
   const [invoiceDate, setInvoiceDate] = useState(() => initialDraft?.invoiceDate ?? new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState(initialDraft?.dueDate ?? "")
   const [paymentMode, setPaymentMode] = useState(initialDraft?.paymentMode ?? "CASH")
@@ -107,6 +108,16 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       product.name.toLowerCase().includes(searchTerm)
     )
   }, [availableProducts, productSearch])
+
+  const filteredCustomers = useMemo(() => {
+    const searchTerm = customerSearch.trim().toLowerCase()
+    if (!searchTerm) return customers
+    // Always keep the currently selected customer visible even if a later
+    // search term would otherwise filter it out of the list.
+    return customers.filter((customer) =>
+      customer.id === customerId || customer.name.toLowerCase().includes(searchTerm)
+    )
+  }, [customers, customerSearch, customerId])
 
   function addLine() {
     if (!addProductId) return
@@ -336,10 +347,17 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-1.5">
-          <Label>Customer</Label>
+          <Label htmlFor="customer-search">Customer</Label>
+          <Input
+            id="customer-search"
+            value={customerSearch}
+            onChange={e => setCustomerSearch(e.target.value)}
+            placeholder="Search customer by name…"
+            autoComplete="off"
+          />
           <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
             <option value="">Walk-in / Cash Sale</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {filteredCustomers.map(c => <option key={c.id} value={c.id}>{c.name} — {CUSTOMER_TYPE_LABELS[c.type] ?? c.type}</option>)}
           </Select>
         </div>
         <div className="space-y-1.5">

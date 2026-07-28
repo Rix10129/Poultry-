@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
-import { recordPayment } from "@/app/(dashboard)/customers/actions"
+import { recordPayment, reverseCustomerPayment } from "@/app/(dashboard)/customers/actions"
 import { formatCurrency } from "@/lib/utils"
-import { AlertCircle, CreditCard, X } from "lucide-react"
+import { AlertCircle, CreditCard, X, Undo2 } from "lucide-react"
 
 export type UnpaidInvoice = {
   id: string
@@ -133,5 +133,29 @@ export function PaymentForm({ customerId, unpaidInvoices }: Props) {
         </div>
       </form>
     </div>
+  )
+}
+
+export function CustomerPaymentControls({ paymentId }: { paymentId: string }) {
+  const [state, action, pending] = useActionState(reverseCustomerPayment, null)
+  return (
+    <form
+      action={action}
+      onSubmit={e => {
+        const reason = window.prompt("Reason for reversing this payment (at least 3 characters):")?.trim()
+        if (!reason || reason.length < 3) { e.preventDefault(); return }
+        const input = e.currentTarget.elements.namedItem("reason") as HTMLInputElement
+        input.value = reason
+      }}
+      className="flex items-center gap-2"
+    >
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <input type="hidden" name="reason" />
+      <Button type="submit" variant="ghost" size="sm" disabled={pending}>
+        <Undo2 className="h-3.5 w-3.5" />
+        Reverse
+      </Button>
+      {state?.error && <span className="text-xs text-red-700">{state.error}</span>}
+    </form>
   )
 }
