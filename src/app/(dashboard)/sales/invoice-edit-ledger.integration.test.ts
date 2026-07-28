@@ -161,3 +161,92 @@ test("editing a posted invoice reverses the stale ledger entry and reposts the c
   const secondCorrectionReloaded = await db.journalEntry.findUniqueOrThrow({ where: { id: secondCorrection.id } })
   assert.equal(secondCorrectionReloaded.status, "REVERSED", "cancelling the invoice must reverse whichever generation was active")
 })
+
+test("editing an invoice untouched on a since-expired batch succeeds, but increasing its quantity is still blocked", {
+  skip: runDatabaseTests ? false : "set RUN_DATABASE_CONCURRENCY_TESTS=1 against a migrated test database",
+}, async (t) => {
+  const { createInvoice, updateInvoice } = await import("./actions")
+
+  const suffix = crypto.randomUUID()
+  const company = await db.company.create({ data: { name: `Expired batch edit test ${suffix}` } })
+  const user = await db.user.create({ data: {
+    companyId: company.id, name: "Expired batch edit test user", email: `expedit-${suffix}@example.test`,
+    password: "not-used-in-test", role: "OWNER",
+  } })
+  const product = await db.product.create({ data: {
+    companyId: company.id, name: `Expired batch edit product ${suffix}`, salePrice: 100, purchasePrice: 80,
+  } })
+  const batch = await db.productBatch.create({ data: {
+    companyId: company.id, productId: product.id, batchNumber: `BATCH-${suffix}`,
+    expiryDate: new Date("2027-01-01"), purchasePrice: 80, salePrice: 100, quantity: 50, initialQuantity: 50,
+  } })
+
+  setAuthorizationSessionResolverForTests(async () => ({
+    user: { id: user.id, companyId: company.id, role: "OWNER" },
+  }))
+  t.after(() => setAuthorizationSessionResolverForTests())
+
+  t.after(async () => {
+    await db.stockMovement.deleteMany({ where: { companyId: company.id } })
+    await db.saleInvoiceItem.deleteMany({ where: { invoice: { companyId: company.id } } })
+    await db.saleInvoice.deleteMany({ where: { companyId: company.id } })
+    await db.journalLine.deleteMany({ where: { journalEntry: { companyId: company.id } } })
+    await db.journalEntry.deleteMany({ where: { companyId: company.id } })
+    await db.account.deleteMany({ where: { companyId: company.id } })
+    await db.productBatch.deleteMany({ where: { companyId: company.id } })
+    await db.product.deleteMany({ where: { companyId: company.id } })
+    await db.auditLog.deleteMany({ where: { companyId: company.id } })
+    await db.user.deleteMany({ where: { companyId: company.id } })
+    await db.company.delete({ where: { id: company.id } })
+  })
+
+  async function expectRedirect(fn: () => Promise<unknown>) {
+    try {
+      await fn()
+    } catch (e) {
+      if ((e as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) return
+      throw e
+    }
+    throw new Error("expected a redirect")
+  }
+
+  const createForm = new FormData()
+  createForm.set("paymentMode", "CASH")
+  createForm.set("paidAmount", "500")
+  createForm.set("linesJson", JSON.stringify([
+    { productId: product.id, batchId: batch.id, quantity: 5, salePrice: 100, discount: 0, taxRate: 0 },
+  ]))
+  await expectRedirect(() => createInvoice(null, createForm))
+
+  const invoice = await db.saleInvoice.findFirstOrThrow({ where: { companyId: company.id } })
+
+  // Simulate the batch expiring after the sale — a completely normal thing
+  // to happen for a real historical invoice.
+  await db.productBatch.update({ where: { id: batch.id }, data: { expiryDate: new Date("2020-01-01") } })
+
+  // Editing something else on the invoice (bumping discount, say) while
+  // leaving this line's quantity untouched must NOT fail just because the
+  // batch it already used has since expired.
+  const untouchedEditForm = new FormData()
+  untouchedEditForm.set("id", invoice.id)
+  untouchedEditForm.set("paymentMode", "CASH")
+  untouchedEditForm.set("discountAmount", "10")
+  untouchedEditForm.set("linesJson", JSON.stringify([
+    { productId: product.id, batchId: batch.id, quantity: 5, salePrice: 100, discount: 0, taxRate: 0 },
+  ]))
+  await expectRedirect(() => updateInvoice(null, untouchedEditForm))
+
+  const afterUntouchedEdit = await db.saleInvoice.findUniqueOrThrow({ where: { id: invoice.id } })
+  assert.equal(afterUntouchedEdit.discountAmount.toString(), "10", "the unrelated edit must have gone through")
+
+  // But trying to sell MORE from that same now-expired batch must still be blocked.
+  const increaseEditForm = new FormData()
+  increaseEditForm.set("id", invoice.id)
+  increaseEditForm.set("paymentMode", "CASH")
+  increaseEditForm.set("linesJson", JSON.stringify([
+    { productId: product.id, batchId: batch.id, quantity: 8, salePrice: 100, discount: 0, taxRate: 0 },
+  ]))
+  const result = await updateInvoice(null, increaseEditForm)
+  assert.ok(result?.error, "expected increasing quantity on an expired batch to be rejected")
+  assert.match(result!.error, /expired batch/)
+})
