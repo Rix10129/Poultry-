@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
-import { createInvoice, deleteInvoiceDraft, saveInvoiceDraft } from "@/app/(dashboard)/sales/actions"
+import { createInvoice, updateInvoice, deleteInvoiceDraft, saveInvoiceDraft } from "@/app/(dashboard)/sales/actions"
 import { daysUntilExpiry, formatCurrency, CUSTOMER_TYPE_LABELS } from "@/lib/utils"
 import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, Save } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
@@ -69,15 +69,22 @@ function isSellableBatch(batch: BatchOption) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+interface EditContext {
+  invoiceId: string
+  invoiceNumber: string
+  hasDependentRecords: boolean
+}
+
 interface InvoiceFormProps {
   products: ProductOption[]
   customers: CustomerOption[]
   initialDraft?: (Omit<InvoiceDraftData, "lines"> & { id: string; lines: Array<InvoiceDraftData["lines"][number] & { maxQty: number }> }) | null
   draftWarnings?: string[]
   drafts?: Array<{ id: string; label: string; updatedAt: string }>
+  editContext?: EditContext
 }
 
-export function InvoiceForm({ products, customers, initialDraft, draftWarnings = [], drafts = [] }: InvoiceFormProps) {
+export function InvoiceForm({ products, customers, initialDraft, draftWarnings = [], drafts = [], editContext }: InvoiceFormProps) {
   const [lines, setLines] = useState<LineItem[]>(() => initialDraft?.lines.map(line => ({ ...line, isBonus: !!line.isBonus, key: crypto.randomUUID() })) ?? [])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
@@ -94,6 +101,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
   const [savedOffline, setSavedOffline] = useState(false)
   const [draftId, setDraftId] = useState(initialDraft?.id ?? "")
   const [draftStatus, setDraftStatus] = useState(initialDraft ? "Draft resumed" : "")
+  const [confirmDependentEdit, setConfirmDependentEdit] = useState(false)
 
   // Products that still have some available stock (considering current lines)
   const availableProducts = useMemo(
@@ -199,6 +207,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
   }
 
   useEffect(() => {
+    if (editContext) return
     if (!draftId && !lines.length && !customerId && !notes) return
     const timer = window.setTimeout(() => { void persistDraft(true) }, 1500)
     return () => window.clearTimeout(timer)
@@ -220,8 +229,48 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       }
     }
 
+    if (editContext?.hasDependentRecords && !confirmDependentEdit) {
+      setError("This invoice has recorded payments or returns — check the confirmation box below to proceed")
+      return
+    }
+
     setSubmitting(true)
     setError(null)
+
+    if (editContext) {
+      const fd = new FormData()
+      fd.set("id", editContext.invoiceId)
+      fd.set("customerId", customerId)
+      fd.set("invoiceDate", invoiceDate)
+      fd.set("dueDate", dueDate)
+      fd.set("paymentMode", paymentMode)
+      fd.set("paidAmount", String(paid))
+      fd.set("discountAmount", String(disc))
+      fd.set("notes", notes)
+      if (confirmDependentEdit) fd.set("confirmDependentEdit", "1")
+      fd.set("linesJson", JSON.stringify(lines.map(l => ({
+        productId: l.productId,
+        batchId: l.batchId,
+        quantity: l.quantity,
+        salePrice: l.salePrice,
+        discount: l.discount,
+        taxRate: l.taxRate,
+        isBonus: l.isBonus,
+      }))))
+
+      try {
+        const result = await updateInvoice(null, fd)
+        if (result?.error) {
+          setError(result.error)
+          setSubmitting(false)
+        }
+        // On success the server redirects — execution stops here
+      } catch {
+        setError("Unexpected error — please try again")
+        setSubmitting(false)
+      }
+      return
+    }
 
     // When offline, queue locally instead of calling the server
     if (!navigator.onLine) {
@@ -338,12 +387,30 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-        <div className="min-w-52 flex-1 space-y-1"><Label>Resume draft</Label><Select value={draftId} onChange={e => { if (e.target.value) window.location.assign(`/sales/new?draft=${e.target.value}`) }}><option value="">Select saved draft…</option>{drafts.map(d => <option key={d.id} value={d.id}>{d.label} — {new Date(d.updatedAt).toLocaleString()}</option>)}</Select></div>
-        <Button type="button" variant="outline" onClick={() => void persistDraft()}><Save className="h-4 w-4" />Save Draft</Button>
-        {draftId && <Button type="button" variant="outline" onClick={async () => { const result = await deleteInvoiceDraft(draftId); if (result.error) setError(result.error); else window.location.assign("/sales/new") }}><Trash2 className="h-4 w-4" />Delete Draft</Button>}
-        <span className="w-full text-xs text-slate-500">{draftStatus || "Incomplete invoices autosave after changes; drafts never post stock or accounting."}</span>
-      </div>
+      {editContext?.hasDependentRecords && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2">
+          <p className="font-semibold">This invoice has recorded payments or returns</p>
+          <p>Editing it will recalculate its totals and correct the accounting ledger to match. Only proceed if you&rsquo;re sure.</p>
+          <label className="flex items-center gap-2 font-medium">
+            <input
+              type="checkbox"
+              checked={confirmDependentEdit}
+              onChange={e => setConfirmDependentEdit(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+            />
+            I understand and want to proceed
+          </label>
+        </div>
+      )}
+
+      {!editContext && (
+        <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="min-w-52 flex-1 space-y-1"><Label>Resume draft</Label><Select value={draftId} onChange={e => { if (e.target.value) window.location.assign(`/sales/new?draft=${e.target.value}`) }}><option value="">Select saved draft…</option>{drafts.map(d => <option key={d.id} value={d.id}>{d.label} — {new Date(d.updatedAt).toLocaleString()}</option>)}</Select></div>
+          <Button type="button" variant="outline" onClick={() => void persistDraft()}><Save className="h-4 w-4" />Save Draft</Button>
+          {draftId && <Button type="button" variant="outline" onClick={async () => { const result = await deleteInvoiceDraft(draftId); if (result.error) setError(result.error); else window.location.assign("/sales/new") }}><Trash2 className="h-4 w-4" />Delete Draft</Button>}
+          <span className="w-full text-xs text-slate-500">{draftStatus || "Incomplete invoices autosave after changes; drafts never post stock or accounting."}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="space-y-1.5">
@@ -355,10 +422,13 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
             placeholder="Search customer by name…"
             autoComplete="off"
           />
-          <Select value={customerId} onChange={e => setCustomerId(e.target.value)}>
+          <Select value={customerId} onChange={e => setCustomerId(e.target.value)} disabled={editContext?.hasDependentRecords}>
             <option value="">Walk-in / Cash Sale</option>
             {filteredCustomers.map(c => <option key={c.id} value={c.id}>{c.name} — {CUSTOMER_TYPE_LABELS[c.type] ?? c.type}</option>)}
           </Select>
+          {editContext?.hasDependentRecords && (
+            <p className="text-xs text-slate-500">Customer can&rsquo;t be changed once payments are recorded.</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Invoice Date</Label>
@@ -616,8 +686,12 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
             <Button type="button" variant="outline" onClick={() => history.back()}>
               Cancel
             </Button>
-            <Button type="submit" loading={submitting} disabled={lines.length === 0 || submitting}>
-              Create Invoice
+            <Button
+              type="submit"
+              loading={submitting}
+              disabled={lines.length === 0 || submitting || (editContext?.hasDependentRecords && !confirmDependentEdit)}
+            >
+              {editContext ? "Save Changes" : "Create Invoice"}
             </Button>
           </div>
         </div>
