@@ -76,7 +76,13 @@ export async function currentActiveSourceType(tx: Tx, companyId: string, baseSou
 async function reverseAndRepost(tx: Tx, companyId: string, baseSourceType: string, sourceId: string, reason: string, date: Date, p: Posting, debits: Side[], credits: Side[]) {
   const activeType = await currentActiveSourceType(tx, companyId, baseSourceType, sourceId)
   const reversal = await reversePosting(tx, companyId, activeType, sourceId, reason, date)
-  if (!reversal) throw new Error(`${baseSourceType} accounting entry was not found to correct`)
+  if (!reversal) {
+    // No prior ledger entry exists for this document at all — it predates
+    // proper accounting posting (e.g. created before a migration catch-up).
+    // There's nothing to reverse; post it for the first time instead of
+    // refusing to save an edit to a document that was never posted.
+    return post(tx, baseSourceType, p, debits, credits)
+  }
   const priorCorrections = await tx.journalEntry.count({ where: { companyId, sourceId, sourceType: { startsWith: `${baseSourceType}_CORRECTION` } } })
   return post(tx, `${baseSourceType}_CORRECTION_${priorCorrections + 1}`, p, debits, credits)
 }
