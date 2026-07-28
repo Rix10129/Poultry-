@@ -250,3 +250,85 @@ test("editing an invoice untouched on a since-expired batch succeeds, but increa
   assert.ok(result?.error, "expected increasing quantity on an expired batch to be rejected")
   assert.match(result!.error, /expired batch/)
 })
+
+test("editing an invoice that has no accounting entry at all (legacy pre-posting data) posts one instead of failing", {
+  skip: runDatabaseTests ? false : "set RUN_DATABASE_CONCURRENCY_TESTS=1 against a migrated test database",
+}, async (t) => {
+  const { createInvoice, updateInvoice } = await import("./actions")
+
+  const suffix = crypto.randomUUID()
+  const company = await db.company.create({ data: { name: `Legacy invoice edit test ${suffix}` } })
+  const user = await db.user.create({ data: {
+    companyId: company.id, name: "Legacy invoice edit test user", email: `legacyedit-${suffix}@example.test`,
+    password: "not-used-in-test", role: "OWNER",
+  } })
+  const product = await db.product.create({ data: {
+    companyId: company.id, name: `Legacy invoice edit product ${suffix}`, salePrice: 100, purchasePrice: 80,
+  } })
+  const batch = await db.productBatch.create({ data: {
+    companyId: company.id, productId: product.id, batchNumber: `BATCH-${suffix}`,
+    expiryDate: new Date("2027-01-01"), purchasePrice: 80, salePrice: 100, quantity: 50, initialQuantity: 50,
+  } })
+
+  setAuthorizationSessionResolverForTests(async () => ({
+    user: { id: user.id, companyId: company.id, role: "OWNER" },
+  }))
+  t.after(() => setAuthorizationSessionResolverForTests())
+
+  t.after(async () => {
+    await db.stockMovement.deleteMany({ where: { companyId: company.id } })
+    await db.saleInvoiceItem.deleteMany({ where: { invoice: { companyId: company.id } } })
+    await db.saleInvoice.deleteMany({ where: { companyId: company.id } })
+    await db.journalLine.deleteMany({ where: { journalEntry: { companyId: company.id } } })
+    await db.journalEntry.deleteMany({ where: { companyId: company.id } })
+    await db.account.deleteMany({ where: { companyId: company.id } })
+    await db.productBatch.deleteMany({ where: { companyId: company.id } })
+    await db.product.deleteMany({ where: { companyId: company.id } })
+    await db.auditLog.deleteMany({ where: { companyId: company.id } })
+    await db.user.deleteMany({ where: { companyId: company.id } })
+    await db.company.delete({ where: { id: company.id } })
+  })
+
+  async function expectRedirect(fn: () => Promise<unknown>) {
+    try {
+      await fn()
+    } catch (e) {
+      if ((e as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) return
+      throw e
+    }
+    throw new Error("expected a redirect")
+  }
+
+  const createForm = new FormData()
+  createForm.set("paymentMode", "CASH")
+  createForm.set("paidAmount", "500")
+  createForm.set("linesJson", JSON.stringify([
+    { productId: product.id, batchId: batch.id, quantity: 5, salePrice: 100, discount: 0, taxRate: 0 },
+  ]))
+  await expectRedirect(() => createInvoice(null, createForm))
+
+  const invoice = await db.saleInvoice.findFirstOrThrow({ where: { companyId: company.id } })
+
+  // Simulate legacy production data: a real invoice that predates proper
+  // ledger posting, so it has NO JournalEntry at all — exactly what the
+  // client's production database looked like for older invoices created
+  // during the schema-drift outage.
+  await db.journalLine.deleteMany({ where: { journalEntry: { companyId: company.id } } })
+  await db.journalEntry.deleteMany({ where: { companyId: company.id } })
+
+  const editForm = new FormData()
+  editForm.set("id", invoice.id)
+  editForm.set("paymentMode", "CASH")
+  editForm.set("linesJson", JSON.stringify([
+    { productId: product.id, batchId: batch.id, quantity: 8, salePrice: 100, discount: 0, taxRate: 0 },
+  ]))
+  await expectRedirect(() => updateInvoice(null, editForm))
+
+  const reloadedInvoice = await db.saleInvoice.findUniqueOrThrow({ where: { id: invoice.id } })
+  assert.equal(reloadedInvoice.netAmount.toString(), "800", "the edit must have gone through despite no prior ledger entry")
+
+  const freshEntry = await db.journalEntry.findFirstOrThrow({
+    where: { companyId: company.id, sourceId: invoice.id, sourceType: "SALE_INVOICE", status: "POSTED" },
+  })
+  assert.equal(freshEntry.totalAmount.toString(), "800", "a fresh entry must be posted at the current (edited) total")
+})
