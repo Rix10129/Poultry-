@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy && PRISMA_CLIENT_ENGINE_TYPE=wasm prisma generate && PRISMA_CLIENT_ENGINE_TYPE=wasm next build",
+    "build": "(prisma migrate resolve --applied 20260726000000_init || true) && prisma migrate deploy && PRISMA_CLIENT_ENGINE_TYPE=wasm prisma generate && PRISMA_CLIENT_ENGINE_TYPE=wasm next build",
     "start": "next start -H 0.0.0.0",
     "lint": "eslint",
     "test": "tsx --test $(find src -name '*.test.ts' -print)",
