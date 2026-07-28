@@ -463,6 +463,7 @@ export async function updateInvoice(
   const invoiceDate = (formData.get("invoiceDate") as string) || new Date().toISOString()
   const dueDate = (formData.get("dueDate") as string) || null
   const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
+  const paidAmountInput = Math.max(0, parseFloat(formData.get("paidAmount") as string) || 0)
   const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
   const notes = (formData.get("notes") as string) || null
   const linesJson = formData.get("linesJson") as string
@@ -520,10 +521,17 @@ export async function updateInvoice(
       if (invoice.payments.length && customerId !== invoice.customerId)
         throw new Error("Cannot change the customer on an invoice with recorded payments")
 
+      // Credit-customer invoices are paid via CustomerPayment rows, which are
+      // authoritative — never manufacture a second receipt from the editable
+      // summary field. A walk-in cash sale has no CustomerPayment rows at
+      // all, so its paid amount has to come from the form instead, or every
+      // edit would silently zero out an already-paid cash sale.
+      const finalPaidAmount = customerId ? postedPaidAmount : Math.min(paidAmountInput, netAmount)
+
       const financialsChanged =
         Number(invoice.netAmount) !== netAmount ||
         Number(invoice.taxAmount) !== taxAmount ||
-        Number(invoice.paidAmount) !== postedPaidAmount ||
+        Number(invoice.paidAmount) !== finalPaidAmount ||
         (customerId || null) !== invoice.customerId ||
         paymentModeRaw !== invoice.paymentMode
 
@@ -537,9 +545,7 @@ export async function updateInvoice(
           discountAmount,
           taxAmount,
           netAmount,
-          // CustomerPayment rows are authoritative; never manufacture a
-          // second receipt by accepting the editable summary field.
-          paidAmount: postedPaidAmount,
+          paidAmount: finalPaidAmount,
           paymentMode: paymentModeRaw as PaymentMode,
           isCashSale: !customerId,
           notes: notes || null,
@@ -613,7 +619,7 @@ export async function updateInvoice(
           date: new Date(invoiceDate),
           amount: netAmount,
           tax: taxAmount,
-          paid: customerId ? 0 : postedPaidAmount,
+          paid: customerId ? 0 : finalPaidAmount,
           paymentMode: paymentModeRaw as PaymentMode,
         })
       }
