@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { productSchema, batchSchema } from "@/lib/validations/inventory"
+import { productSchema, batchSchema, batchPriceUpdateSchema } from "@/lib/validations/inventory"
 import { MovementType, Species, UnitType } from "@prisma/client"
 import { postStockAdjustment } from "@/lib/accounting/posting-service"
 
@@ -170,6 +170,33 @@ export async function createBatch(
   } catch (e: unknown) {
     return { error: e instanceof Error ? e.message : "Failed to add batch" }
   }
+
+  revalidatePath(`/inventory/${productId}`)
+  revalidatePath("/inventory")
+  return null
+}
+
+export async function updateBatchPrice(
+  productId: string,
+  batchId: string,
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  let companyId: string
+  try { companyId = await getCompanyId() } catch { return { error: "Not authenticated" } }
+
+  const parsed = batchPriceUpdateSchema.safeParse(normalizeFormData(formData))
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Validation error" }
+  }
+
+  const batch = await db.productBatch.findFirst({ where: { id: batchId, productId, companyId } })
+  if (!batch) return { error: "Batch not found" }
+
+  await db.productBatch.update({
+    where: { id: batchId },
+    data: { purchasePrice: parsed.data.purchasePrice, salePrice: parsed.data.salePrice },
+  })
 
   revalidatePath(`/inventory/${productId}`)
   revalidatePath("/inventory")
