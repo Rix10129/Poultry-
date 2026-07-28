@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { MessageCircle, Check } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 interface Props {
   customerName: string
-  amount: string
+  amount: number
   companyName: string
 }
 
@@ -14,7 +15,7 @@ export function WhatsAppCopyButton({ customerName, amount, companyName }: Props)
 
   const message =
     `Assalam-o-Alaikum ${customerName},\n\n` +
-    `Yeh ek friendly reminder hai ke aap ka outstanding balance *PKR ${amount}* abhi bhi pending hai.\n\n` +
+    `Yeh ek friendly reminder hai ke aap ka outstanding balance *${formatCurrency(amount)}* abhi bhi pending hai.\n\n` +
     `Kirpya jald se jald payment ka intezam farmayein.\n\n` +
     `Shukriya.\n${companyName}`
 

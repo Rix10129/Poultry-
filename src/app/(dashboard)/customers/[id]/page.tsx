@@ -6,12 +6,13 @@ import Link from "next/link"
 import { ChevronLeft, Pencil, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { PaymentForm } from "@/components/customers/payment-form"
+import { PaymentForm, CustomerPaymentControls } from "@/components/customers/payment-form"
 import { WhatsAppReminderButton } from "@/components/customers/whatsapp-reminder-button"
 import { DeleteButton } from "@/components/ui/delete-button"
 import { deleteCustomer } from "@/app/(dashboard)/customers/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { buildCustomerLedger, calculateCustomerBalance, calculateInvoicePaidAmount, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
+import { hasPermission } from "@/lib/authorization"
 
 export const dynamic = "force-dynamic"
 
@@ -45,6 +46,8 @@ export default async function CustomerDetailPage({ params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
+  const role = (session.user as any).role as string
+  const canReversePayments = hasPermission(role, "PAYMENT_CORRECT")
 
   const [customer, invoices, payments, returns, correctionLogs] = await Promise.all([
     db.customer.findFirst({ where: { id, companyId } }),
@@ -216,6 +219,31 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Payments */}
+      {payments.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+            <h2 className="text-sm font-semibold text-slate-900">Customer Payments</h2>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {payments.map((payment) => (
+              <div key={payment.id} className="p-4 flex items-center justify-between text-sm">
+                <div>
+                  <p className="font-medium text-slate-900">
+                    {formatCurrency(parseFloat(payment.amount.toString()))} — {payment.paymentMode}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {formatDate(payment.paymentDate)}
+                    {payment.reference && ` · Ref: ${payment.reference}`}
+                  </p>
+                </div>
+                {canReversePayments && <CustomerPaymentControls paymentId={payment.id} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Ledger */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

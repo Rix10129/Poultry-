@@ -1,6 +1,7 @@
 "use client"
 
 import { MessageCircle } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 interface WhatsAppReminderButtonProps {
   customerName: string
@@ -24,7 +25,7 @@ export function WhatsAppReminderButton({
       `*${companyName}* کی طرف سے یاد دہانی:`,
       ``,
       `آپ کا واجب الادا بقایا:`,
-      `*PKR ${balance.toLocaleString("en-PK", { minimumFractionDigits: 2 })}*`,
+      `*${formatCurrency(balance)}*`,
       oldestDueDate ? `Due since: ${oldestDueDate}` : null,
       ``,
       `براہ کرم جلد از جلد ادائیگی فرمائیں۔`,

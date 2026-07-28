@@ -1,6 +1,7 @@
 "use client"
 
 import { MessageCircle } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 interface WhatsAppShareButtonProps {
   invoiceNumber: string
@@ -33,10 +34,10 @@ export function WhatsAppShareButton({
       `Invoice: *${invoiceNumber}*`,
       `Date: ${invoiceDate}`,
       customerName ? `Customer: ${customerName}` : null,
-      `Amount: *PKR ${net.toLocaleString("en-PK", { minimumFractionDigits: 2 })}*`,
+      `Amount: *${formatCurrency(net)}*`,
       isPaid
         ? `Status: ✅ *PAID*`
-        : `Balance Due: *PKR ${balance.toLocaleString("en-PK", { minimumFractionDigits: 2 })}*`,
+        : `Balance Due: *${formatCurrency(balance)}*`,
       ``,
       `_Thank you for your business!_`,
     ]
