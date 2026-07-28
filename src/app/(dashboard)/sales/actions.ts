@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { MovementType, PaymentMode } from "@prisma/client"
 import { writeAuditLog, logAudit } from "@/lib/audit"
-import { postCustomerReceipt, postSaleInvoice, postSaleReturn, reversePosting } from "@/lib/accounting/posting-service"
+import { postCustomerReceipt, postSaleInvoice, postSaleReturn, reversePosting, currentActiveSourceType, repostSaleInvoice } from "@/lib/accounting/posting-service"
 import { assertDocumentCanBeDeleted, recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction } from "@/lib/authorization"
 import { persistInvoiceDraft, type InvoiceDraftData } from "@/lib/invoice-draft"
@@ -98,7 +98,8 @@ export async function reverseInvoice(_prev: ActionState, formData: FormData): Pr
         await tx.productBatch.update({ where: { id: item.batchId }, data: { quantity: { increment: item.quantity } } })
         await tx.stockMovement.create({ data: { companyId, productId: item.productId, batchId: item.batchId, type: MovementType.SALE_RETURN, quantity: item.quantity, reference: `REV-${invoice.invoiceNumber}`, sourceType: "SALE_INVOICE_REVERSAL", sourceId: invoice.id, notes: reason } })
       }
-      const journal = await reversePosting(tx, companyId, "SALE_INVOICE", invoice.id, reason)
+      const activeSourceType = await currentActiveSourceType(tx, companyId, "SALE_INVOICE", invoice.id)
+      const journal = await reversePosting(tx, companyId, activeSourceType, invoice.id, reason)
       if (!journal) throw new Error("Invoice accounting entry was not found")
       await tx.saleInvoice.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
       await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "SaleInvoice", originalDocumentId: id, reversalDocumentId: journal.id, reason })
@@ -519,6 +520,13 @@ export async function updateInvoice(
       if (invoice.payments.length && customerId !== invoice.customerId)
         throw new Error("Cannot change the customer on an invoice with recorded payments")
 
+      const financialsChanged =
+        Number(invoice.netAmount) !== netAmount ||
+        Number(invoice.taxAmount) !== taxAmount ||
+        Number(invoice.paidAmount) !== postedPaidAmount ||
+        (customerId || null) !== invoice.customerId ||
+        paymentModeRaw !== invoice.paymentMode
+
       await tx.saleInvoice.update({
         where: { id: invoice.id },
         data: {
@@ -590,6 +598,23 @@ export async function updateInvoice(
             reference: invoice.invoiceNumber,
             notes: `Sale ${invoice.invoiceNumber} (edited)`,
           },
+        })
+      }
+
+      // The ledger entry posted when this invoice was created reflects the
+      // OLD totals — if amounts, tax, payment mode, or the customer changed,
+      // it must be reversed and reposted, or reports (P&L, trial balance,
+      // receivables) would silently keep stale figures forever.
+      if (financialsChanged) {
+        await repostSaleInvoice(tx, companyId, invoice.id, `Invoice ${invoice.invoiceNumber} edited — totals recalculated`, new Date(), {
+          companyId,
+          sourceId: invoice.id,
+          number: invoice.invoiceNumber,
+          date: new Date(invoiceDate),
+          amount: netAmount,
+          tax: taxAmount,
+          paid: customerId ? 0 : postedPaidAmount,
+          paymentMode: paymentModeRaw as PaymentMode,
         })
       }
     })

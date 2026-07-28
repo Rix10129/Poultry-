@@ -50,6 +50,49 @@ async function post(tx: Tx, sourceType: string, p: Posting, debits: Side[], cred
 }
 
 export async function postSaleInvoice(tx: Tx, p: Posting) { const total=money(p.amount), tax=money(p.tax), paid=Decimal.min(money(p.paid),total); return post(tx,"SALE_INVOICE",p,[{account:funds(p.paymentMode,"in"),amount:paid},{account:"ACCOUNTS_RECEIVABLE",amount:total.minus(paid)}],[{account:"SALES",amount:total.minus(tax)},{account:"OUTPUT_TAX",amount:tax}]) }
+
+// Finds whichever generation of a document's posting is currently active.
+// A document can be corrected more than once (see reverseAndRepost below);
+// each correction reverses the previous entry and posts a new one under a
+// distinct sourceType, since postingKey (companyId:sourceType:sourceId) is
+// unique and a reversed entry still occupies its original key forever.
+export async function currentActiveSourceType(tx: Tx, companyId: string, baseSourceType: string, sourceId: string): Promise<string> {
+  const entries = await tx.journalEntry.findMany({
+    where: { companyId, sourceId, status: "POSTED", sourceType: { startsWith: baseSourceType } },
+    select: { sourceType: true },
+  })
+  // Reversal entries (baseSourceType_REVERSAL, baseSourceType_CORRECTION_N_REVERSAL)
+  // are deliberately left POSTED — they're valid completed transactions, just not
+  // the document's current state — so they must be excluded from this match.
+  const activePattern = new RegExp(`^${baseSourceType}(_CORRECTION_\\d+)?$`)
+  const active = entries.find(e => !!e.sourceType && activePattern.test(e.sourceType))
+  return active?.sourceType ?? baseSourceType
+}
+
+// Corrects a posted document's amounts by reversing whatever posting is
+// currently active for it and posting a fresh one — used when an already-
+// posted sale invoice or supplier payment is edited. Preserves the original
+// entry (now REVERSED) for audit purposes instead of mutating it in place.
+async function reverseAndRepost(tx: Tx, companyId: string, baseSourceType: string, sourceId: string, reason: string, date: Date, p: Posting, debits: Side[], credits: Side[]) {
+  const activeType = await currentActiveSourceType(tx, companyId, baseSourceType, sourceId)
+  const reversal = await reversePosting(tx, companyId, activeType, sourceId, reason, date)
+  if (!reversal) throw new Error(`${baseSourceType} accounting entry was not found to correct`)
+  const priorCorrections = await tx.journalEntry.count({ where: { companyId, sourceId, sourceType: { startsWith: `${baseSourceType}_CORRECTION` } } })
+  return post(tx, `${baseSourceType}_CORRECTION_${priorCorrections + 1}`, p, debits, credits)
+}
+
+export async function repostSaleInvoice(tx: Tx, companyId: string, invoiceId: string, reason: string, date: Date, p: Posting) {
+  const total=money(p.amount), tax=money(p.tax), paid=Decimal.min(money(p.paid),total)
+  return reverseAndRepost(tx, companyId, "SALE_INVOICE", invoiceId, reason, date, p,
+    [{account:funds(p.paymentMode,"in"),amount:paid},{account:"ACCOUNTS_RECEIVABLE",amount:total.minus(paid)}],
+    [{account:"SALES",amount:total.minus(tax)},{account:"OUTPUT_TAX",amount:tax}])
+}
+
+export async function repostSupplierPayment(tx: Tx, companyId: string, paymentId: string, reason: string, date: Date, p: Posting) {
+  return reverseAndRepost(tx, companyId, "SUPPLIER_PAYMENT", paymentId, reason, date, p,
+    [{account:"ACCOUNTS_PAYABLE",amount:p.amount}],
+    [{account:funds(p.paymentMode,"out"),amount:p.amount}])
+}
 export async function postCustomerReceipt(tx: Tx, p: Posting) { return post(tx,"CUSTOMER_RECEIPT",p,[{account:funds(p.paymentMode,"in"),amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
 export async function postSaleReturn(tx: Tx, p: Posting) { return post(tx,"SALE_RETURN",p,[{account:"SALES",amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
 export async function postPurchase(tx: Tx, p: Posting) { const total=money(p.amount),tax=money(p.tax),paid=Decimal.min(money(p.paid),total); return post(tx,"PURCHASE",p,[{account:"INVENTORY",amount:total.minus(tax)},{account:"INPUT_TAX",amount:tax}],[{account:funds(p.paymentMode,"out"),amount:paid},{account:"ACCOUNTS_PAYABLE",amount:total.minus(paid)}]) }
