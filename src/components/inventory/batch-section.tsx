@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useActionState, useEffect } from "react"
+import { useState, useActionState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ExpiryBadge } from "./expiry-badge"
-import { createBatch } from "@/app/(dashboard)/inventory/actions"
+import { createBatch, updateBatchPrice } from "@/app/(dashboard)/inventory/actions"
 import { formatDate, formatCurrency } from "@/lib/utils"
-import { Plus, Package2 } from "lucide-react"
+import { Plus, Package2, Pencil } from "lucide-react"
 
 type BatchRow = {
   id: string
@@ -25,9 +25,69 @@ interface BatchSectionProps {
   batches: BatchRow[]
 }
 
+function EditBatchPriceForm({ productId, batch, onDone }: { productId: string; batch: BatchRow; onDone: () => void }) {
+  const action = updateBatchPrice.bind(null, productId, batch.id)
+  const [state, formAction, pending] = useActionState(action, null)
+  const wasPending = useRef(false)
+
+  useEffect(() => {
+    if (wasPending.current && !pending && state === null) onDone()
+    wasPending.current = pending
+  }, [pending, state, onDone])
+
+  return (
+    <tr className="bg-blue-50/50">
+      <td colSpan={8} className="px-4 py-3">
+        <form
+          action={formAction}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <span className="font-mono text-xs font-semibold text-slate-800">{batch.batchNumber}</span>
+          {state?.error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-1.5 text-sm text-red-700">
+              {state.error}
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label htmlFor={`purchasePrice-${batch.id}`}>Purchase Price *</Label>
+            <Input
+              id={`purchasePrice-${batch.id}`}
+              name="purchasePrice"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              defaultValue={batch.purchasePrice}
+              className="w-32"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`salePrice-${batch.id}`}>Sale Price *</Label>
+            <Input
+              id={`salePrice-${batch.id}`}
+              name="salePrice"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              defaultValue={batch.salePrice}
+              className="w-32"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" loading={pending}>Save</Button>
+            <Button type="button" size="sm" variant="outline" onClick={onDone}>Cancel</Button>
+          </div>
+        </form>
+      </td>
+    </tr>
+  )
+}
+
 export function BatchSection({ productId, batches }: BatchSectionProps) {
   const [showForm, setShowForm] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const [editingBatchId, setEditingBatchId] = useState<string | null>(null)
   const action = createBatch.bind(null, productId)
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -119,20 +179,40 @@ export function BatchSection({ productId, batches }: BatchSectionProps) {
                 <th className="text-right px-4 py-2.5 font-medium text-slate-600">Stock</th>
                 <th className="text-right px-4 py-2.5 font-medium text-slate-600">Initial</th>
                 <th className="text-left px-4 py-2.5 font-medium text-slate-600">Status</th>
+                <th className="text-right px-4 py-2.5 font-medium text-slate-600"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {batches.map((batch) => (
-                <tr key={batch.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-2.5 font-mono text-xs font-semibold text-slate-800">{batch.batchNumber}</td>
-                  <td className="px-4 py-2.5 text-slate-500 text-xs">{formatDate(batch.manufactureDate)}</td>
-                  <td className="px-4 py-2.5 text-slate-600 text-xs">{formatDate(batch.expiryDate)}</td>
-                  <td className="px-4 py-2.5 text-right text-slate-600">{formatCurrency(batch.purchasePrice)}</td>
-                  <td className="px-4 py-2.5 text-right text-slate-600">{formatCurrency(batch.salePrice)}</td>
-                  <td className="px-4 py-2.5 text-right font-semibold text-slate-900">{batch.quantity}</td>
-                  <td className="px-4 py-2.5 text-right text-slate-400">{batch.initialQuantity}</td>
-                  <td className="px-4 py-2.5"><ExpiryBadge expiryDate={batch.expiryDate} /></td>
-                </tr>
+                editingBatchId === batch.id ? (
+                  <EditBatchPriceForm
+                    key={batch.id}
+                    productId={productId}
+                    batch={batch}
+                    onDone={() => setEditingBatchId(null)}
+                  />
+                ) : (
+                  <tr key={batch.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-2.5 font-mono text-xs font-semibold text-slate-800">{batch.batchNumber}</td>
+                    <td className="px-4 py-2.5 text-slate-500 text-xs">{formatDate(batch.manufactureDate)}</td>
+                    <td className="px-4 py-2.5 text-slate-600 text-xs">{formatDate(batch.expiryDate)}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-600">{formatCurrency(batch.purchasePrice)}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-600">{formatCurrency(batch.salePrice)}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-slate-900">{batch.quantity}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-400">{batch.initialQuantity}</td>
+                    <td className="px-4 py-2.5"><ExpiryBadge expiryDate={batch.expiryDate} /></td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setEditingBatchId(batch.id)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit price
+                      </button>
+                    </td>
+                  </tr>
+                )
               ))}
             </tbody>
           </table>

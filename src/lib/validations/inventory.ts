@@ -33,6 +33,13 @@ export const batchSchema = z.object({
 
 export type BatchInput = z.infer<typeof batchSchema>
 
+export const batchPriceUpdateSchema = z.object({
+  purchasePrice: z.coerce.number().positive("Purchase price must be greater than 0"),
+  salePrice: z.coerce.number().positive("Sale price must be greater than 0"),
+})
+
+export type BatchPriceUpdateInput = z.infer<typeof batchPriceUpdateSchema>
+
 // ── Stock Adjustment ──────────────────────────────────────────────────────────
 
 export const stockAdjustSchema = z.object({
