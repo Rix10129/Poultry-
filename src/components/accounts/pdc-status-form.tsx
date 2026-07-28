@@ -4,6 +4,7 @@ import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { depositPDC, bouncePDC } from "@/app/(dashboard)/accounts/pdc/actions"
 import { AlertCircle, CheckCircle2, XCircle } from "lucide-react"
+import { ReasonField } from "@/components/ui/reason-field"
 
 interface Props {
   id: string
@@ -29,24 +30,14 @@ export function PDCStatusForm({ id }: Props) {
             Mark Deposited
           </Button>
         </form>
-        <form
-          action={bounceAction}
-          onSubmit={(e) => {
-            const reason = window.prompt("Reason for the cheque bouncing (at least 3 characters):")?.trim()
-            if (!reason || reason.length < 3) {
-              e.preventDefault()
-              return
-            }
-            const input = e.currentTarget.elements.namedItem("reason") as HTMLInputElement
-            input.value = reason
-          }}
-        >
+        <form action={bounceAction}>
           <input type="hidden" name="id" value={id} />
-          <input type="hidden" name="reason" />
-          <Button type="submit" variant="destructive" disabled={depositPending || bouncePending}>
-            <XCircle className="h-4 w-4" />
-            Mark Bounced
-          </Button>
+          <ReasonField
+            triggerLabel="Mark Bounced"
+            triggerIcon={<XCircle className="h-4 w-4" />}
+            variant="destructive"
+            pending={bouncePending || depositPending}
+          />
         </form>
       </div>
     </div>

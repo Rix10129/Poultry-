@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { CreditCard, Pencil, X } from "lucide-react"
+import { ReasonField } from "@/components/ui/reason-field"
 
 type Purchase = { id: string; poNumber: string; balance: number }
 type Payment = { id: string; amount: string; paymentMode: string; paymentDate: string; purchaseOrderId: string | null; reference: string | null; notes: string | null }
@@ -47,18 +48,9 @@ export function SupplierPaymentControls({ payment, purchases }: { payment: Payme
   </form>
   return <div className="flex justify-end gap-2">
     <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" />Edit</Button>
-    <form
-      action={voidAction}
-      onSubmit={e => {
-        const reason = window.prompt("Reason for voiding this payment (at least 3 characters):")?.trim()
-        if (!reason || reason.length < 3) { e.preventDefault(); return }
-        const input = e.currentTarget.elements.namedItem("reason") as HTMLInputElement
-        input.value = reason
-      }}
-    >
+    <form action={voidAction} className="flex items-center gap-2">
       <input type="hidden" name="paymentId" value={payment.id} />
-      <input type="hidden" name="reason" />
-      <Button variant="ghost" size="sm" disabled={voidPending}>Void</Button>
+      <ReasonField triggerLabel="Void" pending={voidPending} />
       {voidState?.error && <span className="text-xs text-red-700">{voidState.error}</span>}
     </form>
   </div>
