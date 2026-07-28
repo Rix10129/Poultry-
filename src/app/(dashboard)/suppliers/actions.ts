@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { writeAuditLog } from "@/lib/audit"
 import { PaymentMode } from "@prisma/client"
-import { postSupplierPayment, reversePosting } from "@/lib/accounting/posting-service"
+import { postSupplierPayment, reversePosting, currentActiveSourceType, repostSupplierPayment } from "@/lib/accounting/posting-service"
 import { recordReversalAudit, requireReversalReason } from "@/lib/document-lifecycle"
 import { authorize, forbiddenAction, hasPermission } from "@/lib/authorization"
 
@@ -89,7 +89,22 @@ export async function updateSupplierPayment(_: ActionState, formData: FormData):
     const purchase = await db.purchaseOrder.findFirst({ where: { id: fields.purchaseOrderId, supplierId: existing.supplierId, companyId }, select: { id: true } })
     if (!purchase) return { error: "Purchase order does not belong to this supplier" }
   }
-  await db.supplierPayment.update({ where: { id }, data: { ...fields, paymentMode: fields.paymentMode as PaymentMode } })
+  const financialsChanged =
+    Number(existing.amount) !== fields.amount ||
+    existing.paymentMode !== fields.paymentMode ||
+    existing.paymentDate.getTime() !== fields.paymentDate.getTime()
+
+  await db.$transaction(async tx => {
+    await tx.supplierPayment.update({ where: { id }, data: { ...fields, paymentMode: fields.paymentMode as PaymentMode } })
+    // The ledger entry posted when this payment was recorded reflects the
+    // OLD amount/mode/date — if those changed, it must be reversed and
+    // reposted, or payables/cash balances would silently go stale.
+    if (financialsChanged) {
+      await repostSupplierPayment(tx, companyId, id, `Supplier payment edited — amount or mode corrected`, new Date(), {
+        companyId, sourceId: id, number: id, date: fields.paymentDate, amount: fields.amount, paymentMode: fields.paymentMode as PaymentMode,
+      })
+    }
+  })
   await writeAuditLog({ companyId, userId: user.id, action: "UPDATE_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: id, oldValues: { amount: existing.amount.toString(), paymentMode: existing.paymentMode, paymentDate: existing.paymentDate, purchaseOrderId: existing.purchaseOrderId, reference: existing.reference, notes: existing.notes }, newValues: fields })
   refreshSupplierPaymentPaths(existing.supplierId, fields.purchaseOrderId || existing.purchaseOrderId)
   redirect(`/suppliers/${existing.supplierId}`)
@@ -107,7 +122,8 @@ export async function voidSupplierPayment(_: ActionState, formData: FormData): P
   const existing = await db.supplierPayment.findFirst({ where: { id, companyId, isVoided: false } })
   if (!existing) return { error: "Active payment not found" }
   await db.$transaction(async tx => {
-    const reversal = await reversePosting(tx, companyId, "SUPPLIER_PAYMENT", id, reason)
+    const activeSourceType = await currentActiveSourceType(tx, companyId, "SUPPLIER_PAYMENT", id)
+    const reversal = await reversePosting(tx, companyId, activeSourceType, id, reason)
     if (!reversal) throw new Error("Supplier payment accounting entry was not found")
     await tx.supplierPayment.update({ where: { id }, data: { isVoided: true, status: "REVERSED", voidedAt: new Date(), voidedBy: user.id, reversalReason: reason } })
     await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "SupplierPayment", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
