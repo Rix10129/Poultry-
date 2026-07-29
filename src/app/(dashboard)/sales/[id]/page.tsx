@@ -142,7 +142,6 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <p className="text-xs font-bold tracking-widest text-slate-500 uppercase">Sale Invoice</p>
             <p className="text-2xl font-mono font-bold text-slate-900 mt-0.5">{invoice.invoiceNumber}</p>
             <p className="text-sm text-slate-600 mt-1">Date: {formatDate(invoice.invoiceDate)}</p>
-            {invoice.dueDate && <p className="text-sm text-slate-600">Due: {formatDate(invoice.dueDate)}</p>}
             <p className={`text-sm font-bold mt-1 ${isPaid ? "text-green-600" : isPartial ? "text-yellow-600" : "text-red-600"}`}>
               Status: {isPaid ? "PAID ✓" : isPartial ? "PARTIAL" : "UNPAID"}
             </p>
@@ -152,7 +151,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
 
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden print:border-none print:rounded-none">
         {/* Invoice meta */}
-        <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="px-6 py-4 border-b border-slate-200 grid grid-cols-2 md:grid-cols-3 print:grid-cols-2 gap-4">
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -165,7 +164,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
               <p className="text-xs text-slate-500">{invoice.customer.address}</p>
             )}
           </div>
-          <div>
+          <div className="print:hidden">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Payment Mode</p>
             <p className="mt-1 text-sm text-slate-900 capitalize">
               {invoice.paymentMode.toLowerCase().replace("_", " ")}
@@ -175,10 +174,10 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Prepared By</p>
             <p className="mt-1 text-sm text-slate-900">{invoice.user?.name ?? "—"}</p>
             {invoice.dueDate && (
-              <>
+              <div className="print:hidden">
                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2">Due Date</p>
                 <p className="text-sm text-slate-900">{formatDate(invoice.dueDate)}</p>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -271,9 +270,11 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <div className="border-t border-slate-200 pt-2">
               <TotalRow label="Net Amount" value={formatCurrency(net)} bold />
             </div>
-            <TotalRow label="Amount Received" value={formatCurrency(paid)} />
+            <div className="print:hidden">
+              <TotalRow label="Amount Received" value={formatCurrency(paid)} />
+            </div>
             <div
-              className={`flex justify-between font-bold text-base pt-1 ${
+              className={`print:hidden flex justify-between font-bold text-base pt-1 ${
                 isPaid
                   ? "text-green-600"
                   : balance < -0.001
