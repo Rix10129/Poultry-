@@ -182,65 +182,77 @@ export default async function InvoiceDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Items table */}
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-6 py-3 font-medium text-slate-600">#</th>
-              <th className="text-left px-6 py-3 font-medium text-slate-600">Product / Batch</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Qty</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Unit Price</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Disc%</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Tax%</th>
-              <th className="text-right px-6 py-3 font-medium text-slate-600">Total</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {invoice.items.map((item, idx) => {
-              const lineTotal = parseFloat(item.totalAmount.toString())
-              return (
-                <tr key={item.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-3 text-slate-400">{idx + 1}</td>
-                  <td className="px-6 py-3">
-                    <p className="font-medium text-slate-900">{item.product.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 print:hidden">
-                      <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                        {item.batch.batchNumber}
-                      </span>
-                      <ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} />
-                    </div>
-                    {item.isBonus && (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
-                          FREE / SCHEME
-                        </span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-3 text-right text-slate-700">
-                    {item.quantity} {item.product.unit}
-                  </td>
-                  <td className="px-6 py-3 text-right text-slate-700">
-                    {formatCurrency(parseFloat(item.salePrice.toString()))}
-                  </td>
-                  <td className="px-6 py-3 text-right text-slate-500">
-                    {parseFloat(item.discount.toString()) > 0
-                      ? `${parseFloat(item.discount.toString())}%`
-                      : "—"}
-                  </td>
-                  <td className="px-6 py-3 text-right text-slate-500">
-                    {parseFloat(item.taxRate.toString()) > 0
-                      ? `${parseFloat(item.taxRate.toString())}%`
-                      : "—"}
-                  </td>
-                  <td className="px-6 py-3 text-right font-semibold text-slate-900">
-                    {item.isBonus ? <span className="text-amber-700">FREE</span> : formatCurrency(lineTotal)}
-                  </td>
+        {/* Items table — the Disc%/Tax% columns only appear when at least one
+            line actually uses them, so a plain invoice (the common case)
+            prints as simply as possible: Product, Qty, Rate, Total. */}
+        {(() => {
+          const showDiscountColumn = invoice.items.some(item => parseFloat(item.discount.toString()) > 0)
+          const showTaxColumn = invoice.items.some(item => parseFloat(item.taxRate.toString()) > 0)
+          return (
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-6 py-3 font-medium text-slate-600">#</th>
+                  <th className="text-left px-6 py-3 font-medium text-slate-600">Product / Batch</th>
+                  <th className="text-right px-6 py-3 font-medium text-slate-600">Qty</th>
+                  <th className="text-right px-6 py-3 font-medium text-slate-600">Unit Price</th>
+                  {showDiscountColumn && <th className="text-right px-6 py-3 font-medium text-slate-600">Disc%</th>}
+                  {showTaxColumn && <th className="text-right px-6 py-3 font-medium text-slate-600">Tax%</th>}
+                  <th className="text-right px-6 py-3 font-medium text-slate-600">Total</th>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {invoice.items.map((item, idx) => {
+                  const lineTotal = parseFloat(item.totalAmount.toString())
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-3 text-slate-400">{idx + 1}</td>
+                      <td className="px-6 py-3">
+                        <p className="font-medium text-slate-900">{item.product.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 print:hidden">
+                          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {item.batch.batchNumber}
+                          </span>
+                          <ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} />
+                        </div>
+                        {item.isBonus && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                              FREE / SCHEME
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-right text-slate-700">
+                        {item.quantity} {item.product.unit}
+                      </td>
+                      <td className="px-6 py-3 text-right text-slate-700">
+                        {formatCurrency(parseFloat(item.salePrice.toString()))}
+                      </td>
+                      {showDiscountColumn && (
+                        <td className="px-6 py-3 text-right text-slate-500">
+                          {parseFloat(item.discount.toString()) > 0
+                            ? `${parseFloat(item.discount.toString())}%`
+                            : "—"}
+                        </td>
+                      )}
+                      {showTaxColumn && (
+                        <td className="px-6 py-3 text-right text-slate-500">
+                          {parseFloat(item.taxRate.toString()) > 0
+                            ? `${parseFloat(item.taxRate.toString())}%`
+                            : "—"}
+                        </td>
+                      )}
+                      <td className="px-6 py-3 text-right font-semibold text-slate-900">
+                        {item.isBonus ? <span className="text-amber-700">FREE</span> : formatCurrency(lineTotal)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )
+        })()}
 
         {/* Totals */}
         <div className="border-t border-slate-200 px-6 py-4">
