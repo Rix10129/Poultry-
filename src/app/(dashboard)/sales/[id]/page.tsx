@@ -10,6 +10,7 @@ import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { PrintButton } from "@/components/sales/print-button"
 import { DeleteButton } from "@/components/ui/delete-button"
 import { WhatsAppShareButton } from "@/components/sales/whatsapp-share-button"
+import { BrandingFooter } from "@/components/branding-footer"
 import { deleteInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -299,6 +300,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <p className="text-sm text-slate-700">{invoice.notes}</p>
           </div>
         )}
+        <BrandingFooter />
       </div>
     </div>
   )

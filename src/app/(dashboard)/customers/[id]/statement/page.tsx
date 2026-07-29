@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, Download } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { StatementPrintButton } from "@/components/customers/statement-print-button"
+import { BrandingFooter } from "@/components/branding-footer"
 import { buildCustomerLedger, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
 
 export const dynamic = "force-dynamic"
@@ -214,6 +215,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
             Dr = Amount owed by customer &nbsp;|&nbsp; Cr = Advance or overpayment by customer
           </p>
         </div>
+        <BrandingFooter />
       </div>
     </div>
   )
