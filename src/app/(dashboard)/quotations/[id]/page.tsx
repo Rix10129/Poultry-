@@ -10,6 +10,7 @@ import { DeleteButton } from "@/components/ui/delete-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { updateQuotationStatus, deleteQuotation } from "@/app/(dashboard)/quotations/actions"
 import { WhatsAppShareButton } from "@/components/sales/whatsapp-share-button"
+import { BrandingFooter } from "@/components/branding-footer"
 
 export const dynamic = "force-dynamic"
 
@@ -211,6 +212,7 @@ export default async function QuotationDetailPage({ params }: Props) {
             <p className="text-sm text-slate-700 whitespace-pre-line">{quote.notes}</p>
           </div>
         )}
+        <BrandingFooter />
       </div>
     </div>
   )
