@@ -296,7 +296,10 @@ export async function createInvoice(
         if (!draft) throw new Error("Draft not found or already posted")
       }
       const invoiceDateValue = new Date(invoiceDate)
-      const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
+      // Walk-in cash sales get their own "CM" number series, separate from
+      // credit invoices — a distinct cash memo book, same as the client's
+      // old system kept.
+      const invoiceNumber = await allocateDocumentNumber(tx, companyId, customerId ? "SALE_INVOICE" : "CASH_MEMO", invoiceDateValue)
 
       // Compute totals
       const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, discountAmount)

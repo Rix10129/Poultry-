@@ -19,6 +19,20 @@ const REPORT_CARDS = [
     color: "bg-blue-50 text-blue-600 border-blue-200",
   },
   {
+    title: "Monthly Sales Statement (Customer-wise)",
+    description: "Printable statement totalling each customer's sales for a period.",
+    href: "/reports/sales-by-customer",
+    icon: FileText,
+    color: "bg-sky-50 text-sky-600 border-sky-200",
+  },
+  {
+    title: "Monthly Cash Receiving Statement (Product-wise)",
+    description: "Cash collected this period, allocated across the products it relates to.",
+    href: "/reports/cash-receiving",
+    icon: Wallet,
+    color: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  },
+  {
     title: "Purchase Report",
     description: "Supplier-wise purchase totals and order history.",
     href: "/reports/purchases",

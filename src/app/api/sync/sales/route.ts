@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   try {
     await db.$transaction(async (tx) => {
       const invoiceDateValue = new Date(body.invoiceDate || Date.now())
-      const invoiceNumber = await allocateDocumentNumber(tx, companyId, "SALE_INVOICE", invoiceDateValue)
+      const invoiceNumber = await allocateDocumentNumber(tx, companyId, customerId ? "SALE_INVOICE" : "CASH_MEMO", invoiceDateValue)
 
       const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, disc)
       if (customerId && paid > netAmount + 0.001)
