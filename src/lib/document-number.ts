@@ -4,6 +4,7 @@ type Transaction = Prisma.TransactionClient
 
 export const DOCUMENT_NUMBER_PREFIXES = {
   SALE_INVOICE: "INV",
+  CASH_MEMO: "CM",
   PURCHASE_ORDER: "PO",
   SALE_RETURN: "SR",
   PURCHASE_RETURN: "PR",
