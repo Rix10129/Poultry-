@@ -9,6 +9,7 @@ import { ExportButtons } from "@/components/reports/export-buttons"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { calculatePurchaseBalance } from "@/lib/supplier-ledger"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Purchase Report" }
 
@@ -79,6 +80,7 @@ export default async function PurchaseReportPage({
             {from || to ? ` · ${from ?? "start"} → ${to ?? "today"}` : " · all time"}
           </p>
         </div>
+        <ReportExportControls report="purchases" />
       </div>
 
       {/* Filters */}

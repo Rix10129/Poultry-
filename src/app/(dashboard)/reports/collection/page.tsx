@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Collection Report" }
 
@@ -112,6 +113,7 @@ export default async function CollectionReportPage({ searchParams }: Props) {
             Payments collected, grouped by salesman
           </p>
         </div>
+        <ReportExportControls report="collection" />
       </div>
 
       {/* Date filter */}

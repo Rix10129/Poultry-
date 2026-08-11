@@ -8,6 +8,7 @@ import { ChevronLeft } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { WhatsAppCopyButton } from "@/components/reports/whatsapp-copy-button"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Aging Report" }
 
@@ -110,6 +111,7 @@ export default async function AgingReportPage() {
             Outstanding receivables by age — as of today
           </p>
         </div>
+        <ReportExportControls report="aging" />
       </div>
 
       {/* Summary boxes */}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ExportButtons } from "@/components/reports/export-buttons"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
+import { ReportExportControls } from "@/components/reports/export-button"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Stock Valuation" }
 
@@ -93,6 +94,7 @@ export default async function StockValuationPage({
             {rows.length} product{rows.length !== 1 ? "s" : ""} · {grandQty} units in stock
           </p>
         </div>
+        <ReportExportControls report="stock" />
       </div>
 
       {/* Filters */}
