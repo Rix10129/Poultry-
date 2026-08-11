@@ -122,6 +122,7 @@ export default async function EditInvoicePage({ params }: Props) {
             invoiceId: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
             hasDependentRecords: invoice.payments.length > 0 || invoice.returns.length > 0,
+            walkInCustomerName: invoice.walkInCustomerName,
           }}
         />
       </div>

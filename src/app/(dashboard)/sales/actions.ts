@@ -232,6 +232,7 @@ export async function createInvoice(
   const userId = user.id
 
   const customerId = (formData.get("customerId") as string) || null
+  const walkInCustomerName = customerId ? null : ((formData.get("walkInCustomerName") as string)?.trim() || null)
   const invoiceDate = (formData.get("invoiceDate") as string) || new Date().toISOString()
   const dueDate = (formData.get("dueDate") as string) || null
   const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
@@ -336,6 +337,7 @@ export async function createInvoice(
           companyId,
           userId,
           customerId: customerId || null,
+          walkInCustomerName,
           invoiceNumber,
           invoiceDate: invoiceDateValue,
           dueDate: dueDate ? new Date(dueDate) : null,
@@ -463,6 +465,7 @@ export async function updateInvoice(
 
   const id = (formData.get("id") as string)?.trim()
   const customerId = (formData.get("customerId") as string) || null
+  const walkInCustomerName = customerId ? null : ((formData.get("walkInCustomerName") as string)?.trim() || null)
   const invoiceDate = (formData.get("invoiceDate") as string) || new Date().toISOString()
   const dueDate = (formData.get("dueDate") as string) || null
   const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
@@ -557,6 +560,7 @@ export async function updateInvoice(
         where: { id: invoice.id },
         data: {
           customerId: customerId || null,
+          walkInCustomerName,
           invoiceDate: new Date(invoiceDate),
           dueDate: dueDate ? new Date(dueDate) : null,
           totalAmount,

@@ -73,6 +73,7 @@ interface EditContext {
   invoiceId: string
   invoiceNumber: string
   hasDependentRecords: boolean
+  walkInCustomerName?: string | null
 }
 
 interface InvoiceFormProps {
@@ -90,6 +91,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
   const [productSearch, setProductSearch] = useState("")
   const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "")
   const [customerSearch, setCustomerSearch] = useState("")
+  const [walkInCustomerName, setWalkInCustomerName] = useState(editContext?.walkInCustomerName ?? "")
   const [invoiceDate, setInvoiceDate] = useState(() => initialDraft?.invoiceDate ?? new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState(initialDraft?.dueDate ?? "")
   const [paymentMode, setPaymentMode] = useState(initialDraft?.paymentMode ?? "CASH")
@@ -241,6 +243,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       const fd = new FormData()
       fd.set("id", editContext.invoiceId)
       fd.set("customerId", customerId)
+      fd.set("walkInCustomerName", walkInCustomerName)
       fd.set("invoiceDate", invoiceDate)
       fd.set("dueDate", dueDate)
       fd.set("paymentMode", paymentMode)
@@ -277,6 +280,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       try {
         await addToSalesQueue({
           customerId,
+          walkInCustomerName,
           invoiceDate,
           dueDate,
           paymentMode,
@@ -303,6 +307,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
 
     const fd = new FormData()
     fd.set("customerId", customerId)
+    fd.set("walkInCustomerName", walkInCustomerName)
     fd.set("invoiceDate", invoiceDate)
     fd.set("dueDate", dueDate)
     fd.set("paymentMode", paymentMode)
@@ -428,6 +433,14 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
           </Select>
           {editContext?.hasDependentRecords && (
             <p className="text-xs text-slate-500">Customer can&rsquo;t be changed once payments are recorded.</p>
+          )}
+          {!customerId && (
+            <Input
+              value={walkInCustomerName}
+              onChange={e => setWalkInCustomerName(e.target.value)}
+              placeholder="Name for this cash memo (optional)"
+              autoComplete="off"
+            />
           )}
         </div>
         <div className="space-y-1.5">
