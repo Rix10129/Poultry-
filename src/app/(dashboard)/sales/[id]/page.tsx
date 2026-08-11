@@ -98,7 +98,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
             invoiceDate={formatDate(invoice.invoiceDate)}
             netAmount={invoice.netAmount.toString()}
             paidAmount={invoice.paidAmount.toString()}
-            customerName={invoice.customer?.name}
+            customerName={invoice.customer?.name ?? invoice.walkInCustomerName ?? undefined}
             customerPhone={invoice.customer?.phone ?? undefined}
             companyName={company?.name ?? ""}
             isPaid={isPaid}
@@ -160,7 +160,9 @@ export default async function InvoiceDetailPage({ params }: Props) {
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
-              {invoice.customer?.name ?? <span className="italic text-slate-400">Walk-in</span>}
+              {invoice.customer?.name ?? invoice.walkInCustomerName ?? (
+                <span className="italic text-slate-400">Walk-in</span>
+              )}
             </p>
             {invoice.customer?.phone && (
               <p className="text-xs text-slate-500">{invoice.customer.phone}</p>

@@ -124,4 +124,12 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* Light grays read fine on a backlit screen but wash out to near-invisible
+     on paper — darken them for anything actually printed (invoices, cash
+     memos, statements, quotations) without touching the on-screen palette. */
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600 {
+    color: #1e293b !important;
+  }
 }

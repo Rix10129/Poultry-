@@ -539,6 +539,7 @@ model SaleInvoice {
   id             String         @id @default(cuid())
   companyId      String
   customerId     String?
+  walkInCustomerName String?
   userId         String
   invoiceNumber  String
   invoiceDate    DateTime       @default(now())

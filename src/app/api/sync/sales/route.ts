@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
 
   const {
     customerId,
+    walkInCustomerName: walkInCustomerNameRaw,
     invoiceDate,
     dueDate,
     paymentMode,
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
     notes,
     linesJson,
   } = body
+  const walkInCustomerName = customerId ? null : (walkInCustomerNameRaw?.trim() || null)
 
   if (!VALID_PAYMENT_MODES.includes(paymentMode as any)) {
     return NextResponse.json({ error: "Invalid payment mode" }, { status: 400 })
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
           companyId,
           userId,
           customerId: customerId || null,
+          walkInCustomerName,
           invoiceNumber,
           invoiceDate: invoiceDateValue,
           dueDate: dueDate ? new Date(dueDate) : null,

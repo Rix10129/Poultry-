@@ -1,6 +1,7 @@
 export interface QueuedSale {
   id: string
   customerId: string
+  walkInCustomerName: string
   invoiceDate: string
   dueDate: string
   paymentMode: string

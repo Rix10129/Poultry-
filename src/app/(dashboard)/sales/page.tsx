@@ -147,7 +147,7 @@ export default async function SalesPage({
                     </td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(inv.invoiceDate)}</td>
                     <td className="px-4 py-3 text-slate-700">
-                      {inv.customer?.name ?? (
+                      {inv.customer?.name ?? inv.walkInCustomerName ?? (
                         <span className="text-slate-400 italic">Walk-in</span>
                       )}
                     </td>
