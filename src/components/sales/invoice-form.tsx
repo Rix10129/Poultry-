@@ -90,8 +90,10 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "")
-  const [customerSearch, setCustomerSearch] = useState("")
-  const [walkInCustomerName, setWalkInCustomerName] = useState(editContext?.walkInCustomerName ?? "")
+  const [customerSearch, setCustomerSearch] = useState(editContext?.walkInCustomerName ?? "")
+  // No customer account picked → whatever's typed in the search box IS the
+  // customer name for this cash memo. One box, no second field to miss.
+  const walkInCustomerName = customerId ? "" : customerSearch.trim()
   const [invoiceDate, setInvoiceDate] = useState(() => initialDraft?.invoiceDate ?? new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = useState(initialDraft?.dueDate ?? "")
   const [paymentMode, setPaymentMode] = useState(initialDraft?.paymentMode ?? "CASH")
@@ -424,7 +426,7 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
             id="customer-search"
             value={customerSearch}
             onChange={e => setCustomerSearch(e.target.value)}
-            placeholder="Search customer by name…"
+            placeholder="Search existing customer, or type a name for a cash sale…"
             autoComplete="off"
           />
           <Select value={customerId} onChange={e => setCustomerId(e.target.value)} disabled={editContext?.hasDependentRecords}>
@@ -434,13 +436,10 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
           {editContext?.hasDependentRecords && (
             <p className="text-xs text-slate-500">Customer can&rsquo;t be changed once payments are recorded.</p>
           )}
-          {!customerId && (
-            <Input
-              value={walkInCustomerName}
-              onChange={e => setWalkInCustomerName(e.target.value)}
-              placeholder="Name for this cash memo (optional)"
-              autoComplete="off"
-            />
+          {!customerId && walkInCustomerName && (
+            <p className="text-xs text-slate-500">
+              No account selected — this cash memo will show <span className="font-medium text-slate-700">&ldquo;{walkInCustomerName}&rdquo;</span> as the customer.
+            </p>
           )}
         </div>
         <div className="space-y-1.5">
