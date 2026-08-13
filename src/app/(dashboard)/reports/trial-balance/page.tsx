@@ -79,12 +79,14 @@ export default async function TrialBalancePage({
             </p>
           </div>
         </div>
-        <form method="GET">
+        <form method="GET" className="flex items-center gap-2">
           <label className="flex items-center gap-2 h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 cursor-pointer">
-            <input type="checkbox" name="zero" value="1" defaultChecked={showZero}
-              onChange={(e) => (e.target.form as HTMLFormElement)?.submit()} />
+            <input type="checkbox" name="zero" value="1" defaultChecked={showZero} />
             Show zero-balance accounts
           </label>
+          <button type="submit" className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+            Apply
+          </button>
         </form>
       </div>
 
