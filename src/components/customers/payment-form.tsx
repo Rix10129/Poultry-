@@ -62,14 +62,13 @@ export function PaymentForm({ customerId, unpaidInvoices }: Props) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="pay-amount">Amount *</Label>
+            <Label htmlFor="pay-amount">Amount Received</Label>
             <Input
               id="pay-amount"
               name="amount"
               type="number"
-              min="0.01"
+              min="0"
               step="0.01"
-              required
               placeholder="0.00"
               className="bg-white"
             />
@@ -81,6 +80,18 @@ export function PaymentForm({ customerId, unpaidInvoices }: Props) {
               <option value="BANK">Bank Transfer</option>
               <option value="CHEQUE">Cheque</option>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pay-discount">Discount / Write-off</Label>
+            <Input
+              id="pay-discount"
+              name="discountAmount"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              className="bg-white"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pay-date">Date</Label>
@@ -117,7 +128,7 @@ export function PaymentForm({ customerId, unpaidInvoices }: Props) {
             <Input
               id="pay-notes"
               name="notes"
-              placeholder="e.g. Discount Rs 18,645 + freight Rs 1,000"
+              placeholder="Optional — e.g. reason for the discount"
               className="bg-white"
             />
           </div>

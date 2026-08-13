@@ -20,7 +20,8 @@ export function validateInvoicePayment(input: {
   companyId: string
   customerId: string
   amount: Numeric
-  postedPayments: Array<{ amount: Numeric }>
+  discountAmount?: Numeric
+  postedPayments: Array<{ amount: Numeric; discountAmount?: Numeric }>
 }) {
   const { invoice, companyId, customerId } = input
   if (!invoice || invoice.companyId !== companyId || invoice.customerId !== customerId)
@@ -28,9 +29,9 @@ export function validateInvoicePayment(input: {
   if (invoice.status && invoice.status !== "POSTED")
     throw new Error("Payments can only be recorded against a posted invoice")
 
-  const paid = input.postedPayments.reduce((total, payment) => total + money(payment.amount), 0)
+  const paid = input.postedPayments.reduce((total, payment) => total + money(payment.amount) + money(payment.discountAmount ?? 0), 0)
   const remaining = Math.max(0, money(invoice.netAmount) - paid)
-  const requested = money(input.amount)
+  const requested = money(input.amount) + money(input.discountAmount ?? 0)
   if (requested > remaining + 0.001)
     throw new Error(`Payment exceeds the remaining invoice balance of ${remaining.toFixed(2)}`)
 

@@ -654,6 +654,11 @@ model CustomerPayment {
   customerId     String
   invoiceId      String?
   amount         Decimal        @db.Decimal(12, 2)
+  // Portion of `amount` that is a discount/write-off rather than funds
+  // actually received — reduces the customer's balance the same as cash,
+  // but posts to Discount Allowed instead of Cash/Bank so those accounts
+  // aren't overstated. 0 <= discountAmount <= amount.
+  discountAmount Decimal        @default(0) @db.Decimal(12, 2)
   paymentMode    PaymentMode
   paymentDate    DateTime       @default(now())
   reference      String?

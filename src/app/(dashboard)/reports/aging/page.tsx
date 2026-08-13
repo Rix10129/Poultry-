@@ -44,7 +44,7 @@ export default async function AgingReportPage() {
       invoiceDate: true,
       dueDate: true,
       netAmount: true,
-      payments: { where: { status: "POSTED" }, select: { amount: true } },
+      payments: { where: { status: "POSTED" }, select: { amount: true, discountAmount: true } },
       customer: { select: { id: true, name: true, area: true } },
     },
   })
@@ -59,7 +59,7 @@ export default async function AgingReportPage() {
 
   for (const inv of invoices) {
     if (!inv.customer) continue
-    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount) + Number(payment.discountAmount), 0)
     const balance = parseFloat(inv.netAmount.toString()) - paid
     if (balance < 0.01) continue
 

@@ -26,7 +26,7 @@ export default async function BalanceSheetPage() {
       select: {
         openingBalance: true,
         invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
-        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true, discountAmount: true } },
         saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
       },
     }),

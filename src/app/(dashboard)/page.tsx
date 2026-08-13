@@ -42,7 +42,7 @@ async function getStats(companyId: string) {
       select: {
         openingBalance: true,
         invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
-        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true, discountAmount: true } },
         saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
       },
     }),
@@ -64,7 +64,7 @@ async function getStats(companyId: string) {
         invoiceDate: true,
         netAmount: true,
         paidAmount: true,
-        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true, discountAmount: true } },
         customer: { select: { name: true } },
       },
     }),
@@ -175,7 +175,7 @@ export default async function DashboardPage() {
                 {stats.recentInvoices.map((inv) => {
                   const net = parseFloat(inv.netAmount.toString())
                   const paid = inv.customer
-                    ? inv.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+                    ? inv.payments.reduce((sum, payment) => sum + Number(payment.amount) + Number(payment.discountAmount), 0)
                     : Number(inv.paidAmount)
                   const bal = net - paid
                   const isPaid = bal <= 0.001
