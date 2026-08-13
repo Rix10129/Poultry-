@@ -26,7 +26,7 @@ type AuditTx = Pick<Prisma.TransactionClient, "auditLog">
 
 export async function recordReversalAudit(
   tx: AuditTx,
-  input: { companyId: string; userId: string; userName: string; entity: string; originalDocumentId: string; reversalDocumentId: string; reason: string },
+  input: { companyId: string; userId: string; userName: string; entity: string; originalDocumentId: string; reversalDocumentId: string | null; reason: string },
 ) {
   return tx.auditLog.create({ data: {
     companyId: input.companyId,
