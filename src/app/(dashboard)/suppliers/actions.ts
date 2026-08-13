@@ -123,10 +123,11 @@ export async function voidSupplierPayment(_: ActionState, formData: FormData): P
   if (!existing) return { error: "Active payment not found" }
   await db.$transaction(async tx => {
     const activeSourceType = await currentActiveSourceType(tx, companyId, "SUPPLIER_PAYMENT", id)
+    // Legacy supplier payments predating the posting service have no
+    // journal entry to reverse — still allow the payment itself to be voided.
     const reversal = await reversePosting(tx, companyId, activeSourceType, id, reason)
-    if (!reversal) throw new Error("Supplier payment accounting entry was not found")
     await tx.supplierPayment.update({ where: { id }, data: { isVoided: true, status: "REVERSED", voidedAt: new Date(), voidedBy: user.id, reversalReason: reason } })
-    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "SupplierPayment", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "SupplierPayment", originalDocumentId: id, reversalDocumentId: reversal?.id ?? null, reason })
   })
   await writeAuditLog({ companyId, userId: user.id, action: "VOID_SUPPLIER_PAYMENT", entity: "SupplierPayment", entityId: id, oldValues: { isVoided: false, amount: existing.amount.toString() }, newValues: { isVoided: true } })
   refreshSupplierPaymentPaths(existing.supplierId, existing.purchaseOrderId)

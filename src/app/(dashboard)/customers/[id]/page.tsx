@@ -60,6 +60,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         invoiceDate: true,
         netAmount: true,
         paymentMode: true,
+        items: { select: { quantity: true, salePrice: true, isBonus: true, product: { select: { name: true } } } },
       },
     }),
     db.customerPayment.findMany({
@@ -113,7 +114,10 @@ export default async function CustomerDetailPage({ params }: Props) {
     corrections,
     fromDate: new Date(0),
     toDate: new Date(8640000000000000),
-    invoices: invoices.map((invoice) => ({ ...invoice })),
+    invoices: invoices.map((invoice) => ({
+      ...invoice,
+      items: invoice.items.map((item) => ({ productName: item.product.name, quantity: item.quantity, salePrice: item.salePrice, isBonus: item.isBonus })),
+    })),
     payments,
     returns,
   }).rows.map((row, index) => ({
@@ -237,6 +241,9 @@ export default async function CustomerDetailPage({ params }: Props) {
                     {formatDate(payment.paymentDate)}
                     {payment.reference && ` · Ref: ${payment.reference}`}
                   </p>
+                  {payment.notes && (
+                    <p className="text-xs text-slate-500 mt-0.5">{payment.notes}</p>
+                  )}
                 </div>
                 {canReversePayments && <CustomerPaymentControls paymentId={payment.id} />}
               </div>

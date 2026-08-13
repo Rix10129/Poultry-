@@ -90,9 +90,11 @@ export async function reverseExpense(_prev: ActionState, formData: FormData): Pr
   try { await db.$transaction(async tx => {
     const expense = await tx.expense.findFirst({ where: { id, companyId } })
     if (!expense || expense.status !== "POSTED") throw new Error("Only a posted expense can be reversed")
-    const journal = await reversePosting(tx, companyId, "EXPENSE", id, reason); if (!journal) throw new Error("Expense accounting entry was not found")
+    // Legacy expenses predating the posting service have no journal entry
+    // to reverse — still allow the document itself to be voided.
+    const journal = await reversePosting(tx, companyId, "EXPENSE", id, reason)
     await tx.expense.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
-    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "Expense", originalDocumentId: id, reversalDocumentId: journal.id, reason })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "Expense", originalDocumentId: id, reversalDocumentId: journal?.id ?? null, reason })
   }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse expense" } }
   redirect(`/expenses/${id}`)
 }

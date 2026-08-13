@@ -1,7 +1,8 @@
 type Numeric = number | string | { toString(): string }
 
-export interface CustomerLedgerInvoice { id: string; invoiceNumber: string; invoiceDate: Date; netAmount: Numeric; schemeNotes?: string | null }
-export interface CustomerLedgerPayment { invoiceId?: string | null; paymentDate: Date; amount: Numeric; paymentMode: string; reference?: string | null; invoice?: { invoiceNumber: string } | null }
+export interface CustomerLedgerInvoiceItem { productName: string; quantity: number; salePrice: Numeric; isBonus?: boolean }
+export interface CustomerLedgerInvoice { id: string; invoiceNumber: string; invoiceDate: Date; netAmount: Numeric; schemeNotes?: string | null; items?: CustomerLedgerInvoiceItem[] }
+export interface CustomerLedgerPayment { invoiceId?: string | null; paymentDate: Date; amount: Numeric; paymentMode: string; reference?: string | null; notes?: string | null; invoice?: { invoiceNumber: string } | null }
 export interface CustomerLedgerReturn { returnNumber: string; returnDate: Date; totalAmount: Numeric; notes?: string | null }
 export interface OpeningBalanceCorrection { date: Date; oldAmount: Numeric; newAmount: Numeric }
 export interface CustomerLedgerRow { date: Date; description: string; debit: number; credit: number; balance: number }
@@ -17,6 +18,15 @@ export interface CustomerBalanceInput {
 const amount = (value: Numeric) => Number(value.toString())
 const sum = <T>(rows: T[], get: (row: T) => Numeric) => rows.reduce((total, row) => total + amount(get(row)), 0)
 const onOrBefore = (date: Date | undefined, asOf?: Date) => !asOf || !date || date <= asOf
+
+/** "Product × qty @ rate" per line item, semicolon-joined — the same level
+ * of detail as a printed invoice, so a customer can read what they bought
+ * straight off the ledger without opening each invoice separately. */
+export function formatInvoiceItemsNarration(items: CustomerLedgerInvoiceItem[]) {
+  return items
+    .map((item) => `${item.productName} × ${item.quantity}${item.isBonus ? " (FREE)" : ` @ ${amount(item.salePrice).toLocaleString("en-US")}`}`)
+    .join("; ")
+}
 
 /** Effective opening balance at a date, reconstructed by reversing later corrections. */
 export function effectiveOpeningBalance(current: Numeric, corrections: OpeningBalanceCorrection[] = [], asOf?: Date) {
@@ -62,8 +72,17 @@ export function buildCustomerLedger({ customerOpeningBalance, fromDate, toDate, 
 }) {
   const originalOpeningBalance = corrections.length ? amount(corrections[0].oldAmount) : amount(customerOpeningBalance)
   const allRows: Omit<CustomerLedgerRow, "balance">[] = [
-    ...invoices.map((invoice) => ({ date: invoice.invoiceDate, description: `Invoice ${invoice.invoiceNumber}${invoice.schemeNotes ? ` — Scheme: ${invoice.schemeNotes}` : ""}`, debit: amount(invoice.netAmount), credit: 0 })),
-    ...payments.map((payment) => ({ date: payment.paymentDate, description: `Payment${payment.invoice ? ` (vs. ${payment.invoice.invoiceNumber})` : ""} — ${payment.paymentMode}${payment.reference ? ` #${payment.reference}` : ""}`, debit: 0, credit: amount(payment.amount) })),
+    ...invoices.map((invoice) => {
+      const parts = [`Invoice ${invoice.invoiceNumber}`]
+      if (invoice.items?.length) parts.push(formatInvoiceItemsNarration(invoice.items))
+      if (invoice.schemeNotes) parts.push(`Scheme: ${invoice.schemeNotes}`)
+      return { date: invoice.invoiceDate, description: parts.join(" — "), debit: amount(invoice.netAmount), credit: 0 }
+    }),
+    ...payments.map((payment) => {
+      const parts = [`Payment${payment.invoice ? ` (vs. ${payment.invoice.invoiceNumber})` : ""} — ${payment.paymentMode}${payment.reference ? ` #${payment.reference}` : ""}`]
+      if (payment.notes) parts.push(payment.notes)
+      return { date: payment.paymentDate, description: parts.join(" — "), debit: 0, credit: amount(payment.amount) }
+    }),
     ...returns.map((saleReturn) => ({ date: saleReturn.returnDate, description: `Return ${saleReturn.returnNumber}${saleReturn.notes ? ` — ${saleReturn.notes}` : ""}`, debit: 0, credit: amount(saleReturn.totalAmount) })),
     ...corrections.map((correction) => {
       const difference = amount(correction.newAmount) - amount(correction.oldAmount)

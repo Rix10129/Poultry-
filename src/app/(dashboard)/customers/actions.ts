@@ -258,13 +258,16 @@ export async function reverseCustomerPayment(_: ActionState, formData: FormData)
     const payment = await tx.customerPayment.findFirst({ where: { id, companyId } })
     if (!payment || payment.status !== "POSTED") throw new Error("Only a posted customer payment can be reversed")
     customerId = payment.customerId; invoiceId = payment.invoiceId
-    const reversal = await reversePosting(tx, companyId, "CUSTOMER_RECEIPT", id, reason); if (!reversal) throw new Error("Customer payment accounting entry was not found")
+    // Payments recorded before the posting service went live have no
+    // journal entry to reverse — nothing to undo in the books, but the
+    // payment itself must still be voidable rather than stuck forever.
+    const reversal = await reversePosting(tx, companyId, "CUSTOMER_RECEIPT", id, reason)
     await tx.customerPayment.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
     if (invoiceId) {
       const aggregate = await tx.customerPayment.aggregate({ where: { invoiceId, companyId, status: "POSTED" }, _sum: { amount: true } })
       await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: aggregate._sum.amount ?? 0 } })
     }
-    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "CustomerPayment", originalDocumentId: id, reversalDocumentId: reversal.id, reason })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "CustomerPayment", originalDocumentId: id, reversalDocumentId: reversal?.id ?? null, reason })
   }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse customer payment" } }
   revalidatePath(`/customers/${customerId}`); if (invoiceId) revalidatePath(`/sales/${invoiceId}`); redirect(`/customers/${customerId}`)
 }

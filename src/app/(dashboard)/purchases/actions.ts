@@ -59,9 +59,11 @@ export async function reversePurchase(_prev: ActionState, formData: FormData): P
       await tx.productBatch.update({ where: { id: item.batchId }, data: { quantity: { decrement: item.quantity } } })
       await tx.stockMovement.create({ data: { companyId, productId: item.productId, batchId: item.batchId, type: MovementType.PURCHASE_RETURN, quantity: -item.quantity, reference: `REV-${po.poNumber}`, sourceType: "PURCHASE_REVERSAL", sourceId: po.id, notes: reason } })
     }
-    const journal = await reversePosting(tx, companyId, "PURCHASE", id, reason); if (!journal) throw new Error("Purchase accounting entry was not found")
+    // Legacy purchases predating the posting service have no journal entry
+    // to reverse — still allow the document itself to be voided.
+    const journal = await reversePosting(tx, companyId, "PURCHASE", id, reason)
     await tx.purchaseOrder.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
-    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "PurchaseOrder", originalDocumentId: id, reversalDocumentId: journal.id, reason })
+    await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "PurchaseOrder", originalDocumentId: id, reversalDocumentId: journal?.id ?? null, reason })
   }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse purchase" } }
   revalidatePath("/purchases"); revalidatePath("/inventory"); redirect(`/purchases/${id}`)
 }
