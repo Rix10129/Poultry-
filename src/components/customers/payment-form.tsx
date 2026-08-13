@@ -104,7 +104,7 @@ export function PaymentForm({ customerId, unpaidInvoices }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pay-ref">Reference / Cheque No.</Label>
+            <Label htmlFor="pay-ref">Reference / Cash Memo / Cheque No.</Label>
             <Input
               id="pay-ref"
               name="reference"
@@ -117,7 +117,7 @@ export function PaymentForm({ customerId, unpaidInvoices }: Props) {
             <Input
               id="pay-notes"
               name="notes"
-              placeholder="Optional"
+              placeholder="e.g. Discount Rs 18,645 + freight Rs 1,000"
               className="bg-white"
             />
           </div>

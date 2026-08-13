@@ -32,8 +32,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 })
 
   const [invoices, payments, returns, correctionLogs] = await Promise.all([
-    db.saleInvoice.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true }, orderBy: { invoiceDate: "asc" } }),
-    db.customerPayment.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
+    db.saleInvoice.findMany({
+      where: { customerId: id, companyId, status: "POSTED" },
+      select: {
+        id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true,
+        items: { select: { quantity: true, salePrice: true, isBonus: true, product: { select: { name: true } } } },
+      },
+      orderBy: { invoiceDate: "asc" },
+    }),
+    db.customerPayment.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
     db.saleReturn.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true }, orderBy: { returnDate: "asc" } }),
     db.auditLog.findMany({
       where: { companyId, entity: "Customer", entityId: id, action: "UPDATE_OPENING_BALANCE" },
@@ -47,7 +54,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     corrections: parseOpeningBalanceCorrections(correctionLogs),
     fromDate: from,
     toDate: to,
-    invoices,
+    invoices: invoices.map((invoice) => ({
+      ...invoice,
+      items: invoice.items.map((item) => ({ productName: item.product.name, quantity: item.quantity, salePrice: item.salePrice, isBonus: item.isBonus })),
+    })),
     payments,
     returns,
   })
@@ -80,6 +90,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   sheet.columns = [{ width: 14 }, { width: 18 }, { width: 48 }, { width: 16 }, { width: 16 }, { width: 18 }]
   for (const column of [1]) sheet.getColumn(column).numFmt = "dd-mmm-yyyy"
   for (const column of [4, 5, 6]) sheet.getColumn(column).numFmt = '#,##0.00'
+  sheet.getColumn(3).alignment = { wrapText: true, vertical: "top" }
 
   const filename = `${customer.name.replace(/[^a-z0-9]+/gi, "-")}-ledger.xlsx`
   return new NextResponse(new Uint8Array(await workbook.xlsx.writeBuffer()), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${filename}"` } })

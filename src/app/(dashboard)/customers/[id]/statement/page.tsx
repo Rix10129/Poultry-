@@ -51,12 +51,15 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
   const [invoices, payments, returns, correctionLogs] = await Promise.all([
     db.saleInvoice.findMany({
       where: { customerId: id, companyId, status: "POSTED" },
-      select: { id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true },
+      select: {
+        id: true, invoiceNumber: true, invoiceDate: true, netAmount: true, schemeNotes: true,
+        items: { select: { quantity: true, salePrice: true, isBonus: true, product: { select: { name: true } } } },
+      },
       orderBy: { invoiceDate: "asc" },
     }),
     db.customerPayment.findMany({
       where: { customerId: id, companyId, status: "POSTED" },
-      select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, invoice: { select: { invoiceNumber: true } } },
+      select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } },
       orderBy: { paymentDate: "asc" },
     }),
     db.saleReturn.findMany({
@@ -77,7 +80,10 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
     corrections: parseOpeningBalanceCorrections(correctionLogs),
     fromDate,
     toDate,
-    invoices,
+    invoices: invoices.map((invoice) => ({
+      ...invoice,
+      items: invoice.items.map((item) => ({ productName: item.product.name, quantity: item.quantity, salePrice: item.salePrice, isBonus: item.isBonus })),
+    })),
     payments,
     returns,
   })
