@@ -61,7 +61,7 @@ export default async function CustomersPage({
       where,
       include: {
         invoices: { where: { status: "POSTED" }, select: { netAmount: true } },
-        payments: { where: { status: "POSTED" }, select: { amount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true, discountAmount: true } },
         saleReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
         _count: { select: { invoices: true } },
       },

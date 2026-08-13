@@ -94,6 +94,24 @@ test("date-filtered statement carries all earlier invoices and credits into open
   assert.deepEqual(ledger.rows.map((row) => row.balance), [120, 95])
 })
 
+test("a payment's discount/write-off reduces the balance the same as cash, and appears in the narration", () => {
+  const input = {
+    customerOpeningBalance: "0",
+    invoices: [{ id: "inv-1", invoiceNumber: "INV-500", invoiceDate: date("2026-03-01"), netAmount: "500.00" }],
+    payments: [
+      { invoiceId: "inv-1", paymentDate: date("2026-03-02"), amount: "100.00", discountAmount: "400.00", paymentMode: "CASH", invoice: { invoiceNumber: "INV-500" } },
+    ],
+    returns: [],
+  }
+  const ledger = buildCustomerLedger({ ...input, fromDate: date("2026-03-01"), toDate: date("2026-03-31") })
+  assert.equal(ledger.closingBalance, 0, "the 100 cash + 400 discount together must fully settle the 500 invoice")
+  assert.equal(ledger.rows[1].credit, 500, "credit must be the combined cash + discount, not cash alone")
+  assert.match(ledger.rows[1].description, /Rs 100 received \+ Rs 400 discount/)
+
+  const balance = calculateCustomerBalance({ openingBalance: input.customerOpeningBalance, invoices: input.invoices, payments: input.payments, returns: input.returns })
+  assert.equal(balance.paid, 500, "calculateCustomerBalance must also count the discount as paid down")
+})
+
 test("opening-balance audit corrections are declared and counted once", () => {
   const corrections = parseOpeningBalanceCorrections([{ createdAt: date("2026-01-03"),
     detail: JSON.stringify({ oldValues: { openingBalance: "50" }, newValues: { openingBalance: 80 } }) }])

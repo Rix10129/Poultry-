@@ -536,7 +536,7 @@ export async function updateInvoice(
       const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, discountAmount)
       const postedPaidAmount = invoice.payments
         .filter((payment: { status: string }) => payment.status === "POSTED")
-        .reduce((total: number, payment: { amount: { toString(): string } }) => total + Number(payment.amount.toString()), 0)
+        .reduce((total: number, payment: { amount: { toString(): string }; discountAmount: { toString(): string } }) => total + Number(payment.amount.toString()) + Number(payment.discountAmount.toString()), 0)
       if (postedPaidAmount > netAmount + 0.001)
         throw new Error(`Invoice total cannot be reduced below recorded payments of ${postedPaidAmount.toFixed(2)}`)
       if (invoice.payments.length && customerId !== invoice.customerId)

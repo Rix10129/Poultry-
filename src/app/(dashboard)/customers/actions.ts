@@ -190,13 +190,15 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
   const customerId = (formData.get("customerId") as string)?.trim()
   const invoiceId = (formData.get("invoiceId") as string)?.trim() || null
   const amount = parseFloat(formData.get("amount") as string) || 0
+  const discountAmount = Math.max(0, parseFloat(formData.get("discountAmount") as string) || 0)
   const paymentModeRaw = (formData.get("paymentMode") as string) || "CASH"
   const paymentDate = (formData.get("paymentDate") as string) || new Date().toISOString()
   const reference = (formData.get("reference") as string)?.trim() || null
   const notes = (formData.get("notes") as string)?.trim() || null
 
   if (!customerId) return { error: "Customer is required" }
-  if (amount <= 0) return { error: "Amount must be greater than 0" }
+  if (amount < 0) return { error: "Amount cannot be negative" }
+  if (amount + discountAmount <= 0) return { error: "Enter an amount received or a discount" }
   if (!VALID_PAYMENT_MODES.includes(paymentModeRaw as any)) return { error: "Invalid payment mode" }
 
   const customer = await db.customer.findFirst({ where: { id: customerId, companyId } })
@@ -211,10 +213,10 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
           select: { id: true, companyId: true, customerId: true, netAmount: true, status: true },
         })
         const postedPayments = await tx.customerPayment.findMany({
-          where: { invoiceId, companyId, status: "POSTED" }, select: { amount: true },
+          where: { invoiceId, companyId, status: "POSTED" }, select: { amount: true, discountAmount: true },
         })
         invoicePaidAmount = validateInvoicePayment({
-          invoice, companyId, customerId, amount, postedPayments,
+          invoice, companyId, customerId, amount, discountAmount, postedPayments,
         }).newPaidAmount
       }
 
@@ -225,13 +227,14 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
           customerId,
           invoiceId: invoiceId || null,
           amount,
+          discountAmount,
           paymentMode: paymentModeRaw as PaymentMode,
           paymentDate: new Date(paymentDate),
           reference,
           notes,
         },
       })
-      await postCustomerReceipt(tx, { companyId, sourceId: payment.id, number: payment.id, date: payment.paymentDate, amount: payment.amount, paymentMode: payment.paymentMode, description: notes ?? "Customer receipt" })
+      await postCustomerReceipt(tx, { companyId, sourceId: payment.id, number: payment.id, date: payment.paymentDate, amount: payment.amount, discount: payment.discountAmount, paymentMode: payment.paymentMode, description: notes ?? "Customer receipt" })
 
       // Refresh the invoice cache from authoritative payment rows.
       if (invoiceId && invoicePaidAmount !== null)
@@ -264,8 +267,9 @@ export async function reverseCustomerPayment(_: ActionState, formData: FormData)
     const reversal = await reversePosting(tx, companyId, "CUSTOMER_RECEIPT", id, reason)
     await tx.customerPayment.update({ where: { id }, data: { status: "REVERSED", reversedAt: new Date(), reversedBy: user.id, reversalReason: reason } })
     if (invoiceId) {
-      const aggregate = await tx.customerPayment.aggregate({ where: { invoiceId, companyId, status: "POSTED" }, _sum: { amount: true } })
-      await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: aggregate._sum.amount ?? 0 } })
+      const aggregate = await tx.customerPayment.aggregate({ where: { invoiceId, companyId, status: "POSTED" }, _sum: { amount: true, discountAmount: true } })
+      const remainingPaid = Number(aggregate._sum.amount ?? 0) + Number(aggregate._sum.discountAmount ?? 0)
+      await tx.saleInvoice.update({ where: { id: invoiceId }, data: { paidAmount: remainingPaid } })
     }
     await recordReversalAudit(tx, { companyId, userId: user.id, userName: user.name ?? "", entity: "CustomerPayment", originalDocumentId: id, reversalDocumentId: reversal?.id ?? null, reason })
   }) } catch (e) { return { error: e instanceof Error ? e.message : "Failed to reverse customer payment" } }

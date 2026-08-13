@@ -18,7 +18,7 @@ export async function getCustomerOutstandingBalance(
   const [customer, invoices, payments, returns] = await Promise.all([
     db.customer.findFirst({ where: { id: customerId, companyId }, select: { openingBalance: true } }),
     db.saleInvoice.findMany({ where: { customerId, companyId, status: "POSTED" }, select: { netAmount: true } }),
-    db.customerPayment.findMany({ where: { customerId, companyId, status: "POSTED" }, select: { amount: true } }),
+    db.customerPayment.findMany({ where: { customerId, companyId, status: "POSTED" }, select: { amount: true, discountAmount: true } }),
     db.saleReturn.findMany({ where: { customerId, companyId, status: "POSTED" }, select: { totalAmount: true } }),
   ])
   if (!customer) return null

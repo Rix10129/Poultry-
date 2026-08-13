@@ -12,6 +12,7 @@ export const SYSTEM_ACCOUNTS = {
   OUTPUT_TAX: { code: "2100", name: "Output Tax", type: AccountType.LIABILITY },
   OPENING_EQUITY: { code: "3000", name: "Opening Balance Equity", type: AccountType.EQUITY },
   SALES: { code: "4000", name: "Sales Revenue", type: AccountType.REVENUE },
+  DISCOUNT_ALLOWED: { code: "4100", name: "Discount Allowed", type: AccountType.REVENUE },
   COGS: { code: "5000", name: "Cost of Goods Sold", type: AccountType.EXPENSE },
   EXPENSE: { code: "6000", name: "Operating Expenses", type: AccountType.EXPENSE },
   STOCK_ADJUSTMENT: { code: "6100", name: "Stock Adjustment", type: AccountType.EXPENSE },

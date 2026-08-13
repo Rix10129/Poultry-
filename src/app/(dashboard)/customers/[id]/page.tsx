@@ -69,6 +69,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       select: {
         id: true,
         amount: true,
+        discountAmount: true,
         paymentMode: true,
         paymentDate: true,
         reference: true,
@@ -231,11 +232,17 @@ export default async function CustomerDetailPage({ params }: Props) {
             <h2 className="text-sm font-semibold text-slate-900">Customer Payments</h2>
           </div>
           <div className="divide-y divide-slate-100">
-            {payments.map((payment) => (
+            {payments.map((payment) => {
+              const discount = parseFloat(payment.discountAmount.toString())
+              const total = parseFloat(payment.amount.toString()) + discount
+              return (
               <div key={payment.id} className="p-4 flex items-center justify-between text-sm">
                 <div>
                   <p className="font-medium text-slate-900">
-                    {formatCurrency(parseFloat(payment.amount.toString()))} — {payment.paymentMode}
+                    {formatCurrency(total)} — {payment.paymentMode}
+                    {discount > 0.001 && (
+                      <span className="text-xs font-normal text-amber-700"> (incl. {formatCurrency(discount)} discount)</span>
+                    )}
                   </p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {formatDate(payment.paymentDate)}
@@ -247,7 +254,8 @@ export default async function CustomerDetailPage({ params }: Props) {
                 </div>
                 {canReversePayments && <CustomerPaymentControls paymentId={payment.id} />}
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

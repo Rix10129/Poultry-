@@ -6,7 +6,7 @@ import { allocateDocumentNumber } from "../document-number"
 type Tx = Prisma.TransactionClient
 type Amount = Prisma.Decimal | Decimal | number | string
 type Side = { account: SystemAccount; amount: Amount; description?: string }
-export type Posting = { companyId: string; sourceId: string; date: Date; number: string; description?: string; amount: Amount; tax?: Amount; paid?: Amount; paymentMode?: PaymentMode; cost?: Amount }
+export type Posting = { companyId: string; sourceId: string; date: Date; number: string; description?: string; amount: Amount; tax?: Amount; paid?: Amount; paymentMode?: PaymentMode; cost?: Amount; discount?: Amount }
 
 function money(value: Amount = 0) { return new Decimal(value.toString()).toDecimalPlaces(2) }
 export function assertBalanced(debits: Side[], credits: Side[]) {
@@ -99,7 +99,12 @@ export async function repostSupplierPayment(tx: Tx, companyId: string, paymentId
     [{account:"ACCOUNTS_PAYABLE",amount:p.amount}],
     [{account:funds(p.paymentMode,"out"),amount:p.amount}])
 }
-export async function postCustomerReceipt(tx: Tx, p: Posting) { return post(tx,"CUSTOMER_RECEIPT",p,[{account:funds(p.paymentMode,"in"),amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
+export async function postCustomerReceipt(tx: Tx, p: Posting) {
+  const received = money(p.amount), discount = money(p.discount)
+  const debits: Side[] = [{ account: funds(p.paymentMode, "in"), amount: received }]
+  if (discount.gt(0)) debits.push({ account: "DISCOUNT_ALLOWED", amount: discount })
+  return post(tx, "CUSTOMER_RECEIPT", p, debits, [{ account: "ACCOUNTS_RECEIVABLE", amount: received.plus(discount) }])
+}
 export async function postSaleReturn(tx: Tx, p: Posting) { return post(tx,"SALE_RETURN",p,[{account:"SALES",amount:p.amount}],[{account:"ACCOUNTS_RECEIVABLE",amount:p.amount}]) }
 export async function postPurchase(tx: Tx, p: Posting) { const total=money(p.amount),tax=money(p.tax),paid=Decimal.min(money(p.paid),total); return post(tx,"PURCHASE",p,[{account:"INVENTORY",amount:total.minus(tax)},{account:"INPUT_TAX",amount:tax}],[{account:funds(p.paymentMode,"out"),amount:paid},{account:"ACCOUNTS_PAYABLE",amount:total.minus(paid)}]) }
 export async function postSupplierPayment(tx: Tx, p: Posting) { return post(tx,"SUPPLIER_PAYMENT",p,[{account:"ACCOUNTS_PAYABLE",amount:p.amount}],[{account:funds(p.paymentMode,"out"),amount:p.amount}]) }

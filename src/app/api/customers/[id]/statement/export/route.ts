@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
       orderBy: { invoiceDate: "asc" },
     }),
-    db.customerPayment.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
+    db.customerPayment.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { invoiceId: true, paymentDate: true, amount: true, discountAmount: true, paymentMode: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } }, orderBy: { paymentDate: "asc" } }),
     db.saleReturn.findMany({ where: { customerId: id, companyId, status: "POSTED" }, select: { returnNumber: true, returnDate: true, totalAmount: true, notes: true }, orderBy: { returnDate: "asc" } }),
     db.auditLog.findMany({
       where: { companyId, entity: "Customer", entityId: id, action: "UPDATE_OPENING_BALANCE" },

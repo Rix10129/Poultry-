@@ -59,7 +59,7 @@ export default async function CustomerStatementPage({ params, searchParams }: Pr
     }),
     db.customerPayment.findMany({
       where: { customerId: id, companyId, status: "POSTED" },
-      select: { invoiceId: true, paymentDate: true, amount: true, paymentMode: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } },
+      select: { invoiceId: true, paymentDate: true, amount: true, discountAmount: true, paymentMode: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } },
       orderBy: { paymentDate: "asc" },
     }),
     db.saleReturn.findMany({
