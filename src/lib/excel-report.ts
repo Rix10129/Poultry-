@@ -113,7 +113,11 @@ export async function generateReport(
   let sNet = 0, sPaid = 0
   invoices.forEach((inv, i) => {
     const net = parseFloat(inv.netAmount.toString())
-    const paid = inv.payments.reduce((sum, payment) => sum + Number(payment.amount) + Number(payment.discountAmount), 0)
+    // Cash sales never create CustomerPayment rows — their paid amount lives
+    // directly on the invoice — so payments.reduce alone always read 0 for them.
+    const paid = inv.customer
+      ? inv.payments.reduce((sum, payment) => sum + Number(payment.amount) + Number(payment.discountAmount), 0)
+      : Number(inv.paidAmount)
     const bal = net - paid
     sNet += net; sPaid += paid
     const status = bal <= 0 ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID"
