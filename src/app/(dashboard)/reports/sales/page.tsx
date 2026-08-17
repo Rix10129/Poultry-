@@ -114,6 +114,9 @@ export default async function SalesReportPage({
         </select>
         <Button type="submit" variant="outline" size="sm">Filter</Button>
         <ExportButtons endpoint="/api/reports/transactions/export" params={{ kind: "sales", from, to }} />
+        <Link href={`/reports/sales-detail${from || to ? `?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}` : ""}`}>
+          <Button type="button" variant="outline" size="sm">Line-Item Detail</Button>
+        </Link>
         {(from || to || type) && (
           <Link href="/reports/sales">
             <Button variant="ghost" size="sm">Clear</Button>

@@ -5,7 +5,7 @@ import Link from "next/link"
 import {
   TrendingUp, ShoppingCart, Package, Users, Scale, ArrowRight,
   Clock, Wallet, FileText, UserCheck, MapPin, Receipt, Target,
-  LineChart, BarChart2, Landmark, ShieldCheck,
+  LineChart, BarChart2, Landmark, ShieldCheck, ListTree,
 } from "lucide-react"
 
 export const metadata = { title: "Reports" }
@@ -17,6 +17,13 @@ const REPORT_CARDS = [
     href: "/reports/sales",
     icon: TrendingUp,
     color: "bg-blue-50 text-blue-600 border-blue-200",
+  },
+  {
+    title: "Sales Report — Detail",
+    description: "Line-item sales register — every product sold, with quantity, discount, tax, and profit per line.",
+    href: "/reports/sales-detail",
+    icon: ListTree,
+    color: "bg-blue-50 text-blue-700 border-blue-200",
   },
   {
     title: "Monthly Sales Statement (Customer-wise)",
