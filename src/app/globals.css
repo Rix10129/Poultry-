@@ -143,7 +143,12 @@ body {
      breathing room also flip to landscape via their own <style> override
      of @page (see the report page component) since a plain per-route
      override is far more reliably honored by print engines than named
-     CSS pages. */
+     CSS pages. Long reports are expected to run across several printed
+     pages — the app shell's own print override (see the dashboard layout)
+     lets that content actually flow instead of being clipped to one
+     screen's height, so there's no need to crush the font down to fit
+     everything on a single page; keep it at a size that's still legible
+     on paper. */
   .print-wide-report {
     max-width: none !important;
   }
@@ -151,13 +156,13 @@ body {
     overflow: visible !important;
   }
   .print-wide-report table {
-    font-size: 7px;
+    font-size: 9.5px;
     width: 100%;
     table-layout: auto;
   }
   .print-wide-report th,
   .print-wide-report td {
-    padding: 2px 4px !important;
+    padding: 3px 5px !important;
     white-space: normal !important;
   }
   .print-wide-report thead {
