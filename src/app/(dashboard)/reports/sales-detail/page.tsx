@@ -141,6 +141,9 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
           </Link>
         )}
       </form>
+      <p className="-mt-2 text-xs text-slate-400 print:hidden">
+        For a long report, use the <span className="font-medium text-slate-500">PDF</span> download above rather than the browser Print button — it&rsquo;s laid out as a ready-to-print file, so it always comes out correctly paginated regardless of your printer&rsquo;s settings.
+      </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4">
