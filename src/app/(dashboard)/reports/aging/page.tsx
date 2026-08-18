@@ -7,6 +7,7 @@ import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { WhatsAppCopyButton } from "@/components/reports/whatsapp-copy-button"
+import { PrintButton } from "@/components/sales/print-button"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Aging Report" }
@@ -99,17 +100,28 @@ export default async function AgingReportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Aging Report</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Outstanding receivables by age — as of today
-          </p>
+    <div className="space-y-6 print-wide-report">
+      {/* 9 columns of currency figures don't fit a portrait page — print
+          landscape so the whole aging table stays on one flowing page. */}
+      <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
+      <div className="flex items-center justify-between print:hidden">
+        <div className="flex items-center gap-3">
+          <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Aging Report</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Outstanding receivables by age — as of today
+            </p>
+          </div>
         </div>
+        <PrintButton />
+      </div>
+
+      <div className="hidden print:block">
+        <h1 className="text-lg font-bold text-slate-900">Aging Report</h1>
+        <p className="text-xs text-slate-600">Outstanding receivables by age — as of today</p>
       </div>
 
       {/* Summary boxes */}
@@ -145,7 +157,7 @@ export default async function AgingReportPage() {
                 <th className="text-right px-4 py-3 font-medium text-orange-700 bg-orange-50">61–90 Days</th>
                 <th className="text-right px-4 py-3 font-medium text-red-700 bg-red-50">90+ Days</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-900">Total</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-4 py-3 print:hidden"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -181,7 +193,7 @@ export default async function AgingReportPage() {
                   <td className="px-4 py-3 text-right font-bold text-slate-900">
                     {formatCurrency(row.total)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 print:hidden">
                     <WhatsAppCopyButton
                       customerName={row.name}
                       amount={row.total}
