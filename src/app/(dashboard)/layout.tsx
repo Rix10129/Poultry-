@@ -54,17 +54,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
   ])
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    // h-screen/overflow-hidden give the app shell a fixed-height scrollable
+    // main pane on screen — but that same clipping applies at print time,
+    // silently cutting off anything past one viewport's worth of content
+    // (which is most reports and documents once they run past a page).
+    // print:h-auto/print:overflow-visible let the real document height
+    // flow through so the browser can paginate it normally.
+    <div className="flex h-screen bg-slate-50 overflow-hidden print:h-auto print:overflow-visible print:block">
       <Sidebar
         alertCount={alertCount}
         role={role}
         companyName={company?.name}
         logoUrl={company?.logoUrl}
       />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible print:h-auto print:block">
         <Topbar session={session} alertCount={alertCount} />
         <OfflineBanner />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-6 print:overflow-visible print:h-auto">{children}</main>
       </div>
     </div>
   )
