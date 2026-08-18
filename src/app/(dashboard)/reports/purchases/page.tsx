@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ExportButtons } from "@/components/reports/export-buttons"
+import { PrintButton } from "@/components/sales/print-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { calculatePurchaseBalance } from "@/lib/supplier-ledger"
 
@@ -68,21 +69,32 @@ export default async function PurchaseReportPage({
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center gap-3">
-        <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Purchase Report</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {orders.length} order{orders.length !== 1 ? "s" : ""}
-            {from || to ? ` · ${from ?? "start"} → ${to ?? "today"}` : " · all time"}
-          </p>
+      <div className="flex items-center justify-between print:hidden">
+        <div className="flex items-center gap-3">
+          <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Purchase Report</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {orders.length} order{orders.length !== 1 ? "s" : ""}
+              {from || to ? ` · ${from ?? "start"} → ${to ?? "today"}` : " · all time"}
+            </p>
+          </div>
         </div>
+        <PrintButton />
+      </div>
+
+      <div className="hidden print:block">
+        <h1 className="text-lg font-bold text-slate-900">Purchase Report</h1>
+        <p className="text-xs text-slate-600">
+          {orders.length} order{orders.length !== 1 ? "s" : ""}
+          {from || to ? ` · ${from ?? "start"} → ${to ?? "today"}` : " · all time"}
+        </p>
       </div>
 
       {/* Filters */}
-      <form method="GET" className="flex flex-wrap gap-3">
+      <form method="GET" className="flex flex-wrap gap-3 print:hidden">
         <input
           name="from"
           type="date"
