@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ChevronLeft, ListTree } from "lucide-react"
 import { ExportButtons } from "@/components/reports/export-buttons"
 import { Button } from "@/components/ui/button"
+import { PrintButton } from "@/components/sales/print-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -80,8 +81,11 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
   const margin = totalSubtotal > 0 ? (totalProfit / totalSubtotal) * 100 : 0
 
   return (
-    <div className="space-y-6 max-w-7xl">
-      <div className="flex items-start justify-between">
+    <div className="space-y-6 max-w-7xl print-wide-report">
+      {/* This report has 13 columns — print it landscape so the whole
+          register fits one page width instead of tiling across pages. */}
+      <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
+      <div className="flex items-start justify-between print:hidden">
         <div className="flex items-center gap-3">
           <Link href="/reports/sales" className="text-slate-400 hover:text-slate-600 transition-colors">
             <ChevronLeft className="h-5 w-5" />
@@ -94,9 +98,19 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
+        <PrintButton />
       </div>
 
-      <form method="GET" className="flex flex-wrap items-end gap-3">
+      {/* Printed heading — the on-screen header above is hidden for print
+          since it carries the back-arrow/page chrome, not report content. */}
+      <div className="hidden print:block">
+        <h1 className="text-lg font-bold text-slate-900">Sales Report — Detail</h1>
+        <p className="text-xs text-slate-600">
+          {from || to ? `${from ?? "start"} → ${to ?? "today"}` : "All time"} · posted invoices only · {rows.length} line item{rows.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      <form method="GET" className="flex flex-wrap items-end gap-3 print:hidden">
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-600">From</label>
           <input name="from" type="date" defaultValue={from} className="h-9 block rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
