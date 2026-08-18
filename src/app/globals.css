@@ -132,4 +132,38 @@ body {
   .text-slate-600 {
     color: #1e293b !important;
   }
+
+  /* Wide, many-column report tables (line-item sales/purchase registers,
+     aging, etc.) don't fit a portrait page even at a reduced font. Chrome's
+     print engine paginates an overflowing scroll container by tiling its
+     hidden columns onto extra pages instead of shrinking them, which is
+     what produced separate printouts per column group. Forcing the table
+     to the page's full width (with wrapping instead of nowrap) keeps it on
+     one flowing page instead of being split apart; pages that need more
+     breathing room also flip to landscape via their own <style> override
+     of @page (see the report page component) since a plain per-route
+     override is far more reliably honored by print engines than named
+     CSS pages. */
+  .print-wide-report {
+    max-width: none !important;
+  }
+  .print-wide-report .overflow-x-auto {
+    overflow: visible !important;
+  }
+  .print-wide-report table {
+    font-size: 7px;
+    width: 100%;
+    table-layout: auto;
+  }
+  .print-wide-report th,
+  .print-wide-report td {
+    padding: 2px 4px !important;
+    white-space: normal !important;
+  }
+  .print-wide-report thead {
+    display: table-header-group;
+  }
+  .print-wide-report tr {
+    break-inside: avoid;
+  }
 }
