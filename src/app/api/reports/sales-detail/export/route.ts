@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { authorize } from "@/lib/authorization"
 import { db } from "@/lib/db"
-import { excelResponse, pdfResponse, type ExportColumn } from "@/lib/report-export"
+import { excelResponse, type ExportColumn } from "@/lib/report-export"
+import { buildWideTablePdf, type WideTableColumn } from "@/lib/wide-table-pdf"
+import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const runtime = "nodejs"
 
@@ -56,9 +58,39 @@ export async function GET(request: NextRequest) {
   })
 
   const totals = rows.reduce((t, r) => ({ qty: t.qty + r.qty, subtotal: t.subtotal + r.subtotal, tax: t.tax + r.tax, lineTotal: t.lineTotal + r.lineTotal, profit: t.profit + r.profit }), { qty: 0, subtotal: 0, tax: 0, lineTotal: 0, profit: 0 })
-  rows.push({ date: "", invoiceNumber: "TOTAL", customer: "", product: "", batch: "", qty: totals.qty, unit: "", unitPrice: 0, discountPct: 0, subtotal: totals.subtotal, tax: totals.tax, lineTotal: totals.lineTotal, profit: totals.profit })
 
-  const columns: ExportColumn[] = [
+  if (params.get("format") === "pdf") {
+    const pdfColumns: WideTableColumn[] = [
+      { header: "Date", key: "date", weight: 6 }, { header: "Invoice #", key: "invoiceNumber", weight: 9 },
+      { header: "Customer", key: "customer", weight: 12 }, { header: "Product", key: "product", weight: 14 },
+      { header: "Batch", key: "batch", weight: 6 }, { header: "Qty", key: "qty", weight: 4, align: "right" },
+      { header: "UOM", key: "unit", weight: 5 }, { header: "Unit Price", key: "unitPrice", weight: 8, align: "right" },
+      { header: "Disc %", key: "discountPct", weight: 4, align: "right" }, { header: "Subtotal", key: "subtotal", weight: 8, align: "right" },
+      { header: "Tax", key: "tax", weight: 7, align: "right" }, { header: "Line Total", key: "lineTotal", weight: 8, align: "right" },
+      { header: "Profit", key: "profit", weight: 9, align: "right" },
+    ]
+    const pdfRows = rows.map((r) => ({
+      date: formatDate(r.date), invoiceNumber: r.invoiceNumber, customer: r.customer, product: r.product,
+      batch: r.batch, qty: String(r.qty), unit: r.unit, unitPrice: formatCurrency(r.unitPrice),
+      discountPct: r.discountPct > 0 ? `${r.discountPct}%` : "—", subtotal: formatCurrency(r.subtotal),
+      tax: r.tax > 0.001 ? formatCurrency(r.tax) : "—", lineTotal: formatCurrency(r.lineTotal), profit: formatCurrency(r.profit),
+    }))
+    const totalsRow = {
+      date: "", invoiceNumber: "", customer: "", product: "", batch: "", qty: String(totals.qty), unit: "",
+      unitPrice: "", discountPct: "", subtotal: formatCurrency(totals.subtotal), tax: formatCurrency(totals.tax),
+      lineTotal: formatCurrency(totals.lineTotal), profit: formatCurrency(totals.profit),
+    }
+    const range = from || to ? `${from ?? "start"} to ${to ?? "today"}` : "All time"
+    const pdfBytes = await buildWideTablePdf({
+      title: "Sales Report — Detail", subtitle: `${range} · posted invoices only · ${rows.length} line item${rows.length !== 1 ? "s" : ""}`,
+      columns: pdfColumns, rows: pdfRows, totalsRow,
+    })
+    return new Response(new Uint8Array(pdfBytes), {
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="sales-detail-report.pdf"` },
+    })
+  }
+
+  const excelColumns: ExportColumn[] = [
     { header: "Date", key: "date" }, { header: "Invoice #", key: "invoiceNumber" },
     { header: "Customer", key: "customer", width: 24 }, { header: "Product", key: "product", width: 28 },
     { header: "Batch", key: "batch" }, { header: "Qty", key: "qty", numeric: true }, { header: "UOM", key: "unit" },
@@ -66,8 +98,6 @@ export async function GET(request: NextRequest) {
     { header: "Subtotal", key: "subtotal", numeric: true }, { header: "Tax", key: "tax", numeric: true },
     { header: "Line Total", key: "lineTotal", numeric: true }, { header: "Profit", key: "profit", numeric: true },
   ]
-
-  return params.get("format") === "pdf"
-    ? pdfResponse("Sales Report — Detail", "sales-detail-report", columns, rows)
-    : excelResponse("Sales Report — Detail", "sales-detail-report", columns, rows)
+  rows.push({ date: "", invoiceNumber: "TOTAL", customer: "", product: "", batch: "", qty: totals.qty, unit: "", unitPrice: 0, discountPct: 0, subtotal: totals.subtotal, tax: totals.tax, lineTotal: totals.lineTotal, profit: totals.profit })
+  return excelResponse("Sales Report — Detail", "sales-detail-report", excelColumns, rows)
 }

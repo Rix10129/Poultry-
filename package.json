@@ -46,6 +46,7 @@
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "next-auth": "^4.24.14",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.22.0",
     "prisma": "^7.8.0",
     "react": "19.2.4",
@@ -64,9 +65,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "prettier": "^3.5.3",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5",
-    "prettier": "^3.5.3"
+    "typescript": "^5"
   }
 }
