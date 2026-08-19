@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
   }))
   if (req.nextUrl.searchParams.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
-      { header: "Product", key: "product", weight: 16 }, { header: "Category", key: "category", weight: 10 }, { header: "Species", key: "species", weight: 8 },
-      { header: "Batch Number", key: "batch", weight: 9 }, { header: "Expiry Date", key: "expiry", weight: 8 }, { header: "Available Qty", key: "available", weight: 7, align: "right" },
-      { header: "Purchase Value", key: "purchaseValue", weight: 10, align: "right" }, { header: "Sale Value", key: "saleValue", weight: 10, align: "right" },
-      { header: "Low-stock Status", key: "lowStock", weight: 11 }, { header: "Expiry Status", key: "expiryStatus", weight: 11 },
+      { header: "Product", key: "product", weight: 11 }, { header: "Category", key: "category", weight: 9 }, { header: "Species", key: "species", weight: 7 },
+      { header: "Batch Number", key: "batch", weight: 9 }, { header: "Expiry Date", key: "expiry", weight: 8 }, { header: "Available Qty", key: "available", weight: 11, align: "right" },
+      { header: "Purchase Value", key: "purchaseValue", weight: 11, align: "right" }, { header: "Sale Value", key: "saleValue", weight: 11, align: "right" },
+      { header: "Low-stock Status", key: "lowStock", weight: 12 }, { header: "Expiry Status", key: "expiryStatus", weight: 11 },
     ]
     const pdfRows = rows.map((r: any) => ({
       product: r.product, category: r.category, species: r.species, batch: r.batch, expiry: formatDate(r.expiry),
