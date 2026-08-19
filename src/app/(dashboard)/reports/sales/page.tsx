@@ -3,11 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, FileText } from "lucide-react"
+import { ChevronLeft, FileText, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ExportButtons } from "@/components/reports/export-buttons"
 import { Badge } from "@/components/ui/badge"
-import { PrintButton } from "@/components/sales/print-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -87,7 +86,15 @@ export default async function SalesReportPage({
             </p>
           </div>
         </div>
-        <PrintButton />
+        <a
+          href={`/api/reports/transactions/export?${new URLSearchParams({ kind: "sales", ...(from ? { from } : {}), ...(to ? { to } : {}), format: "pdf" }).toString()}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700"
+        >
+          <Printer className="h-4 w-4" />
+          Print
+        </a>
       </div>
 
       <div className="hidden print:block">

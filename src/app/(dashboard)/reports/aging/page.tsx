@@ -4,10 +4,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Printer } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { WhatsAppCopyButton } from "@/components/reports/whatsapp-copy-button"
-import { PrintButton } from "@/components/sales/print-button"
+import { ExportButtons } from "@/components/reports/export-buttons"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Aging Report" }
@@ -116,7 +116,18 @@ export default async function AgingReportPage() {
             </p>
           </div>
         </div>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <ExportButtons endpoint="/api/reports/aging/export" />
+          <a
+            href="/api/reports/aging/export?format=pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </a>
+        </div>
       </div>
 
       <div className="hidden print:block">
