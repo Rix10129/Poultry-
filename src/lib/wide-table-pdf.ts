@@ -16,10 +16,11 @@ export type WideTablePdfOptions = {
   columns: WideTableColumn[]
   rows: Record<string, string>[]
   totalsRow?: Record<string, string>
+  orientation?: "portrait" | "landscape"
 }
 
-const PAGE_WIDTH = 841.89 // A4 landscape, points
-const PAGE_HEIGHT = 595.28
+const A4_LANDSCAPE = { width: 841.89, height: 595.28 }
+const A4_PORTRAIT = { width: 595.28, height: 841.89 }
 const MARGIN = 28
 const HEADER_HEIGHT = 42
 const ROW_HEIGHT = 16
@@ -39,7 +40,8 @@ function truncate(font: PDFFont, text: string, maxWidth: number, size: number): 
 }
 
 export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint8Array> {
-  const { title, subtitle, columns, rows, totalsRow } = opts
+  const { title, subtitle, columns, rows, totalsRow, orientation = "landscape" } = opts
+  const { width: PAGE_WIDTH, height: PAGE_HEIGHT } = orientation === "portrait" ? A4_PORTRAIT : A4_LANDSCAPE
   const doc = await PDFDocument.create()
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold)

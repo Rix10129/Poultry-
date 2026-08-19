@@ -2,8 +2,9 @@ import ExcelJS from "exceljs"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { buildCustomerLedger, parseOpeningBalanceCorrections } from "@/lib/customer-ledger"
-import { pdfResponse } from "@/lib/report-export"
+import { buildWideTablePdf, type WideTableColumn } from "@/lib/wide-table-pdf"
 import { authorize } from "@/lib/authorization"
+import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const runtime = "nodejs"
 
@@ -63,9 +64,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   })
 
   if (req.nextUrl.searchParams.get("format") === "pdf") {
-    const columns = [{ header: "Date", key: "date" }, { header: "Description", key: "description", width: 48 }, { header: "Debit", key: "debit", numeric: true }, { header: "Credit", key: "credit", numeric: true }, { header: "Balance", key: "balance", numeric: true }]
     const rows = [{ date: from.toISOString().slice(0, 10), description: "Balance Brought Forward", debit: 0, credit: 0, balance: ledger.openingBalance }, ...ledger.rows.map(row => ({ date: row.date.toISOString().slice(0, 10), description: row.description, debit: row.debit, credit: row.credit, balance: row.balance }))]
-    return pdfResponse(`${customer.name} - Customer Statement`, `${customer.name.replace(/[^a-z0-9]+/gi, "-")}-ledger`, columns, rows)
+    const pdfColumns: WideTableColumn[] = [
+      { header: "Date", key: "date", weight: 8 }, { header: "Description", key: "description", weight: 22 },
+      { header: "Debit", key: "debit", weight: 9, align: "right" }, { header: "Credit", key: "credit", weight: 9, align: "right" },
+      { header: "Balance", key: "balance", weight: 10, align: "right" },
+    ]
+    const pdfRows = rows.map((r) => ({
+      date: formatDate(r.date), description: r.description,
+      debit: r.debit ? formatCurrency(r.debit) : "—", credit: r.credit ? formatCurrency(r.credit) : "—", balance: formatCurrency(r.balance),
+    }))
+    const totalsRow = {
+      date: formatDate(to), description: "Balance Carried Forward", debit: "", credit: "", balance: formatCurrency(ledger.closingBalance),
+    }
+    const pdfBytes = await buildWideTablePdf({
+      title: `${customer.name} — Customer Statement`, subtitle: `${formatDate(from)} to ${formatDate(to)}`,
+      columns: pdfColumns, rows: pdfRows, totalsRow, orientation: "portrait",
+    })
+    return new Response(new Uint8Array(pdfBytes), {
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${customer.name.replace(/[^a-z0-9]+/gi, "-")}-ledger.pdf"` },
+    })
   }
 
   const workbook = new ExcelJS.Workbook()
