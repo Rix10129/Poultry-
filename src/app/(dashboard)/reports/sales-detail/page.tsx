@@ -3,10 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ListTree } from "lucide-react"
+import { ChevronLeft, ListTree, Printer } from "lucide-react"
 import { ExportButtons } from "@/components/reports/export-buttons"
 import { Button } from "@/components/ui/button"
-import { PrintButton } from "@/components/sales/print-button"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -98,7 +97,15 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
-        <PrintButton />
+        <a
+          href={`/api/reports/sales-detail/export?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}), ...(customerId ? { customerId } : {}), ...(productId ? { productId } : {}), format: "pdf" }).toString()}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700"
+        >
+          <Printer className="h-4 w-4" />
+          Print
+        </a>
       </div>
 
       {/* Printed heading — the on-screen header above is hidden for print
@@ -141,9 +148,6 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
           </Link>
         )}
       </form>
-      <p className="-mt-2 text-xs text-slate-400 print:hidden">
-        For a long report, use the <span className="font-medium text-slate-500">PDF</span> download above rather than the browser Print button — it&rsquo;s laid out as a ready-to-print file, so it always comes out correctly paginated regardless of your printer&rsquo;s settings.
-      </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4">
