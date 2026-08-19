@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { authorize } from "@/lib/authorization"
 import { db } from "@/lib/db"
-import { daysUntilExpiry } from "@/lib/utils"
-import { excelResponse, pdfResponse, type ExportColumn } from "@/lib/report-export"
+import { daysUntilExpiry, formatCurrency, formatDate } from "@/lib/utils"
+import { excelResponse, type ExportColumn } from "@/lib/report-export"
+import { buildWideTablePdf, type WideTableColumn } from "@/lib/wide-table-pdf"
 
 export const runtime = "nodejs"
 export async function GET(req: NextRequest) {
@@ -22,11 +23,32 @@ export async function GET(req: NextRequest) {
       purchaseValue: batch.quantity * Number(batch.purchasePrice), saleValue: batch.quantity * Number(batch.salePrice),
       lowStock: product.reorderLevel >= batch.quantity ? "LOW STOCK" : "OK", expiryStatus: days < 0 ? "EXPIRED" : days <= 30 ? "EXPIRING <30D" : "OK" }
   }))
+  if (req.nextUrl.searchParams.get("format") === "pdf") {
+    const pdfColumns: WideTableColumn[] = [
+      { header: "Product", key: "product", weight: 16 }, { header: "Category", key: "category", weight: 10 }, { header: "Species", key: "species", weight: 8 },
+      { header: "Batch Number", key: "batch", weight: 9 }, { header: "Expiry Date", key: "expiry", weight: 8 }, { header: "Available Qty", key: "available", weight: 7, align: "right" },
+      { header: "Purchase Value", key: "purchaseValue", weight: 10, align: "right" }, { header: "Sale Value", key: "saleValue", weight: 10, align: "right" },
+      { header: "Low-stock Status", key: "lowStock", weight: 11 }, { header: "Expiry Status", key: "expiryStatus", weight: 11 },
+    ]
+    const pdfRows = rows.map((r: any) => ({
+      product: r.product, category: r.category, species: r.species, batch: r.batch, expiry: formatDate(r.expiry),
+      available: String(r.available), purchaseValue: formatCurrency(r.purchaseValue), saleValue: formatCurrency(r.saleValue),
+      lowStock: r.lowStock, expiryStatus: r.expiryStatus,
+    }))
+    const pdfBytes = await buildWideTablePdf({
+      title: "Filtered Stock", subtitle: `${rows.length} batch${rows.length !== 1 ? "es" : ""}`,
+      columns: pdfColumns, rows: pdfRows,
+    })
+    return new Response(new Uint8Array(pdfBytes), {
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="stock-report.pdf"` },
+    })
+  }
+
   const columns: ExportColumn[] = [
     { header: "Product", key: "product", width: 30 }, { header: "Category", key: "category" }, { header: "Species", key: "species" },
     { header: "Batch Number", key: "batch" }, { header: "Expiry Date", key: "expiry" }, { header: "Available Quantity", key: "available" },
     { header: "Purchase Value", key: "purchaseValue", numeric: true }, { header: "Sale Value", key: "saleValue", numeric: true },
     { header: "Low-stock Status", key: "lowStock" }, { header: "Expiry Status", key: "expiryStatus" },
   ]
-  return req.nextUrl.searchParams.get("format") === "pdf" ? pdfResponse("Filtered Stock", "stock-report", columns, rows) : excelResponse("Filtered Stock", "stock-report", columns, rows)
+  return excelResponse("Filtered Stock", "stock-report", columns, rows)
 }

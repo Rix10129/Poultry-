@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { authorize } from "@/lib/authorization"
 import { db } from "@/lib/db"
-import { excelResponse, pdfResponse, type ExportColumn } from "@/lib/report-export"
+import { excelResponse, type ExportColumn } from "@/lib/report-export"
+import { buildWideTablePdf, type WideTableColumn } from "@/lib/wide-table-pdf"
 import { matchesPaymentStatus, parseTransactionFilters, reportTotals, transactionWhere } from "@/lib/report-filters"
+import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const runtime = "nodejs"
 
@@ -30,13 +32,40 @@ export async function GET(request: NextRequest) {
     paymentStatus: matchesPaymentStatus(row, "PAID") ? "PAID" : matchesPaymentStatus(row, "PARTIAL") ? "PARTIAL" : "UNPAID",
     net: Number(row.netAmount), paid: Number(row.paidAmount), balance: Number(row.netAmount) - Number(row.paidAmount),
   }))
-  rows.push({ number: "TOTAL", date: "", party: "", user: "", mode: "", status: "", paymentStatus: "", net: totals.net, paid: totals.paid, balance: totals.net - totals.paid })
-  const columns: ExportColumn[] = [
+  const title = kind === "sales" ? "Filtered Sales" : "Filtered Purchases"
+
+  if (request.nextUrl.searchParams.get("format") === "pdf") {
+    const pdfColumns: WideTableColumn[] = [
+      { header: kind === "sales" ? "Invoice #" : "PO #", key: "number", weight: 10 }, { header: "Date", key: "date", weight: 7 },
+      { header: kind === "sales" ? "Customer" : "Supplier", key: "party", weight: 13 }, { header: "User", key: "user", weight: 11 },
+      { header: "Payment Mode", key: "mode", weight: 8 }, { header: "Document Status", key: "status", weight: 9 },
+      { header: "Payment Status", key: "paymentStatus", weight: 9 },
+      { header: "Net", key: "net", weight: 9, align: "right" }, { header: "Paid", key: "paid", weight: 9, align: "right" },
+      { header: "Balance", key: "balance", weight: 9, align: "right" },
+    ]
+    const pdfRows = rows.map((r) => ({
+      number: r.number, date: formatDate(r.date), party: r.party, user: r.user, mode: r.mode, status: r.status,
+      paymentStatus: r.paymentStatus, net: formatCurrency(r.net), paid: formatCurrency(r.paid), balance: formatCurrency(r.balance),
+    }))
+    const totalsRow = {
+      number: "", date: "", party: "", user: "", mode: "", status: "", paymentStatus: "",
+      net: formatCurrency(totals.net), paid: formatCurrency(totals.paid), balance: formatCurrency(totals.net - totals.paid),
+    }
+    const pdfBytes = await buildWideTablePdf({
+      title, subtitle: `${filtered.length} record${filtered.length !== 1 ? "s" : ""}`,
+      columns: pdfColumns, rows: pdfRows, totalsRow,
+    })
+    return new Response(new Uint8Array(pdfBytes), {
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${kind}-report.pdf"` },
+    })
+  }
+
+  const excelColumns: ExportColumn[] = [
     { header: kind === "sales" ? "Invoice #" : "PO #", key: "number" }, { header: "Date", key: "date" },
     { header: kind === "sales" ? "Customer" : "Supplier", key: "party", width: 28 }, { header: "User", key: "user" },
     { header: "Payment Mode", key: "mode" }, { header: "Document Status", key: "status" }, { header: "Payment Status", key: "paymentStatus" },
     { header: "Net", key: "net", numeric: true }, { header: "Paid", key: "paid", numeric: true }, { header: "Balance", key: "balance", numeric: true },
   ]
-  const title = kind === "sales" ? "Filtered Sales" : "Filtered Purchases"
-  return request.nextUrl.searchParams.get("format") === "pdf" ? pdfResponse(title, `${kind}-report`, columns, rows) : excelResponse(title, `${kind}-report`, columns, rows)
+  rows.push({ number: "TOTAL", date: "", party: "", user: "", mode: "", status: "", paymentStatus: "", net: totals.net, paid: totals.paid, balance: totals.net - totals.paid })
+  return excelResponse(title, `${kind}-report`, excelColumns, rows)
 }
