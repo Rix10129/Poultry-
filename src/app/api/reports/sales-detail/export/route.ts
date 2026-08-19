@@ -61,13 +61,13 @@ export async function GET(request: NextRequest) {
 
   if (params.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
-      { header: "Date", key: "date", weight: 6 }, { header: "Invoice #", key: "invoiceNumber", weight: 9 },
-      { header: "Customer", key: "customer", weight: 12 }, { header: "Product", key: "product", weight: 14 },
-      { header: "Batch", key: "batch", weight: 6 }, { header: "Qty", key: "qty", weight: 4, align: "right" },
-      { header: "UOM", key: "unit", weight: 5 }, { header: "Unit Price", key: "unitPrice", weight: 8, align: "right" },
-      { header: "Disc %", key: "discountPct", weight: 4, align: "right" }, { header: "Subtotal", key: "subtotal", weight: 8, align: "right" },
-      { header: "Tax", key: "tax", weight: 7, align: "right" }, { header: "Line Total", key: "lineTotal", weight: 8, align: "right" },
-      { header: "Profit", key: "profit", weight: 9, align: "right" },
+      { header: "Date", key: "date", weight: 4 }, { header: "Invoice #", key: "invoiceNumber", weight: 6 },
+      { header: "Customer", key: "customer", weight: 9 }, { header: "Product", key: "product", weight: 9 },
+      { header: "Batch", key: "batch", weight: 5 }, { header: "Qty", key: "qty", weight: 4, align: "right" },
+      { header: "UOM", key: "unit", weight: 4 }, { header: "Unit Price", key: "unitPrice", weight: 9, align: "right" },
+      { header: "Disc %", key: "discountPct", weight: 6, align: "right" }, { header: "Subtotal", key: "subtotal", weight: 11, align: "right" },
+      { header: "Tax", key: "tax", weight: 11, align: "right" }, { header: "Line Total", key: "lineTotal", weight: 11, align: "right" },
+      { header: "Profit", key: "profit", weight: 11, align: "right" },
     ]
     const pdfRows = rows.map((r) => ({
       date: formatDate(r.date), invoiceNumber: r.invoiceNumber, customer: r.customer, product: r.product,
