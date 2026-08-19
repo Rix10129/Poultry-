@@ -52,12 +52,10 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
     const unitPrice = Number(item.salePrice)
     const discountPct = Number(item.discount)
     const grossValue = qty * unitPrice
-    const subtotal = Number(item.totalAmount)
-    const discountAmt = grossValue - subtotal
-    const tax = (subtotal * Number(item.taxRate)) / 100
-    const lineTotal = subtotal + tax
+    const amount = Number(item.totalAmount)
+    const discountAmt = grossValue - amount
     const cost = qty * Number(item.batch.purchasePrice)
-    const profit = subtotal - cost
+    const profit = amount - cost
     return {
       id: item.id,
       invoiceId: item.invoiceId,
@@ -68,21 +66,20 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
       unit: item.product.unit,
       batch: item.batch.batchNumber,
       isBonus: item.isBonus,
-      qty, unitPrice, discountPct, discountAmt, subtotal, tax, lineTotal, cost, profit,
+      qty, unitPrice, discountPct, discountAmt, amount, cost, profit,
     }
   })
 
   const totalQty = rows.reduce((s, r) => s + r.qty, 0)
-  const totalSubtotal = rows.reduce((s, r) => s + r.subtotal, 0)
-  const totalTax = rows.reduce((s, r) => s + r.tax, 0)
-  const totalLineTotal = rows.reduce((s, r) => s + r.lineTotal, 0)
+  const totalAmount = rows.reduce((s, r) => s + r.amount, 0)
   const totalProfit = rows.reduce((s, r) => s + r.profit, 0)
-  const margin = totalSubtotal > 0 ? (totalProfit / totalSubtotal) * 100 : 0
+  const margin = totalAmount > 0 ? (totalProfit / totalAmount) * 100 : 0
 
   return (
     <div className="space-y-6 max-w-7xl print-wide-report">
-      {/* This report has 13 columns — print it landscape so the whole
-          register fits one page width instead of tiling across pages. */}
+      {/* This report has enough columns to want the extra width — print it
+          landscape so the whole register fits one page width instead of
+          tiling across pages. */}
       <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
       <div className="flex items-start justify-between print:hidden">
         <div className="flex items-center gap-3">
@@ -149,22 +146,14 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
         )}
       </form>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Units Sold</p>
           <p className="text-2xl font-bold text-slate-900">{totalQty.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Net Sales</p>
-          <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalSubtotal)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Tax Collected</p>
-          <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalTax)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Total (incl. tax)</p>
-          <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalLineTotal)}</p>
+          <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalAmount)}</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Gross Profit</p>
@@ -196,9 +185,7 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
                   <th className="text-left px-4 py-2.5 font-medium text-slate-600">UOM</th>
                   <th className="text-right px-4 py-2.5 font-medium text-slate-600">Unit Price</th>
                   <th className="text-right px-4 py-2.5 font-medium text-slate-600">Disc %</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-slate-600">Subtotal</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-slate-600">Tax</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-slate-600">Line Total</th>
+                  <th className="text-right px-4 py-2.5 font-medium text-slate-600">Amount</th>
                   <th className="text-right px-4 py-2.5 font-medium text-slate-600">Profit</th>
                 </tr>
               </thead>
@@ -221,9 +208,7 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
                     <td className="px-4 py-2.5 text-slate-500 text-xs">{r.unit}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-slate-600">{formatCurrency(r.unitPrice)}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-slate-500">{r.discountPct > 0 ? `${r.discountPct}%` : "—"}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-900">{formatCurrency(r.subtotal)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-500">{r.tax > 0.001 ? formatCurrency(r.tax) : "—"}</td>
-                    <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">{formatCurrency(r.lineTotal)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">{formatCurrency(r.amount)}</td>
                     <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.profit >= 0 ? "text-green-700" : "text-red-600"}`}>
                       {formatCurrency(r.profit)}
                     </td>
@@ -237,9 +222,7 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
                   <td />
                   <td />
                   <td />
-                  <td className="px-4 py-2.5 text-right font-bold font-mono text-slate-900">{formatCurrency(totalSubtotal)}</td>
-                  <td className="px-4 py-2.5 text-right font-bold font-mono text-slate-900">{formatCurrency(totalTax)}</td>
-                  <td className="px-4 py-2.5 text-right font-bold font-mono text-slate-900">{formatCurrency(totalLineTotal)}</td>
+                  <td className="px-4 py-2.5 text-right font-bold font-mono text-slate-900">{formatCurrency(totalAmount)}</td>
                   <td className={`px-4 py-2.5 text-right font-bold font-mono ${totalProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
                     {formatCurrency(totalProfit)}
                   </td>
