@@ -156,13 +156,13 @@ body {
     overflow: visible !important;
   }
   .print-wide-report table {
-    font-size: 9.5px;
+    font-size: 12px;
     width: 100%;
     table-layout: auto;
   }
   .print-wide-report th,
   .print-wide-report td {
-    padding: 3px 5px !important;
+    padding: 4px 6px !important;
     white-space: normal !important;
   }
   .print-wide-report thead {

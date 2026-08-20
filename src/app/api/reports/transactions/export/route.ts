@@ -37,10 +37,10 @@ export async function GET(request: NextRequest) {
 
   if (request.nextUrl.searchParams.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
-      { header: kind === "sales" ? "Invoice #" : "PO #", key: "number", weight: 7 }, { header: "Date", key: "date", weight: 6 },
-      { header: kind === "sales" ? "Customer" : "Supplier", key: "party", weight: 13 }, { header: "User", key: "user", weight: 8 },
-      { header: "Payment Mode", key: "mode", weight: 10 }, { header: "Document Status", key: "status", weight: 11 },
-      { header: "Payment Status", key: "paymentStatus", weight: 9 },
+      { header: kind === "sales" ? "Invoice #" : "PO #", key: "number", weight: 7 }, { header: "Date", key: "date", weight: 9 },
+      { header: kind === "sales" ? "Customer" : "Supplier", key: "party", weight: 12 }, { header: "User", key: "user", weight: 8 },
+      { header: "Payment Mode", key: "mode", weight: 10 }, { header: "Status", key: "status", weight: 9 },
+      { header: "Pay. Status", key: "paymentStatus", weight: 8 },
       { header: "Net", key: "net", weight: 10, align: "right" }, { header: "Paid", key: "paid", weight: 10, align: "right" },
       { header: "Balance", key: "balance", weight: 10, align: "right" },
     ]
