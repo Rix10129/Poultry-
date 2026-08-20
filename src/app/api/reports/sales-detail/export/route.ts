@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
   if (params.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
       { header: "Date", key: "date", weight: 10 }, { header: "Invoice #", key: "invoiceNumber", weight: 7 },
-      { header: "Customer", key: "customer", weight: 18 }, { header: "Product", key: "product", weight: 23 },
-      { header: "Batch", key: "batch", weight: 9 }, { header: "Qty", key: "qty", weight: 10, align: "right" },
+      { header: "Customer", key: "customer", weight: 20 }, { header: "Product", key: "product", weight: 20 },
+      { header: "Batch", key: "batch", weight: 10 }, { header: "Qty", key: "qty", weight: 10, align: "right" },
       { header: "Unit Price", key: "unitPrice", weight: 11, align: "right" }, { header: "Amount", key: "amount", weight: 12, align: "right" },
     ]
     const pdfRows = rows.map((r) => ({
