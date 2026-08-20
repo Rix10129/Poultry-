@@ -8,10 +8,16 @@ import { AccountForm } from "@/components/accounts/account-form"
 
 export const metadata = { title: "New Account" }
 
-export default async function NewAccountPage() {
+interface Props {
+  searchParams: Promise<{ isBank?: string }>
+}
+
+export default async function NewAccountPage({ searchParams }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
+
+  const { isBank } = await searchParams
 
   const accounts = await db.account.findMany({
     where: { companyId },
@@ -32,7 +38,7 @@ export default async function NewAccountPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <AccountForm accounts={accounts} />
+        <AccountForm accounts={accounts} defaultIsBank={isBank === "1"} />
       </div>
     </div>
   )

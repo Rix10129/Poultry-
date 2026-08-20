@@ -30,6 +30,8 @@ const VOUCHER_TYPES = [
   { value: "BANK_RECEIPT", label: "Bank Receipt" },
   { value: "BANK_PAYMENT", label: "Bank Payment" },
   { value: "JOURNAL", label: "Journal Voucher" },
+  { value: "DISCOUNT", label: "Discount" },
+  { value: "OPENING_BALANCE", label: "Opening Balance" },
 ]
 
 interface Props {

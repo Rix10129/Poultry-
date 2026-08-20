@@ -56,6 +56,7 @@ export default async function EditAccountPage({ params }: Props) {
             type: account.type,
             parentId: account.parentId,
             isSystem: account.isSystem,
+            isBank: account.isBank,
           }}
           accounts={accounts}
         />

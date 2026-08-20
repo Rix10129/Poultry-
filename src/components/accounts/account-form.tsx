@@ -15,6 +15,7 @@ export type AccountData = {
   type: string
   parentId: string | null
   isSystem: boolean
+  isBank: boolean
 }
 
 export type AccountOption = {
@@ -27,6 +28,7 @@ export type AccountOption = {
 interface Props {
   account?: AccountData
   accounts: AccountOption[]
+  defaultIsBank?: boolean
 }
 
 const TYPE_OPTIONS = [
@@ -37,7 +39,7 @@ const TYPE_OPTIONS = [
   { value: "EXPENSE", label: "Expense" },
 ]
 
-export function AccountForm({ account, accounts }: Props) {
+export function AccountForm({ account, accounts, defaultIsBank }: Props) {
   const action = account ? updateAccount : createAccount
   const [state, formAction, pending] = useActionState(action, null)
 
@@ -101,6 +103,19 @@ export function AccountForm({ account, accounts }: Props) {
               </option>
             ))}
           </Select>
+        </div>
+        <div className="md:col-span-2 flex items-center gap-2">
+          <input
+            id="isBank"
+            name="isBank"
+            type="checkbox"
+            defaultChecked={account ? account.isBank : defaultIsBank}
+            disabled={account?.isSystem}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <Label htmlFor="isBank" className="!mb-0">
+            This is a bank account — show it on the Bank Accounts page
+          </Label>
         </div>
       </div>
 

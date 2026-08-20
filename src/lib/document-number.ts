@@ -15,6 +15,8 @@ export const DOCUMENT_NUMBER_PREFIXES = {
   BANK_PAYMENT: "BP",
   JOURNAL: "JV",
   JOURNAL_ENTRY: "JE",
+  DISCOUNT: "DS",
+  OPENING_BALANCE: "OB",
 } as const
 
 export type DocumentNumberType = keyof typeof DOCUMENT_NUMBER_PREFIXES
