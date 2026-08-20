@@ -78,6 +78,11 @@ export async function POST(req: NextRequest) {
       const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, disc)
       if (customerId && paid > netAmount + 0.001)
         throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
+      // A cash memo (no registered customerId) has no customer ledger to
+      // carry a balance on — matches the same guard on the online invoice
+      // creation path.
+      if (!customerId && paid < netAmount - 0.001)
+        throw new Error("Walk-in / cash sales must be paid in full — select a registered customer to sell on credit")
       if (customerId) {
         const customer = await tx.customer.findFirst({ where: { id: customerId, companyId }, select: { id: true } })
         if (!customer) throw new Error("Customer not found")

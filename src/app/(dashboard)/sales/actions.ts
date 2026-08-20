@@ -306,6 +306,12 @@ export async function createInvoice(
       const { totalAmount, taxAmount, netAmount } = calculateDocumentTotals(lines, l => l.salePrice, discountAmount)
       if (customerId && paidAmount > netAmount + 0.001)
         throw new Error(`Payment exceeds the invoice total of ${netAmount.toFixed(2)}`)
+      // A cash memo (no registered customerId) has no customer ledger to
+      // carry a balance on — an unpaid amount would be uncollectible and
+      // invisible to Aging/Recovery reports. Credit sales must be tied to
+      // an actual customer account.
+      if (!customerId && paidAmount < netAmount - 0.001)
+        throw new Error("Walk-in / cash sales must be paid in full — select a registered customer to sell on credit")
       if (customerId) {
         const customer = await tx.customer.findFirst({
           where: { id: customerId, companyId },
@@ -548,6 +554,11 @@ export async function updateInvoice(
       // all, so its paid amount has to come from the form instead, or every
       // edit would silently zero out an already-paid cash sale.
       const finalPaidAmount = customerId ? postedPaidAmount : Math.min(paidAmountInput, netAmount)
+
+      // Same invariant as invoice creation: a cash memo has no customer
+      // ledger, so it can't be left with an unpaid balance.
+      if (!customerId && finalPaidAmount < netAmount - 0.001)
+        throw new Error("Walk-in / cash sales must be paid in full — select a registered customer to sell on credit")
 
       const financialsChanged =
         Number(invoice.netAmount) !== netAmount ||

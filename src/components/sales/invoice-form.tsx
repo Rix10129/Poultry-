@@ -238,6 +238,16 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
       return
     }
 
+    // A walk-in / cash-memo sale (no registered customer account) has no
+    // ledger to carry a balance on — an unpaid amount here would be
+    // uncollectible and invisible to Aging/Recovery reports. Selling on
+    // credit requires picking the actual customer record from the list
+    // above, not just typing their name in the search box.
+    if (!customerId && balance > 0.001) {
+      setError("This sale has no customer account selected, so it can't be left unpaid — search for and select the customer above to sell on credit, or collect full payment now for a cash memo.")
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
