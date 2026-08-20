@@ -5,6 +5,7 @@ import { excelResponse, type ExportColumn } from "@/lib/report-export"
 import { buildWideTablePdf, type WideTableColumn } from "@/lib/wide-table-pdf"
 import { matchesPaymentStatus, parseTransactionFilters, reportTotals, transactionWhere } from "@/lib/report-filters"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { compactDocumentNumber } from "@/lib/document-number"
 
 export const runtime = "nodejs"
 
@@ -36,15 +37,15 @@ export async function GET(request: NextRequest) {
 
   if (request.nextUrl.searchParams.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
-      { header: kind === "sales" ? "Invoice #" : "PO #", key: "number", weight: 10 }, { header: "Date", key: "date", weight: 6 },
-      { header: kind === "sales" ? "Customer" : "Supplier", key: "party", weight: 10 }, { header: "User", key: "user", weight: 8 },
+      { header: kind === "sales" ? "Invoice #" : "PO #", key: "number", weight: 7 }, { header: "Date", key: "date", weight: 6 },
+      { header: kind === "sales" ? "Customer" : "Supplier", key: "party", weight: 13 }, { header: "User", key: "user", weight: 8 },
       { header: "Payment Mode", key: "mode", weight: 10 }, { header: "Document Status", key: "status", weight: 11 },
       { header: "Payment Status", key: "paymentStatus", weight: 9 },
       { header: "Net", key: "net", weight: 10, align: "right" }, { header: "Paid", key: "paid", weight: 10, align: "right" },
       { header: "Balance", key: "balance", weight: 10, align: "right" },
     ]
     const pdfRows = rows.map((r) => ({
-      number: r.number, date: formatDate(r.date), party: r.party, user: r.user, mode: r.mode, status: r.status,
+      number: compactDocumentNumber(r.number), date: formatDate(r.date), party: r.party, user: r.user, mode: r.mode, status: r.status,
       paymentStatus: r.paymentStatus, net: formatCurrency(r.net), paid: formatCurrency(r.paid), balance: formatCurrency(r.balance),
     }))
     const totalsRow = {
