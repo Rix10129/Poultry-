@@ -20,6 +20,8 @@ const VOUCHER_LABELS: Record<string, string> = {
   BANK_RECEIPT: "Bank Receipt",
   BANK_PAYMENT: "Bank Payment",
   JOURNAL: "Journal Voucher",
+  DISCOUNT: "Discount Voucher",
+  OPENING_BALANCE: "Opening Balance Voucher",
 }
 const VOUCHER_VARIANTS: Record<string, "success" | "danger" | "info" | "warning" | "default"> = {
   CASH_RECEIPT: "success",
@@ -27,6 +29,8 @@ const VOUCHER_VARIANTS: Record<string, "success" | "danger" | "info" | "warning"
   BANK_RECEIPT: "info",
   BANK_PAYMENT: "warning",
   JOURNAL: "default",
+  DISCOUNT: "warning",
+  OPENING_BALANCE: "default",
 }
 
 export async function generateMetadata({ params }: Props) {

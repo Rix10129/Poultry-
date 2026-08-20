@@ -60,6 +60,8 @@ enum VoucherType {
   BANK_RECEIPT
   BANK_PAYMENT
   JOURNAL
+  DISCOUNT
+  OPENING_BALANCE
 }
 
 enum AccountType {
@@ -713,6 +715,7 @@ model Account {
   type      AccountType
   parentId  String?
   isSystem  Boolean     @default(false)
+  isBank    Boolean     @default(false)
   createdAt DateTime    @default(now())
 
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)

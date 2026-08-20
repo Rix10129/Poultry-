@@ -13,7 +13,7 @@ import { logAudit } from "@/lib/audit"
 type ActionState = { error: string } | null
 
 const VALID_ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"] as const
-const VALID_VOUCHER_TYPES = ["CASH_RECEIPT", "CASH_PAYMENT", "BANK_RECEIPT", "BANK_PAYMENT", "JOURNAL"] as const
+const VALID_VOUCHER_TYPES = ["CASH_RECEIPT", "CASH_PAYMENT", "BANK_RECEIPT", "BANK_PAYMENT", "JOURNAL", "DISCOUNT", "OPENING_BALANCE"] as const
 
 type LineInput = {
   debitAccountId: string | null
@@ -33,6 +33,7 @@ export async function createAccount(_: ActionState, formData: FormData): Promise
   const name = (formData.get("name") as string)?.trim()
   const type = (formData.get("type") as string) || "ASSET"
   const parentId = (formData.get("parentId") as string)?.trim() || null
+  const isBank = formData.get("isBank") === "on"
 
   if (!code) return { error: "Account code is required" }
   if (!name) return { error: "Account name is required" }
@@ -41,7 +42,7 @@ export async function createAccount(_: ActionState, formData: FormData): Promise
   let id = ""
   try {
     const a = await db.account.create({
-      data: { companyId, code, name, type: type as AccountType, parentId },
+      data: { companyId, code, name, type: type as AccountType, parentId, isBank },
     })
     id = a.id
   } catch (e: any) {
@@ -63,6 +64,7 @@ export async function updateAccount(_: ActionState, formData: FormData): Promise
   const name = (formData.get("name") as string)?.trim()
   const type = (formData.get("type") as string) || "ASSET"
   const parentId = (formData.get("parentId") as string)?.trim() || null
+  const isBank = formData.get("isBank") === "on"
 
   if (!code) return { error: "Account code is required" }
   if (!name) return { error: "Account name is required" }
@@ -71,7 +73,7 @@ export async function updateAccount(_: ActionState, formData: FormData): Promise
   try {
     const res = await db.account.updateMany({
       where: { id, companyId, isSystem: false },
-      data: { code, name, type: type as AccountType, parentId },
+      data: { code, name, type: type as AccountType, parentId, isBank },
     })
     if (!res.count) return { error: "Account not found or is a system account" }
   } catch (e: any) {
@@ -160,7 +162,7 @@ export async function createVoucher(
   try {
     await db.$transaction(async (tx) => {
       const entryDateValue = new Date(entryDate)
-      const sequenceType = voucherTypeRaw as "CASH_RECEIPT" | "CASH_PAYMENT" | "BANK_RECEIPT" | "BANK_PAYMENT" | "JOURNAL"
+      const sequenceType = voucherTypeRaw as "CASH_RECEIPT" | "CASH_PAYMENT" | "BANK_RECEIPT" | "BANK_PAYMENT" | "JOURNAL" | "DISCOUNT" | "OPENING_BALANCE"
       const voucherNumber = await allocateDocumentNumber(tx, companyId, sequenceType, entryDateValue)
 
       const entry = await tx.journalEntry.create({

@@ -27,6 +27,7 @@ import {
   Quote,
   CalendarClock,
   WifiOff,
+  Landmark,
 } from "lucide-react"
 
 const navSections = [
@@ -67,8 +68,9 @@ const navSections = [
   {
     title: "Finance",
     items: [
-      { href: "/accounts",     label: "Accounts",  icon: BookOpen,  alert: false },
-      { href: "/accounts/pdc", label: "PDC Cheques", icon: FileText, alert: false },
+      { href: "/accounts",      label: "Accounts",      icon: BookOpen,  alert: false },
+      { href: "/accounts/bank", label: "Bank Accounts", icon: Landmark,  alert: false },
+      { href: "/accounts/pdc",  label: "PDC Cheques",   icon: FileText,  alert: false },
     ],
   },
   {
