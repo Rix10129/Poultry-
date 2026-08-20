@@ -50,3 +50,14 @@ export async function allocateDocumentNumber(
   if (!Number.isSafeInteger(value) || value < 1) throw new Error("Failed to allocate document number")
   return `${DOCUMENT_NUMBER_PREFIXES[documentType]}-${year}-${String(value).padStart(5, "0")}`
 }
+
+// Printed reports have limited width and don't need the full
+// PREFIX-YYYY-00010 form — the year is redundant with the report's own
+// date range, and the zero-padding only matters for sort stability in
+// the database. Keeps the prefix, since sequences are independent per
+// document type (INV-2026-00001 and CM-2026-00001 can coexist), so
+// dropping it would make two different documents look identical.
+export function compactDocumentNumber(fullNumber: string): string {
+  const match = fullNumber.match(/^([A-Z]+)-\d{4}-0*(\d+)$/)
+  return match ? `${match[1]}-${match[2]}` : fullNumber
+}

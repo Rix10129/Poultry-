@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { excelResponse, type ExportColumn } from "@/lib/report-export"
 import { buildWideTablePdf, type WideTableColumn } from "@/lib/wide-table-pdf"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { compactDocumentNumber } from "@/lib/document-number"
 
 export const runtime = "nodejs"
 
@@ -51,13 +52,13 @@ export async function GET(request: NextRequest) {
 
   if (params.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
-      { header: "Date", key: "date", weight: 10 }, { header: "Invoice #", key: "invoiceNumber", weight: 12 },
-      { header: "Customer", key: "customer", weight: 16 }, { header: "Product", key: "product", weight: 21 },
-      { header: "Batch", key: "batch", weight: 8 }, { header: "Qty", key: "qty", weight: 10, align: "right" },
+      { header: "Date", key: "date", weight: 10 }, { header: "Invoice #", key: "invoiceNumber", weight: 7 },
+      { header: "Customer", key: "customer", weight: 18 }, { header: "Product", key: "product", weight: 23 },
+      { header: "Batch", key: "batch", weight: 9 }, { header: "Qty", key: "qty", weight: 10, align: "right" },
       { header: "Unit Price", key: "unitPrice", weight: 11, align: "right" }, { header: "Amount", key: "amount", weight: 12, align: "right" },
     ]
     const pdfRows = rows.map((r) => ({
-      date: formatDate(r.date), invoiceNumber: r.invoiceNumber, customer: r.customer, product: r.product,
+      date: formatDate(r.date), invoiceNumber: compactDocumentNumber(r.invoiceNumber), customer: r.customer, product: r.product,
       batch: r.batch, qty: `${r.qty} ${r.unit}`, unitPrice: formatCurrency(r.unitPrice), amount: formatCurrency(r.amount),
     }))
     const totalsRow = {
