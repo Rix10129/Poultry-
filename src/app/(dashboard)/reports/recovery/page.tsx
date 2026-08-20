@@ -4,8 +4,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Users } from "lucide-react"
+import { ChevronLeft, Printer, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ExportButtons } from "@/components/reports/export-buttons"
 import { formatCurrency } from "@/lib/utils"
 import { logAudit } from "@/lib/audit"
 
@@ -76,21 +77,45 @@ export default async function RecoveryReportPage({
   const areas = [...new Set(customers.map((c) => c.area).filter(Boolean) as string[])].sort()
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center gap-3">
-        <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Customer Recovery</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {rows.length} customer{rows.length !== 1 ? "s" : ""} with outstanding balance
-          </p>
+    <div className="space-y-6 max-w-5xl print-wide-report">
+      {/* Matches the landscape orientation used by the server-generated PDF
+          so a native browser print of this page lines up the same way. */}
+      <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
+      <div className="flex items-center justify-between print:hidden">
+        <div className="flex items-center gap-3">
+          <Link href="/reports" className="text-slate-400 hover:text-slate-600 transition-colors">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Customer Recovery</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {rows.length} customer{rows.length !== 1 ? "s" : ""} with outstanding balance
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <ExportButtons endpoint="/api/reports/recovery/export" params={{ type, area, ...(showAll ? { all: "1" } : {}) }} />
+          <a
+            href={`/api/reports/recovery/export?${new URLSearchParams({ ...(type ? { type } : {}), ...(area ? { area } : {}), ...(showAll ? { all: "1" } : {}), format: "pdf" }).toString()}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </a>
         </div>
       </div>
 
+      <div className="hidden print:block">
+        <h1 className="text-lg font-bold text-slate-900">Customer Recovery</h1>
+        <p className="text-xs text-slate-600">
+          {rows.length} customer{rows.length !== 1 ? "s" : ""} with outstanding balance
+        </p>
+      </div>
+
       {/* Filters */}
-      <form method="GET" className="flex flex-wrap gap-3">
+      <form method="GET" className="flex flex-wrap gap-3 print:hidden">
         <select
           name="type"
           defaultValue={type ?? ""}
