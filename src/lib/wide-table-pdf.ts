@@ -28,7 +28,6 @@ export type WideTablePdfOptions = {
 const A4_LANDSCAPE = { width: 841.89, height: 595.28 }
 const A4_PORTRAIT = { width: 595.28, height: 841.89 }
 const MARGIN = 28
-const HEADER_HEIGHT = 42
 const DEFAULT_FONT_SIZE = 9
 const DEFAULT_HEADER_FONT_SIZE = 8.5
 // Right-aligned columns (mostly money) sit flush against their own right
@@ -74,6 +73,18 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
     let x = MARGIN
     for (const w of colWidths) { colX.push(x); x += w }
   }
+  // Column boundaries as vertical divider x-positions, including the
+  // outer left/right edges — used to draw real grid lines rather than
+  // relying on whitespace alone to imply column structure.
+  const colDividers = [MARGIN, ...colX.slice(1), MARGIN + usableWidth]
+  const GRID_COLOR = rgb(0.82, 0.84, 0.88)
+  const GRID_THICKNESS = 0.6
+
+  function drawVerticalDividers(top: number, bottom: number) {
+    for (const x of colDividers) {
+      page.drawLine({ start: { x, y: bottom }, end: { x, y: top }, thickness: GRID_THICKNESS, color: GRID_COLOR })
+    }
+  }
 
   let page: PDFPage
   let y = 0
@@ -100,7 +111,9 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
   }
 
   function drawHeaderRow() {
-    page.drawRectangle({ x: MARGIN, y: y - HEADER_HEIGHT / 2 - 4, width: usableWidth, height: HEADER_ROW_HEIGHT, color: rgb(0.93, 0.95, 0.97) })
+    const bandTop = y
+    const bandBottom = y - HEADER_ROW_HEIGHT
+    page.drawRectangle({ x: MARGIN, y: bandBottom, width: usableWidth, height: HEADER_ROW_HEIGHT, color: rgb(0.93, 0.95, 0.97) })
     columns.forEach((c, i) => {
       const inset = c.align === "right" ? RIGHT_INSET : LEFT_INSET
       const label = truncate(boldFont, c.header, colWidths[i] - inset - LEFT_INSET, HEADER_FONT_SIZE)
@@ -108,6 +121,9 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
       const tx = c.align === "right" ? colX[i] + colWidths[i] - inset - textWidth : colX[i] + LEFT_INSET
       page.drawText(label, { x: tx, y: y - (HEADER_FONT_SIZE - 2), size: HEADER_FONT_SIZE, font: boldFont, color: rgb(0.25, 0.29, 0.38) })
     })
+    drawVerticalDividers(bandTop, bandBottom)
+    page.drawLine({ start: { x: MARGIN, y: bandTop }, end: { x: MARGIN + usableWidth, y: bandTop }, thickness: 1, color: rgb(0.58, 0.62, 0.7) })
+    page.drawLine({ start: { x: MARGIN, y: bandBottom }, end: { x: MARGIN + usableWidth, y: bandBottom }, thickness: 1, color: rgb(0.58, 0.62, 0.7) })
     y -= HEADER_ROW_HEIGHT + 2
   }
 
@@ -115,8 +131,10 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
     if (y - ROW_HEIGHT < MARGIN + 14) {
       newPage()
     }
+    const rowTop = y
+    const rowBottom = y - ROW_HEIGHT
     if (opts2?.shade) {
-      page.drawRectangle({ x: MARGIN, y: y - ROW_HEIGHT + 4, width: usableWidth, height: ROW_HEIGHT, color: rgb(0.97, 0.97, 0.98) })
+      page.drawRectangle({ x: MARGIN, y: rowBottom + 4, width: usableWidth, height: ROW_HEIGHT, color: rgb(0.97, 0.97, 0.98) })
     }
     const rowFont = opts2?.bold ? boldFont : font
     columns.forEach((c, i) => {
@@ -127,6 +145,8 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
       const tx = c.align === "right" ? colX[i] + colWidths[i] - inset - textWidth : colX[i] + LEFT_INSET
       page.drawText(label, { x: tx, y: y - (FONT_SIZE + 1), size: FONT_SIZE, font: rowFont, color: rgb(0.13, 0.16, 0.24) })
     })
+    drawVerticalDividers(rowTop, rowBottom + 4)
+    page.drawLine({ start: { x: MARGIN, y: rowBottom + 4 }, end: { x: MARGIN + usableWidth, y: rowBottom + 4 }, thickness: GRID_THICKNESS, color: GRID_COLOR })
     y -= ROW_HEIGHT
   }
 
