@@ -23,6 +23,10 @@ export async function GET(req: NextRequest) {
       purchaseValue: batch.quantity * Number(batch.purchasePrice), saleValue: batch.quantity * Number(batch.salePrice),
       lowStock: product.reorderLevel >= batch.quantity ? "LOW STOCK" : "OK", expiryStatus: days < 0 ? "EXPIRED" : days <= 30 ? "EXPIRING <30D" : "OK" }
   }))
+  const totals = rows.reduce((t: { available: number; purchaseValue: number; saleValue: number }, r: any) => ({
+    available: t.available + r.available, purchaseValue: t.purchaseValue + r.purchaseValue, saleValue: t.saleValue + r.saleValue,
+  }), { available: 0, purchaseValue: 0, saleValue: 0 })
+
   if (req.nextUrl.searchParams.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
       { header: "Product", key: "product", weight: 11 }, { header: "Category", key: "category", weight: 9 }, { header: "Species", key: "species", weight: 7 },
@@ -35,9 +39,13 @@ export async function GET(req: NextRequest) {
       available: String(r.available), purchaseValue: formatCurrency(r.purchaseValue), saleValue: formatCurrency(r.saleValue),
       lowStock: r.lowStock, expiryStatus: r.expiryStatus,
     }))
+    const totalsRow = {
+      product: "Grand Total", category: "", species: "", batch: "", expiry: "", available: String(totals.available),
+      purchaseValue: formatCurrency(totals.purchaseValue), saleValue: formatCurrency(totals.saleValue), lowStock: "", expiryStatus: "",
+    }
     const pdfBytes = await buildWideTablePdf({
       title: "Filtered Stock", subtitle: `${rows.length} batch${rows.length !== 1 ? "es" : ""}`,
-      columns: pdfColumns, rows: pdfRows,
+      columns: pdfColumns, rows: pdfRows, totalsRow,
     })
     return new Response(new Uint8Array(pdfBytes), {
       headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="stock-report.pdf"` },
@@ -50,5 +58,9 @@ export async function GET(req: NextRequest) {
     { header: "Purchase Value", key: "purchaseValue", numeric: true }, { header: "Sale Value", key: "saleValue", numeric: true },
     { header: "Low-stock Status", key: "lowStock" }, { header: "Expiry Status", key: "expiryStatus" },
   ]
+  rows.push({
+    product: "TOTAL", category: "", species: "", batch: "", expiry: "", available: totals.available,
+    purchaseValue: totals.purchaseValue, saleValue: totals.saleValue, lowStock: "", expiryStatus: "",
+  })
   return excelResponse("Filtered Stock", "stock-report", columns, rows)
 }
