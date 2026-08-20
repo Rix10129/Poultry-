@@ -144,5 +144,11 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
     })
   })
 
-  return doc.save()
+  // pdf-lib defaults to a compressed cross-reference *stream* (PDF 1.5+).
+  // Valid, and every mainstream desktop reader handles it — but several
+  // stripped-down parsers (chat-app inline previews, some mobile PDF
+  // viewers) only understand the older plain-text xref table and fail to
+  // open the file entirely. The classic table costs a little file size;
+  // "won't open on some phones" is a worse failure mode than that.
+  return doc.save({ useObjectStreams: false })
 }
