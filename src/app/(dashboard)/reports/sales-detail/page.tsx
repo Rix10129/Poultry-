@@ -39,7 +39,7 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
       include: {
         invoice: { select: { invoiceNumber: true, invoiceDate: true, customer: { select: { name: true } }, walkInCustomerName: true } },
         product: { select: { name: true, unit: true } },
-        batch: { select: { batchNumber: true, purchasePrice: true } },
+        batch: { select: { batchNumber: true } },
       },
       orderBy: [{ invoice: { invoiceDate: "desc" } }, { invoice: { invoiceNumber: "desc" } }],
     }),
@@ -47,33 +47,21 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
     db.product.findMany({ where: { companyId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ])
 
-  const rows = items.map((item) => {
-    const qty = item.quantity
-    const unitPrice = Number(item.salePrice)
-    const discountPct = Number(item.discount)
-    const grossValue = qty * unitPrice
-    const amount = Number(item.totalAmount)
-    const discountAmt = grossValue - amount
-    const cost = qty * Number(item.batch.purchasePrice)
-    const profit = amount - cost
-    return {
-      id: item.id,
-      invoiceId: item.invoiceId,
-      date: item.invoice.invoiceDate,
-      invoiceNumber: item.invoice.invoiceNumber,
-      customer: item.invoice.customer?.name ?? item.invoice.walkInCustomerName ?? "Walk-in",
-      product: item.product.name,
-      unit: item.product.unit,
-      batch: item.batch.batchNumber,
-      isBonus: item.isBonus,
-      qty, unitPrice, discountPct, discountAmt, amount, cost, profit,
-    }
-  })
+  const rows = items.map((item) => ({
+    id: item.id,
+    invoiceId: item.invoiceId,
+    date: item.invoice.invoiceDate,
+    invoiceNumber: item.invoice.invoiceNumber,
+    customer: item.invoice.customer?.name ?? item.invoice.walkInCustomerName ?? "Walk-in",
+    product: item.product.name,
+    unit: item.product.unit,
+    batch: item.batch.batchNumber,
+    isBonus: item.isBonus,
+    qty: item.quantity, unitPrice: Number(item.salePrice), amount: Number(item.totalAmount),
+  }))
 
   const totalQty = rows.reduce((s, r) => s + r.qty, 0)
   const totalAmount = rows.reduce((s, r) => s + r.amount, 0)
-  const totalProfit = rows.reduce((s, r) => s + r.profit, 0)
-  const margin = totalAmount > 0 ? (totalProfit / totalAmount) * 100 : 0
 
   return (
     <div className="space-y-6 max-w-7xl print-wide-report">
@@ -146,7 +134,7 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
         )}
       </form>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 max-w-xl">
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Units Sold</p>
           <p className="text-2xl font-bold text-slate-900">{totalQty.toLocaleString()}</p>
@@ -154,11 +142,6 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Net Sales</p>
           <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalAmount)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Gross Profit</p>
-          <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-700" : "text-red-600"}`}>{formatCurrency(totalProfit)}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{margin.toFixed(1)}% margin</p>
         </div>
       </div>
 
@@ -182,11 +165,8 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
                   <th className="text-left px-4 py-2.5 font-medium text-slate-600">Product</th>
                   <th className="text-left px-4 py-2.5 font-medium text-slate-600">Batch</th>
                   <th className="text-right px-4 py-2.5 font-medium text-slate-600">Qty</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-slate-600">UOM</th>
                   <th className="text-right px-4 py-2.5 font-medium text-slate-600">Unit Price</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-slate-600">Disc %</th>
                   <th className="text-right px-4 py-2.5 font-medium text-slate-600">Amount</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-slate-600">Profit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -204,14 +184,9 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
                       {r.isBonus && <span className="ml-1.5 text-[10px] font-semibold text-amber-600 border border-amber-200 bg-amber-50 rounded px-1">BONUS</span>}
                     </td>
                     <td className="px-4 py-2.5 text-slate-500 text-xs font-mono">{r.batch}</td>
-                    <td className="px-4 py-2.5 text-right text-slate-700">{r.qty}</td>
-                    <td className="px-4 py-2.5 text-slate-500 text-xs">{r.unit}</td>
+                    <td className="px-4 py-2.5 text-right text-slate-700">{r.qty} <span className="text-slate-400 text-xs">{r.unit}</span></td>
                     <td className="px-4 py-2.5 text-right font-mono text-slate-600">{formatCurrency(r.unitPrice)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono text-slate-500">{r.discountPct > 0 ? `${r.discountPct}%` : "—"}</td>
                     <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900">{formatCurrency(r.amount)}</td>
-                    <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.profit >= 0 ? "text-green-700" : "text-red-600"}`}>
-                      {formatCurrency(r.profit)}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -220,12 +195,7 @@ export default async function SalesDetailReportPage({ searchParams }: Props) {
                   <td colSpan={5} className="px-4 py-2.5 text-sm font-semibold text-right text-slate-700">Totals</td>
                   <td className="px-4 py-2.5 text-right font-bold font-mono text-slate-900">{totalQty}</td>
                   <td />
-                  <td />
-                  <td />
                   <td className="px-4 py-2.5 text-right font-bold font-mono text-slate-900">{formatCurrency(totalAmount)}</td>
-                  <td className={`px-4 py-2.5 text-right font-bold font-mono ${totalProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
-                    {formatCurrency(totalProfit)}
-                  </td>
                 </tr>
               </tfoot>
             </table>

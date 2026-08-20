@@ -17,15 +17,20 @@ export type WideTablePdfOptions = {
   rows: Record<string, string>[]
   totalsRow?: Record<string, string>
   orientation?: "portrait" | "landscape"
+  // A report with few enough columns has room for a more comfortable
+  // font than the default — set explicitly per report rather than
+  // globally, since bumping the shared default would need every other
+  // wide-table report's column weights re-verified against it too.
+  fontSize?: number
+  headerFontSize?: number
 }
 
 const A4_LANDSCAPE = { width: 841.89, height: 595.28 }
 const A4_PORTRAIT = { width: 595.28, height: 841.89 }
 const MARGIN = 28
 const HEADER_HEIGHT = 42
-const ROW_HEIGHT = 17.5
-const FONT_SIZE = 9
-const HEADER_FONT_SIZE = 8.5
+const DEFAULT_FONT_SIZE = 9
+const DEFAULT_HEADER_FONT_SIZE = 8.5
 // Right-aligned columns (mostly money) sit flush against their own right
 // edge, which is also the next column's left edge — with only a small
 // inset, adjacent right-aligned numbers can read as running into each
@@ -52,6 +57,10 @@ function truncate(font: PDFFont, text: string, maxWidth: number, size: number): 
 
 export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint8Array> {
   const { title, subtitle, columns, rows, totalsRow, orientation = "landscape" } = opts
+  const FONT_SIZE = opts.fontSize ?? DEFAULT_FONT_SIZE
+  const HEADER_FONT_SIZE = opts.headerFontSize ?? DEFAULT_HEADER_FONT_SIZE
+  const ROW_HEIGHT = FONT_SIZE + 8.5
+  const HEADER_ROW_HEIGHT = HEADER_FONT_SIZE + 9
   const { width: PAGE_WIDTH, height: PAGE_HEIGHT } = orientation === "portrait" ? A4_PORTRAIT : A4_LANDSCAPE
   const doc = await PDFDocument.create()
   const font = await doc.embedFont(StandardFonts.Helvetica)
@@ -91,15 +100,15 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
   }
 
   function drawHeaderRow() {
-    page.drawRectangle({ x: MARGIN, y: y - HEADER_HEIGHT / 2 - 4, width: usableWidth, height: 17.5, color: rgb(0.93, 0.95, 0.97) })
+    page.drawRectangle({ x: MARGIN, y: y - HEADER_HEIGHT / 2 - 4, width: usableWidth, height: HEADER_ROW_HEIGHT, color: rgb(0.93, 0.95, 0.97) })
     columns.forEach((c, i) => {
       const inset = c.align === "right" ? RIGHT_INSET : LEFT_INSET
       const label = truncate(boldFont, c.header, colWidths[i] - inset - LEFT_INSET, HEADER_FONT_SIZE)
       const textWidth = boldFont.widthOfTextAtSize(label, HEADER_FONT_SIZE)
       const tx = c.align === "right" ? colX[i] + colWidths[i] - inset - textWidth : colX[i] + LEFT_INSET
-      page.drawText(label, { x: tx, y: y - 6.5, size: HEADER_FONT_SIZE, font: boldFont, color: rgb(0.25, 0.29, 0.38) })
+      page.drawText(label, { x: tx, y: y - (HEADER_FONT_SIZE - 2), size: HEADER_FONT_SIZE, font: boldFont, color: rgb(0.25, 0.29, 0.38) })
     })
-    y -= 19.5
+    y -= HEADER_ROW_HEIGHT + 2
   }
 
   function drawRow(row: Record<string, string>, opts2?: { bold?: boolean; shade?: boolean }) {
@@ -116,7 +125,7 @@ export async function buildWideTablePdf(opts: WideTablePdfOptions): Promise<Uint
       const label = truncate(rowFont, raw, colWidths[i] - inset - LEFT_INSET, FONT_SIZE)
       const textWidth = rowFont.widthOfTextAtSize(label, FONT_SIZE)
       const tx = c.align === "right" ? colX[i] + colWidths[i] - inset - textWidth : colX[i] + LEFT_INSET
-      page.drawText(label, { x: tx, y: y - 10, size: FONT_SIZE, font: rowFont, color: rgb(0.13, 0.16, 0.24) })
+      page.drawText(label, { x: tx, y: y - (FONT_SIZE + 1), size: FONT_SIZE, font: rowFont, color: rgb(0.13, 0.16, 0.24) })
     })
     y -= ROW_HEIGHT
   }

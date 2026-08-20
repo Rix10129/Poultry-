@@ -32,53 +32,42 @@ export async function GET(request: NextRequest) {
     include: {
       invoice: { select: { invoiceNumber: true, invoiceDate: true, customer: { select: { name: true } }, walkInCustomerName: true } },
       product: { select: { name: true, unit: true } },
-      batch: { select: { batchNumber: true, purchasePrice: true } },
+      batch: { select: { batchNumber: true } },
     },
     orderBy: [{ invoice: { invoiceDate: "desc" } }, { invoice: { invoiceNumber: "desc" } }],
   })
 
-  const rows = items.map((item) => {
-    const qty = item.quantity
-    const unitPrice = Number(item.salePrice)
-    const amount = Number(item.totalAmount)
-    const cost = qty * Number(item.batch.purchasePrice)
-    const profit = amount - cost
-    return {
-      date: item.invoice.invoiceDate.toISOString().slice(0, 10),
-      invoiceNumber: item.invoice.invoiceNumber,
-      customer: item.invoice.customer?.name ?? item.invoice.walkInCustomerName ?? "Walk-in",
-      product: item.product.name,
-      batch: item.batch.batchNumber,
-      qty, unit: item.product.unit as string, unitPrice,
-      discountPct: Number(item.discount),
-      amount, profit,
-    }
-  })
+  const rows = items.map((item) => ({
+    date: item.invoice.invoiceDate.toISOString().slice(0, 10),
+    invoiceNumber: item.invoice.invoiceNumber,
+    customer: item.invoice.customer?.name ?? item.invoice.walkInCustomerName ?? "Walk-in",
+    product: item.product.name,
+    batch: item.batch.batchNumber,
+    qty: item.quantity, unit: item.product.unit as string, unitPrice: Number(item.salePrice),
+    amount: Number(item.totalAmount),
+  }))
 
-  const totals = rows.reduce((t, r) => ({ qty: t.qty + r.qty, amount: t.amount + r.amount, profit: t.profit + r.profit }), { qty: 0, amount: 0, profit: 0 })
+  const totals = rows.reduce((t, r) => ({ qty: t.qty + r.qty, amount: t.amount + r.amount }), { qty: 0, amount: 0 })
 
   if (params.get("format") === "pdf") {
     const pdfColumns: WideTableColumn[] = [
-      { header: "Date", key: "date", weight: 9 }, { header: "Invoice #", key: "invoiceNumber", weight: 10 },
-      { header: "Customer", key: "customer", weight: 14 }, { header: "Product", key: "product", weight: 14 },
-      { header: "Batch", key: "batch", weight: 6 }, { header: "Qty", key: "qty", weight: 5, align: "right" },
-      { header: "UOM", key: "unit", weight: 5 }, { header: "Unit Price", key: "unitPrice", weight: 9, align: "right" },
-      { header: "Disc %", key: "discountPct", weight: 6, align: "right" }, { header: "Amount", key: "amount", weight: 11, align: "right" },
-      { header: "Profit", key: "profit", weight: 11, align: "right" },
+      { header: "Date", key: "date", weight: 10 }, { header: "Invoice #", key: "invoiceNumber", weight: 12 },
+      { header: "Customer", key: "customer", weight: 16 }, { header: "Product", key: "product", weight: 21 },
+      { header: "Batch", key: "batch", weight: 8 }, { header: "Qty", key: "qty", weight: 10, align: "right" },
+      { header: "Unit Price", key: "unitPrice", weight: 11, align: "right" }, { header: "Amount", key: "amount", weight: 12, align: "right" },
     ]
     const pdfRows = rows.map((r) => ({
       date: formatDate(r.date), invoiceNumber: r.invoiceNumber, customer: r.customer, product: r.product,
-      batch: r.batch, qty: String(r.qty), unit: r.unit, unitPrice: formatCurrency(r.unitPrice),
-      discountPct: r.discountPct > 0 ? `${r.discountPct}%` : "—", amount: formatCurrency(r.amount), profit: formatCurrency(r.profit),
+      batch: r.batch, qty: `${r.qty} ${r.unit}`, unitPrice: formatCurrency(r.unitPrice), amount: formatCurrency(r.amount),
     }))
     const totalsRow = {
-      date: "", invoiceNumber: "", customer: "", product: "", batch: "", qty: String(totals.qty), unit: "",
-      unitPrice: "", discountPct: "", amount: formatCurrency(totals.amount), profit: formatCurrency(totals.profit),
+      date: "", invoiceNumber: "", customer: "", product: "", batch: "", qty: `${totals.qty}`,
+      unitPrice: "", amount: formatCurrency(totals.amount),
     }
     const range = from || to ? `${from ?? "start"} to ${to ?? "today"}` : "All time"
     const pdfBytes = await buildWideTablePdf({
       title: "Sales Report — Detail", subtitle: `${range} · posted invoices only · ${rows.length} line item${rows.length !== 1 ? "s" : ""}`,
-      columns: pdfColumns, rows: pdfRows, totalsRow,
+      columns: pdfColumns, rows: pdfRows, totalsRow, fontSize: 11, headerFontSize: 9.5,
     })
     return new Response(new Uint8Array(pdfBytes), {
       headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="sales-detail-report.pdf"` },
@@ -88,10 +77,10 @@ export async function GET(request: NextRequest) {
   const excelColumns: ExportColumn[] = [
     { header: "Date", key: "date" }, { header: "Invoice #", key: "invoiceNumber" },
     { header: "Customer", key: "customer", width: 24 }, { header: "Product", key: "product", width: 28 },
-    { header: "Batch", key: "batch" }, { header: "Qty", key: "qty", numeric: true }, { header: "UOM", key: "unit" },
-    { header: "Unit Price", key: "unitPrice", numeric: true }, { header: "Disc %", key: "discountPct", numeric: true },
-    { header: "Amount", key: "amount", numeric: true }, { header: "Profit", key: "profit", numeric: true },
+    { header: "Batch", key: "batch" }, { header: "Qty", key: "qty" },
+    { header: "Unit Price", key: "unitPrice", numeric: true }, { header: "Amount", key: "amount", numeric: true },
   ]
-  rows.push({ date: "", invoiceNumber: "TOTAL", customer: "", product: "", batch: "", qty: totals.qty, unit: "", unitPrice: 0, discountPct: 0, amount: totals.amount, profit: totals.profit })
-  return excelResponse("Sales Report — Detail", "sales-detail-report", excelColumns, rows)
+  const excelRows = rows.map((r) => ({ date: r.date, invoiceNumber: r.invoiceNumber, customer: r.customer, product: r.product, batch: r.batch, qty: `${r.qty} ${r.unit}`, unitPrice: r.unitPrice, amount: r.amount }))
+  excelRows.push({ date: "", invoiceNumber: "TOTAL", customer: "", product: "", batch: "", qty: `${totals.qty}`, unitPrice: 0, amount: totals.amount })
+  return excelResponse("Sales Report — Detail", "sales-detail-report", excelColumns, excelRows)
 }
