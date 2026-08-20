@@ -3,9 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, Search, Package } from "lucide-react"
+import { Plus, Search, Package, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ExportButtons } from "@/components/reports/export-buttons"
 import { formatCurrency } from "@/lib/utils"
 import { Species } from "@prisma/client"
 import { Pagination } from "@/components/ui/pagination"
@@ -52,26 +53,51 @@ export default async function InventoryPage({
     db.product.count({ where }),
   ])
 
+  const pageAmount = products.reduce((s, p) => s + p.batches.reduce((bs, b) => bs + b.quantity, 0) * Number(p.salePrice), 0)
+  const pageStock = products.reduce((s, p) => s + p.batches.reduce((bs, b) => bs + b.quantity, 0), 0)
+  const isPartialPage = total > PAGE_SIZE
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print-wide-report">
+      {/* This report has enough columns to want the extra width — print it
+          landscape so the whole list fits one page width instead of tiling
+          across pages, matching the server-generated PDF's orientation. */}
+      <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Inventory</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {total} product{total !== 1 ? "s" : ""}
           </p>
         </div>
-        <Link href="/inventory/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            New Product
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <ExportButtons endpoint="/api/reports/inventory/export" params={{ q, species }} />
+          <a
+            href={`/api/reports/inventory/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}), format: "pdf" }).toString()}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </a>
+          <Link href="/inventory/new">
+            <Button>
+              <Plus className="h-4 w-4" />
+              New Product
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="hidden print:block">
+        <h1 className="text-lg font-bold text-slate-900">Inventory</h1>
+        <p className="text-xs text-slate-600">{total} product{total !== 1 ? "s" : ""}</p>
       </div>
 
       {/* Filters */}
-      <form method="GET" className="flex flex-wrap gap-3 items-center">
+      <form method="GET" className="flex flex-wrap gap-3 items-center print:hidden">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <input
@@ -121,6 +147,7 @@ export default async function InventoryPage({
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Species</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Stock</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Sale Price</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600">Amount</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
               </tr>
             </thead>
@@ -128,6 +155,7 @@ export default async function InventoryPage({
               {products.map((product) => {
                 const totalStock = product.batches.reduce((s, b) => s + b.quantity, 0)
                 const isLow = totalStock <= product.reorderLevel
+                const amount = totalStock * Number(product.salePrice)
                 return (
                   <tr key={product.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3">
@@ -154,6 +182,9 @@ export default async function InventoryPage({
                     <td className="px-4 py-3 text-right text-slate-700">
                       {formatCurrency(product.salePrice.toString())}
                     </td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900">
+                      {formatCurrency(amount)}
+                    </td>
                     <td className="px-4 py-3">
                       {totalStock === 0
                         ? <Badge variant="danger">Out of Stock</Badge>
@@ -166,13 +197,28 @@ export default async function InventoryPage({
                 )
               })}
             </tbody>
+            <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+              <tr>
+                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-right text-slate-700">
+                  {isPartialPage ? "Total (this page)" : "Total"}
+                </td>
+                <td className="px-4 py-3 text-right font-bold text-slate-900">{pageStock.toLocaleString()}</td>
+                <td />
+                <td className="px-4 py-3 text-right font-bold font-mono text-slate-900">
+                  {formatCurrency(pageAmount)}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
-          <Pagination
-            page={page}
-            total={total}
-            pageSize={PAGE_SIZE}
-            baseUrl={`/inventory${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString() ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString()}` : ""}`}
-          />
+          <div className="print:hidden">
+            <Pagination
+              page={page}
+              total={total}
+              pageSize={PAGE_SIZE}
+              baseUrl={`/inventory${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString() ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString()}` : ""}`}
+            />
+          </div>
         </div>
       )}
     </div>
