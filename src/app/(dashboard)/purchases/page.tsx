@@ -123,6 +123,7 @@ export default async function PurchasesPage({
                 const net = parseFloat(po.netAmount.toString())
                 const paid = parseFloat(po.paidAmount.toString())
                 const bal = net - paid
+                const isReversed = po.status === "REVERSED"
                 const isPaid = bal <= 0.001
                 const isPartial = !isPaid && paid > 0.001
 
@@ -145,14 +146,18 @@ export default async function PurchasesPage({
                       {formatCurrency(paid)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {isPaid ? (
+                      {isReversed ? (
+                        <span className="text-slate-400">—</span>
+                      ) : isPaid ? (
                         <span className="text-green-600">—</span>
                       ) : (
                         <span className="font-semibold text-red-600">{formatCurrency(bal)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {isPaid ? (
+                      {isReversed ? (
+                        <Badge variant="danger">Reversed</Badge>
+                      ) : isPaid ? (
                         <Badge variant="success">Paid</Badge>
                       ) : isPartial ? (
                         <Badge variant="warning">Partial</Badge>

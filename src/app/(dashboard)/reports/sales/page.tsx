@@ -37,6 +37,7 @@ export default async function SalesReportPage({
   const invoices = await db.saleInvoice.findMany({
     where: {
       companyId,
+      status: "POSTED",
       ...(fromDate || toDate ? {
         invoiceDate: {
           ...(fromDate ? { gte: fromDate } : {}),

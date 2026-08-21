@@ -40,12 +40,12 @@ export default async function PLPage({
 
   const [salesAgg, invoiceItems, expenseGroups] = await Promise.all([
     db.saleInvoice.aggregate({
-      where: { companyId, invoiceDate: { gte: from, lte: to } },
+      where: { companyId, status: "POSTED", invoiceDate: { gte: from, lte: to } },
       _sum: { netAmount: true, taxAmount: true, discountAmount: true },
       _count: true,
     }),
     db.saleInvoiceItem.findMany({
-      where: { invoice: { companyId, invoiceDate: { gte: from, lte: to } } },
+      where: { invoice: { companyId, status: "POSTED", invoiceDate: { gte: from, lte: to } } },
       select: { quantity: true, batch: { select: { purchasePrice: true } } },
     }),
     db.expense.groupBy({

@@ -28,12 +28,12 @@ async function getStats(companyId: string) {
     recentInvoices,
   ] = await Promise.all([
     db.saleInvoice.aggregate({
-      where: { companyId, invoiceDate: { gte: todayStart } },
+      where: { companyId, status: "POSTED", invoiceDate: { gte: todayStart } },
       _sum: { netAmount: true },
       _count: true,
     }),
     db.saleInvoice.aggregate({
-      where: { companyId, invoiceDate: { gte: monthStart } },
+      where: { companyId, status: "POSTED", invoiceDate: { gte: monthStart } },
       _sum: { netAmount: true },
       _count: true,
     }),
@@ -55,7 +55,7 @@ async function getStats(companyId: string) {
       select: { reorderLevel: true, batches: { select: { quantity: true } } },
     }),
     db.saleInvoice.findMany({
-      where: { companyId },
+      where: { companyId, status: "POSTED" },
       orderBy: { invoiceDate: "desc" },
       take: 5,
       select: {
