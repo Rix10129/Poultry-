@@ -502,6 +502,7 @@ export async function updateInvoice(
         include: { items: true, payments: true, returns: true },
       })
       if (!invoice) throw new Error("Invoice not found")
+      if (invoice.status !== "POSTED") throw new Error("A reversed invoice cannot be edited")
 
       const hasDependentRecords = invoice.payments.length > 0 || invoice.returns.length > 0
       if (hasDependentRecords && !((role === "OWNER" || role === "ADMIN") && confirmDependentEdit)) {
