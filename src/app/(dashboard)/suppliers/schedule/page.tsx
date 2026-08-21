@@ -29,8 +29,9 @@ export default async function SupplierSchedulePage() {
       purchaseOrder: { select: { poNumber: true } },
     },
   }), db.supplier.findMany({ where: { companyId }, select: { openingBalance: true,
-    purchases: { select: { netAmount: true, paidAmount: true } }, payments: { select: { amount: true, isVoided: true } },
-    purchaseReturns: { select: { totalAmount: true } } } })])
+    purchases: { where: { status: "POSTED" }, select: { netAmount: true, paidAmount: true } },
+    payments: { where: { status: "POSTED" }, select: { amount: true, isVoided: true } },
+    purchaseReturns: { where: { status: "POSTED" }, select: { totalAmount: true } } } })])
 
   const unpaid = schedules.filter((s) => !s.isPaid)
   const paid = schedules.filter((s) => s.isPaid)

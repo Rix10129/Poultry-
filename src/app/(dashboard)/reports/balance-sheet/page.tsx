@@ -34,9 +34,9 @@ export default async function BalanceSheetPage() {
       where: { companyId },
       select: {
         openingBalance: true,
-        purchases: { select: { netAmount: true, paidAmount: true } },
-        payments: { select: { amount: true, isVoided: true } },
-        purchaseReturns: { select: { totalAmount: true } },
+        purchases: { where: { status: "POSTED" }, select: { netAmount: true, paidAmount: true } },
+        payments: { where: { status: "POSTED" }, select: { amount: true, isVoided: true } },
+        purchaseReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
       },
     }),
   ])
