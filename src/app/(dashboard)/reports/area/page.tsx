@@ -35,6 +35,7 @@ export default async function AreaReportPage({ searchParams }: Props) {
   const invoices = await db.saleInvoice.findMany({
     where: {
       companyId,
+      status: "POSTED",
       invoiceDate: { gte: fromDate, lte: toDate },
       customer: { isNot: null },
     },

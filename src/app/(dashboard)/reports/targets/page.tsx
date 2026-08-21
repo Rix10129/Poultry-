@@ -74,6 +74,7 @@ export default async function SalesTargetsPage({ searchParams }: Props) {
   const invoices = await db.saleInvoice.findMany({
     where: {
       companyId,
+      status: "POSTED",
       invoiceDate: { gte: fromDate, lte: toDate },
     },
     select: { userId: true, netAmount: true, paidAmount: true },

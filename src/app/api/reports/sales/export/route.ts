@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   const invoices = await db.saleInvoice.findMany({
     where: {
       companyId,
+      status: "POSTED",
       ...(from || to ? { invoiceDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
       ...(type === "WALK_IN" ? { customerId: null } : type ? { customer: { type: type as never } } : {}),
     },

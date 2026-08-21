@@ -59,6 +59,8 @@ export function matchesPaymentStatus(row: { netAmount: unknown; paidAmount: unkn
   return !status || (status === "PAID" ? net - paid <= 0.001 : status === "PARTIAL" ? paid > 0.001 && net - paid > 0.001 : paid <= 0.001)
 }
 
-export function reportTotals(rows: Array<{ netAmount: unknown; paidAmount: unknown }>) {
-  return rows.reduce((total, row) => ({ net: total.net + Number(row.netAmount), paid: total.paid + Number(row.paidAmount) }), { net: 0, paid: 0 })
+export function reportTotals(rows: Array<{ netAmount: unknown; paidAmount: unknown; status: unknown }>) {
+  return rows
+    .filter(row => row.status === "POSTED")
+    .reduce((total, row) => ({ net: total.net + Number(row.netAmount), paid: total.paid + Number(row.paidAmount) }), { net: 0, paid: 0 })
 }

@@ -30,6 +30,7 @@ export default async function PurchaseReportPage({
     db.purchaseOrder.findMany({
       where: {
         companyId,
+        status: "POSTED",
         ...(fromDate || toDate ? {
           orderDate: {
             ...(fromDate ? { gte: fromDate } : {}),
