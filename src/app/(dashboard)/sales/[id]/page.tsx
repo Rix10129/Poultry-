@@ -8,10 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { PrintButton } from "@/components/sales/print-button"
-import { DeleteButton } from "@/components/ui/delete-button"
+import { InvoiceReverseControls } from "@/components/sales/invoice-reverse-controls"
 import { WhatsAppShareButton } from "@/components/sales/whatsapp-share-button"
 import { BrandingFooter } from "@/components/branding-footer"
-import { deleteInvoice } from "@/app/(dashboard)/sales/actions"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -81,18 +80,22 @@ export default async function InvoiceDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/sales/${invoice.id}/edit`}>
-            <Button variant="outline" size="sm">
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-          </Link>
-          <Link href={`/sales/returns/new?invoiceId=${invoice.id}`}>
-            <Button variant="outline" size="sm">
-              <RotateCcw className="h-4 w-4" />
-              Return
-            </Button>
-          </Link>
+          {invoice.status === "POSTED" && (
+            <>
+              <Link href={`/sales/${invoice.id}/edit`}>
+                <Button variant="outline" size="sm">
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+              </Link>
+              <Link href={`/sales/returns/new?invoiceId=${invoice.id}`}>
+                <Button variant="outline" size="sm">
+                  <RotateCcw className="h-4 w-4" />
+                  Return
+                </Button>
+              </Link>
+            </>
+          )}
           <WhatsAppShareButton
             invoiceNumber={invoice.invoiceNumber}
             invoiceDate={formatDate(invoice.invoiceDate)}
@@ -104,13 +107,10 @@ export default async function InvoiceDetailPage({ params }: Props) {
             isPaid={isPaid}
           />
           <PrintButton />
-          <DeleteButton
-            action={deleteInvoice}
-            id={invoice.id}
-            label="Delete"
-            confirmMessage={`Delete invoice ${invoice.invoiceNumber}? Stock will be restored. This cannot be undone.`}
-          />
-          {isPaid ? (
+          {invoice.status === "POSTED" && <InvoiceReverseControls invoiceId={invoice.id} />}
+          {invoice.status === "REVERSED" ? (
+            <Badge variant="danger">Reversed</Badge>
+          ) : isPaid ? (
             <Badge variant="success">Paid</Badge>
           ) : isPartial ? (
             <Badge variant="warning">Partial</Badge>
@@ -119,6 +119,15 @@ export default async function InvoiceDetailPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {invoice.status === "REVERSED" && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 print:hidden">
+          <p className="text-sm font-medium text-red-800">
+            This invoice was reversed{invoice.reversedAt ? ` on ${formatDate(invoice.reversedAt)}` : ""}.
+          </p>
+          {invoice.reversalReason && <p className="text-sm text-red-700 mt-0.5">Reason: {invoice.reversalReason}</p>}
+        </div>
+      )}
 
       {/* Print header — company branding (only visible when printing) */}
       <div className="hidden print:block print:mb-6">

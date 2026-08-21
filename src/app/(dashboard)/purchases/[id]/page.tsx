@@ -8,8 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { PrintButton } from "@/components/sales/print-button"
-import { DeleteButton } from "@/components/ui/delete-button"
-import { deletePurchase } from "@/app/(dashboard)/purchases/actions"
+import { PurchaseReverseControls } from "@/components/purchases/purchase-reverse-controls"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
@@ -68,20 +67,19 @@ export default async function PurchaseDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/purchases/returns/new?supplierId=${po.supplier.id}`}>
-            <Button variant="outline" size="sm">
-              <RotateCcw className="h-4 w-4" />
-              Return
-            </Button>
-          </Link>
+          {po.status === "POSTED" && (
+            <Link href={`/purchases/returns/new?supplierId=${po.supplier.id}`}>
+              <Button variant="outline" size="sm">
+                <RotateCcw className="h-4 w-4" />
+                Return
+              </Button>
+            </Link>
+          )}
           <PrintButton />
-          <DeleteButton
-            action={deletePurchase}
-            id={po.id}
-            label="Delete"
-            confirmMessage={`Delete ${po.poNumber}? This removes stock and cannot be undone.`}
-          />
-          {isPaid ? (
+          {po.status === "POSTED" && <PurchaseReverseControls purchaseId={po.id} />}
+          {po.status === "REVERSED" ? (
+            <Badge variant="danger">Reversed</Badge>
+          ) : isPaid ? (
             <Badge variant="success">Paid</Badge>
           ) : isPartial ? (
             <Badge variant="warning">Partial</Badge>
@@ -90,6 +88,15 @@ export default async function PurchaseDetailPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {po.status === "REVERSED" && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 print:hidden">
+          <p className="text-sm font-medium text-red-800">
+            This purchase order was reversed{po.reversedAt ? ` on ${formatDate(po.reversedAt)}` : ""}.
+          </p>
+          {po.reversalReason && <p className="text-sm text-red-700 mt-0.5">Reason: {po.reversalReason}</p>}
+        </div>
+      )}
 
       {/* Print header */}
       <div className="hidden print:flex print:justify-between print:items-start">
