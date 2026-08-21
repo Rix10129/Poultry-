@@ -27,6 +27,7 @@ async function getTaxData(companyId: string) {
         SUM("taxAmount")::float               AS tax
       FROM "SaleInvoice"
       WHERE "companyId" = ${companyId}
+        AND status = 'POSTED'
         AND "invoiceDate" >= ${new Date(startYear, now.getMonth(), 1)}
       GROUP BY 1, 2
       ORDER BY 1, 2
@@ -38,6 +39,7 @@ async function getTaxData(companyId: string) {
         SUM("taxAmount")::float              AS tax
       FROM "PurchaseOrder"
       WHERE "companyId" = ${companyId}
+        AND status = 'POSTED'
         AND "orderDate" >= ${new Date(startYear, now.getMonth(), 1)}
       GROUP BY 1, 2
       ORDER BY 1, 2

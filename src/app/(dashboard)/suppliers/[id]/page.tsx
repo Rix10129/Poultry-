@@ -37,6 +37,7 @@ export default async function SupplierDetailPage({ params }: Props) {
     where: { id, companyId },
     include: {
       purchases: {
+        where: { status: "POSTED" },
         orderBy: { orderDate: "desc" },
         take: 50,
         select: {
@@ -48,8 +49,8 @@ export default async function SupplierDetailPage({ params }: Props) {
           payments: { select: { amount: true, isVoided: true } },
         },
       },
-      payments: { orderBy: { paymentDate: "desc" } },
-      purchaseReturns: { select: { totalAmount: true } },
+      payments: { where: { status: "POSTED" }, orderBy: { paymentDate: "desc" } },
+      purchaseReturns: { where: { status: "POSTED" }, select: { totalAmount: true } },
     },
   })
 

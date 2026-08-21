@@ -39,6 +39,7 @@ export default async function CollectionReportPage({ searchParams }: Props) {
   const payments = await db.customerPayment.findMany({
     where: {
       companyId,
+      status: "POSTED",
       paymentDate: { gte: fromDate, lte: toDate },
     },
     include: {
