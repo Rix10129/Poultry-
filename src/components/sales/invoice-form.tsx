@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { ExpiryBadge } from "@/components/inventory/expiry-badge"
 import { createInvoice, updateInvoice, deleteInvoiceDraft, saveInvoiceDraft } from "@/app/(dashboard)/sales/actions"
+import { quickCreateCustomer } from "@/app/(dashboard)/customers/actions"
 import { daysUntilExpiry, formatCurrency, CUSTOMER_TYPE_LABELS } from "@/lib/utils"
-import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, Save } from "lucide-react"
+import { Plus, Trash2, AlertCircle, WifiOff, CheckCircle2, Save, UserPlus } from "lucide-react"
 import { addToSalesQueue } from "@/lib/offline-db"
 import { INVOICE_DRAFT_VERSION, type InvoiceDraftData } from "@/lib/invoice-draft"
 import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
@@ -85,12 +86,15 @@ interface InvoiceFormProps {
   editContext?: EditContext
 }
 
-export function InvoiceForm({ products, customers, initialDraft, draftWarnings = [], drafts = [], editContext }: InvoiceFormProps) {
+export function InvoiceForm({ products, customers: initialCustomers, initialDraft, draftWarnings = [], drafts = [], editContext }: InvoiceFormProps) {
   const [lines, setLines] = useState<LineItem[]>(() => initialDraft?.lines.map(line => ({ ...line, isBonus: !!line.isBonus, key: crypto.randomUUID() })) ?? [])
   const [addProductId, setAddProductId] = useState("")
   const [productSearch, setProductSearch] = useState("")
+  const [customers, setCustomers] = useState(initialCustomers)
   const [customerId, setCustomerId] = useState(initialDraft?.customerId ?? "")
   const [customerSearch, setCustomerSearch] = useState(editContext?.walkInCustomerName ?? "")
+  const [addingCustomer, setAddingCustomer] = useState(false)
+  const [addCustomerError, setAddCustomerError] = useState<string | null>(null)
   // No customer account picked → whatever's typed in the search box IS the
   // customer name for this cash memo. One box, no second field to miss.
   const walkInCustomerName = customerId ? "" : customerSearch.trim()
@@ -174,6 +178,24 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
 
   function updateLine(key: string, patch: Partial<LineItem>) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
+  }
+
+  async function handleQuickAddCustomer() {
+    const name = customerSearch.trim()
+    if (!name) return
+    setAddingCustomer(true)
+    setAddCustomerError(null)
+    try {
+      const result = await quickCreateCustomer(name)
+      if ("error" in result) { setAddCustomerError(result.error); return }
+      setCustomers(prev => prev.some(c => c.id === result.id) ? prev : [...prev, { id: result.id, name: result.name, type: "RETAIL" }])
+      setCustomerId(result.id)
+      setCustomerSearch(result.name)
+    } catch {
+      setAddCustomerError("Unexpected error — please try again")
+    } finally {
+      setAddingCustomer(false)
+    }
   }
 
   // Computed totals
@@ -447,9 +469,17 @@ export function InvoiceForm({ products, customers, initialDraft, draftWarnings =
             <p className="text-xs text-slate-500">Customer can&rsquo;t be changed once payments are recorded.</p>
           )}
           {!customerId && walkInCustomerName && (
-            <p className="text-xs text-slate-500">
-              No account selected — this cash memo will show <span className="font-medium text-slate-700">&ldquo;{walkInCustomerName}&rdquo;</span> as the customer.
-            </p>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 space-y-1.5">
+              <p className="text-xs text-amber-800">
+                No account selected — this will be a cash memo showing <span className="font-medium">&ldquo;{walkInCustomerName}&rdquo;</span> as
+                the customer, and must be paid in full. If they&rsquo;re a new customer who wants to buy on credit, save them first:
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={handleQuickAddCustomer} loading={addingCustomer} disabled={addingCustomer}>
+                <UserPlus className="h-3.5 w-3.5" />
+                Save &ldquo;{walkInCustomerName}&rdquo; as a new customer
+              </Button>
+              {addCustomerError && <p className="text-xs text-red-600">{addCustomerError}</p>}
+            </div>
           )}
         </div>
         <div className="space-y-1.5">
