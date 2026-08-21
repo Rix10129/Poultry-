@@ -59,6 +59,35 @@ export async function createCustomer(_: ActionState, formData: FormData): Promis
   redirect(`/customers/${id}`)
 }
 
+// A minimal, non-redirecting counterpart to createCustomer for the invoice
+// form's "walk-in wants credit" flow — a genuinely new customer shouldn't
+// force the operator to abandon an in-progress sale to fill out the full
+// customer form elsewhere first. Defaults to RETAIL; the record can be
+// reclassified and filled in later from the Customers page.
+export async function quickCreateCustomer(name: string): Promise<{ id: string; name: string } | { error: string }> {
+  const session = await getActiveSession()
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: "Name is required" }
+
+  try {
+    const existing = await db.customer.findFirst({
+      where: { companyId, name: { equals: trimmed, mode: "insensitive" } },
+      select: { id: true, name: true },
+    })
+    if (existing) return existing
+
+    const c = await db.customer.create({ data: { companyId, name: trimmed, type: "RETAIL" } })
+    revalidatePath("/customers")
+    return { id: c.id, name: c.name }
+  } catch {
+    return { error: "Failed to create customer" }
+  }
+}
+
 export async function updateCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
   const session = await getActiveSession()
   const user = session?.user as any
