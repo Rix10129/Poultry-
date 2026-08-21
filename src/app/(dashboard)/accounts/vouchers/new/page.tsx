@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Info } from "lucide-react"
 import { VoucherForm } from "@/components/accounts/voucher-form"
 
 export const metadata = { title: "New Voucher" }
@@ -35,6 +35,17 @@ export default async function NewVoucherPage({
           <h1 className="text-xl font-bold text-slate-900">New Voucher</h1>
           <p className="text-sm text-slate-500">Post a double-entry accounting entry</p>
         </div>
+      </div>
+
+      <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+        <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+        <p className="text-sm text-blue-900">
+          Collecting a payment from a customer or paying a supplier? Open their record instead —{" "}
+          <Link href="/customers" className="underline font-medium">Customers</Link> or{" "}
+          <Link href="/suppliers" className="underline font-medium">Suppliers</Link> → find them → <strong>Record Payment</strong>.
+          It&rsquo;s a simpler form and keeps their balance accurate automatically. This voucher screen is for other
+          bookkeeping entries (e.g. bank charges, owner&rsquo;s capital, misc income) that aren&rsquo;t tied to a customer or supplier.
+        </p>
       </div>
 
       {accounts.length === 0 ? (

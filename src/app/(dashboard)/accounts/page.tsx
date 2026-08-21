@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, BookOpen, ClipboardList } from "lucide-react"
+import { Plus, BookOpen, ClipboardList, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
@@ -83,6 +83,16 @@ export default async function AccountsPage() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+        <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+        <p className="text-sm text-blue-900">
+          Collecting a payment from a customer or paying a supplier? Open their record instead —{" "}
+          <Link href="/customers" className="underline font-medium">Customers</Link> or{" "}
+          <Link href="/suppliers" className="underline font-medium">Suppliers</Link> → find them → <strong>Record Payment</strong>.
+          This section is for the underlying bookkeeping — chart of accounts, bank accounts, and general vouchers.
+        </p>
       </div>
 
       {accounts.length === 0 ? (
