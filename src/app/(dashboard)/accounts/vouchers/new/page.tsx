@@ -40,11 +40,12 @@ export default async function NewVoucherPage({
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
         <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
         <p className="text-sm text-blue-900">
-          Collecting a payment from a customer or paying a supplier? Open their record instead —{" "}
-          <Link href="/customers" className="underline font-medium">Customers</Link> or{" "}
-          <Link href="/suppliers" className="underline font-medium">Suppliers</Link> → find them → <strong>Record Payment</strong>.
-          It&rsquo;s a simpler form and keeps their balance accurate automatically. This voucher screen is for other
-          bookkeeping entries (e.g. bank charges, owner&rsquo;s capital, misc income) that aren&rsquo;t tied to a customer or supplier.
+          Recording cash in or out, or setting an opening balance? The{" "}
+          <Link href="/accounts/cash-received/new" className="underline font-medium">Cash Received</Link>,{" "}
+          <Link href="/accounts/cash-payment/new" className="underline font-medium">Cash Payment</Link>, and{" "}
+          <Link href="/accounts/opening-balance/new" className="underline font-medium">Opening Balance</Link>{" "}
+          screens on the Accounts page are simpler, guided forms for those. This voucher screen is for other
+          bookkeeping entries (e.g. bank charges, journal adjustments) that need a specific debit and credit account chosen directly.
         </p>
       </div>
 

@@ -240,6 +240,51 @@ export async function updateSupplier(_: ActionState, formData: FormData): Promis
   redirect(`/suppliers/${id}`)
 }
 
+// A dedicated, minimal counterpart to updateSupplier for guided
+// opening-balance entry screens — touches only this one field instead of
+// requiring every other supplier field to be resupplied unchanged.
+export async function updateSupplierOpeningBalance(_: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await getActiveSession()
+  const user = session?.user as any
+  if (!user?.companyId) return { error: "Not authenticated" }
+  const companyId = user.companyId as string
+  if (!hasPermission(user.role, "OPENING_BALANCE_CORRECT"))
+    return { error: "Only owners and admins can change opening balances" }
+
+  const id = (formData.get("id") as string)?.trim()
+  const openingBalance = Number(formData.get("openingBalance"))
+  if (!id) return { error: "Supplier is required" }
+  if (!Number.isFinite(openingBalance) || openingBalance < 0)
+    return { error: "Opening balance must be a valid non-negative number" }
+
+  let oldOpeningBalance = ""
+  try {
+    oldOpeningBalance = await db.$transaction(async (tx) => {
+      const existing = await tx.supplier.findFirst({ where: { id, companyId }, select: { openingBalance: true } })
+      if (!existing) throw new Error("SUPPLIER_NOT_FOUND")
+      await tx.supplier.update({ where: { id }, data: { openingBalance } })
+      return existing.openingBalance.toString()
+    })
+  } catch (error) {
+    if (error instanceof Error && error.message === "SUPPLIER_NOT_FOUND") return { error: "Supplier not found" }
+    return { error: "Failed to update opening balance" }
+  }
+
+  await writeAuditLog({
+    companyId, userId: user.id, action: "UPDATE_OPENING_BALANCE", entity: "Supplier", entityId: id,
+    oldValues: { openingBalance: oldOpeningBalance }, newValues: { openingBalance },
+  })
+
+  revalidatePath("/suppliers")
+  revalidatePath(`/suppliers/${id}`)
+  revalidatePath(`/suppliers/${id}/statement`)
+  revalidatePath("/")
+  revalidatePath("/reports/recovery")
+  revalidatePath("/reports/balance-sheet")
+  revalidatePath("/reports", "layout")
+  redirect(`/suppliers/${id}`)
+}
+
 export async function deleteSupplier(
   _prev: { error: string } | null,
   formData: FormData
