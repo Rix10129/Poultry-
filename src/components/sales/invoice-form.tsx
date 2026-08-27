@@ -180,6 +180,75 @@ export function InvoiceForm({ products, customers: initialCustomers, initialDraf
     setLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l))
   }
 
+  // When a line's quantity is raised past what its own batch has, cap that line at its
+  // batch's stock and carry the rest into the next expiring batch(es) — automatically,
+  // rather than making staff notice the shortfall and re-add the product themselves.
+  // Existing lines are never merged away or auto-shrunk; this only ever adds/tops up lines.
+  function splitOverflowAcrossBatches(currentLines: LineItem[], line: LineItem): LineItem[] {
+    const product = products.find(p => p.id === line.productId)
+    if (!product) return currentLines
+
+    let result = currentLines.map(l => l.key === line.key ? { ...l, quantity: line.maxQty } : l)
+    let overflow = line.quantity - line.maxQty
+    let lastTouchedKey = line.key
+    if (overflow <= 0) return result
+
+    const currentBatchIndex = product.batches.findIndex(b => b.id === line.batchId)
+    const laterBatches = currentBatchIndex === -1 ? [] : product.batches.slice(currentBatchIndex + 1)
+
+    for (const batch of laterBatches) {
+      if (overflow <= 0) break
+      if (!isSellableBatch(batch)) continue
+      const avail = batchAvailable(batch.id, batch.quantity, result)
+      if (avail <= 0) continue
+
+      const take = Math.min(overflow, avail)
+      const existingLine = result.find(l => l.productId === line.productId && l.batchId === batch.id)
+      if (existingLine) {
+        result = result.map(l => l.key === existingLine.key ? { ...l, quantity: l.quantity + take } : l)
+        lastTouchedKey = existingLine.key
+      } else {
+        const newKey = crypto.randomUUID()
+        result = [...result, {
+          key: newKey,
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          batchId: batch.id,
+          batchNumber: batch.batchNumber,
+          expiryDate: batch.expiryDate,
+          maxQty: avail,
+          quantity: take,
+          salePrice: parseFloat(batch.salePrice) || parseFloat(product.salePrice) || 0,
+          discount: line.discount,
+          taxRate: parseFloat(product.taxRate) || 0,
+          isBonus: line.isBonus,
+          savedAvailable: batch.quantity,
+          savedCatalogPrice: parseFloat(product.salePrice) || 0,
+        }]
+        lastTouchedKey = newKey
+      }
+      overflow -= take
+    }
+
+    // Total stock across every batch still isn't enough — surface the shortfall on the
+    // last line this split touched instead of silently dropping it, so it still shows
+    // red and still blocks submission the same way a single-batch overage always has.
+    if (overflow > 0) {
+      result = result.map(l => l.key === lastTouchedKey ? { ...l, quantity: l.quantity + overflow } : l)
+    }
+
+    return result
+  }
+
+  function handleQuantityBlur(key: string) {
+    setLines(prev => {
+      const current = prev.find(l => l.key === key)
+      if (!current || current.quantity <= current.maxQty) return prev
+      return splitOverflowAcrossBatches(prev, current)
+    })
+  }
+
   async function handleQuickAddCustomer() {
     const name = customerSearch.trim()
     if (!name) return
@@ -531,7 +600,7 @@ export function InvoiceForm({ products, customers: initialCustomers, initialDraf
           </Button>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          {itemCountLabel}{" · "}Earliest-expiry stock is selected automatically
+          {itemCountLabel}{" · "}Earliest-expiry stock is selected automatically — if a quantity exceeds one batch, the rest is drawn from the next batch automatically
         </p>
       </section>
 
@@ -588,6 +657,7 @@ export function InvoiceForm({ products, customers: initialCustomers, initialDraf
                           onChange={e =>
                             updateLine(line.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
                           }
+                          onBlur={() => handleQuantityBlur(line.key)}
                           className={`text-right ${overQty ? "border-red-400 focus:ring-red-400" : ""}`}
                         />
                       </td>
