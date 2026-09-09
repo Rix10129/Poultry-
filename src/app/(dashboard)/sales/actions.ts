@@ -384,17 +384,19 @@ export async function createInvoice(
           where: { id: line.batchId, companyId, productId: line.productId },
         })
         if (!batch) throw new Error(`Batch not found`)
-        if (daysUntilExpiry(batch.expiryDate) < 0) {
+        const daysLeft = daysUntilExpiry(batch.expiryDate)
+        if (daysLeft !== null && daysLeft < 0) {
           throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
         }
         // FEFO is enforced server-side: the client may only sell from the
         // earliest-expiring batch that still has stock for this product.
+        // Batches with no expiry (yarn/cloth) fall back to FIFO by createdAt.
         const earliestAvailable = await tx.productBatch.findFirst({
           where: { companyId, productId: line.productId, quantity: { gt: 0 } },
-          orderBy: { expiryDate: "asc" },
+          orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
           select: { id: true, expiryDate: true, batchNumber: true },
         })
-        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate < batch.expiryDate) {
+        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate && batch.expiryDate && earliestAvailable.expiryDate < batch.expiryDate) {
           throw new Error(
             `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
           )
@@ -596,17 +598,19 @@ export async function updateInvoice(
         const isNetNewConsumption = (newQtyByBatch.get(line.batchId) ?? 0) > (originalQtyByBatch.get(line.batchId) ?? 0)
         if (isNetNewConsumption && !checkedBatches.has(line.batchId)) {
           checkedBatches.add(line.batchId)
-          if (daysUntilExpiry(batch.expiryDate) < 0) {
+          const daysLeft = daysUntilExpiry(batch.expiryDate)
+          if (daysLeft !== null && daysLeft < 0) {
             throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
           }
           // FEFO is enforced server-side: the client may only sell from the
           // earliest-expiring batch that still has stock for this product.
+          // Batches with no expiry (yarn/cloth) fall back to FIFO by createdAt.
           const earliestAvailable = await tx.productBatch.findFirst({
             where: { companyId, productId: line.productId, quantity: { gt: 0 } },
-            orderBy: { expiryDate: "asc" },
+            orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
             select: { id: true, expiryDate: true, batchNumber: true },
           })
-          if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate < batch.expiryDate) {
+          if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate && batch.expiryDate && earliestAvailable.expiryDate < batch.expiryDate) {
             throw new Error(
               `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
             )

@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         subject: `${company.name} — Business Report (${fromStr} to ${toStr})`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-            <h2 style="color:#1E3A5F;margin-bottom:4px">Poultry Vet System</h2>
+            <h2 style="color:#1E3A5F;margin-bottom:4px">Godown Ledger</h2>
             <p style="color:#64748B;margin-top:0">Bi-Weekly Business Report</p>
             <hr style="border:none;border-top:1px solid #E2E8F0;margin:20px 0"/>
             <p>Dear <strong>${owner?.name ?? "Owner"}</strong>,</p>
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
               </tr>
             </table>
             <p style="color:#64748B;font-size:12px;margin-top:32px">
-              This report is automatically generated every 15 days by Poultry Vet System.<br/>
+              This report is automatically generated every 15 days by Godown Ledger.<br/>
               Next report: <strong>${new Date(to.getTime() + 15 * 86400_000).toLocaleDateString("en-GB")}</strong>
             </p>
           </div>

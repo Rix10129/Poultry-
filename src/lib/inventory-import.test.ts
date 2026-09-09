@@ -7,7 +7,7 @@ const payload = (overrides: Record<string, unknown> = {}) => ({
   suppliers: [{ id: "source-supplier", name: "Acme Feed" }],
   products: [{
     name: "Vitamin A", supplierId: "source-supplier", companyId: "company-1",
-    unit: "VIAL", species: "BROILER", purchasePrice: 12, salePrice: 18,
+    unit: "CONE", purchasePrice: 12, salePrice: 18,
     batches: [{ batchNumber: "LOT-1", quantity: 10, manufactureDate: "2026-01-01", expiryDate: "2027-01-01", ...overrides }],
   }],
 })
@@ -16,7 +16,7 @@ test("valid rows normalize supplier, product, batch, units, dates, quantities, a
   const [row] = parseImportRows(payload(), actor.companyId)
   assert.deepEqual(row.errors, [])
   assert.equal(row.supplierName, "Acme Feed")
-  assert.equal(row.unit, "VIAL")
+  assert.equal(row.unit, "CONE")
   assert.equal(row.quantity, 10)
   assert.equal(row.purchasePrice, 12)
 })

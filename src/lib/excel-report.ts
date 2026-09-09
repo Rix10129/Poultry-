@@ -102,7 +102,7 @@ export async function generateReport(
   ])
 
   const wb = new ExcelJS.Workbook()
-  wb.creator = "Poultry Vet System"
+  wb.creator = "Godown Ledger"
   wb.created = new Date()
 
   // ── Sheet 1: Sales ──────────────────────────────────────────────────────────
@@ -170,8 +170,8 @@ export async function generateReport(
     const qty = p.batches.reduce((s, b) => s + b.quantity, 0)
     const costVal = p.batches.reduce((s, b) => s + b.quantity * parseFloat(b.purchasePrice.toString()), 0)
     const saleVal = qty * parseFloat(p.salePrice.toString())
-    const exp30 = p.batches.filter(b => b.expiryDate <= d30).reduce((s, b) => s + b.quantity, 0)
-    const exp90 = p.batches.filter(b => b.expiryDate > d30 && b.expiryDate <= d90).reduce((s, b) => s + b.quantity, 0)
+    const exp30 = p.batches.filter(b => b.expiryDate !== null && b.expiryDate <= d30).reduce((s, b) => s + b.quantity, 0)
+    const exp90 = p.batches.filter(b => b.expiryDate !== null && b.expiryDate > d30 && b.expiryDate <= d90).reduce((s, b) => s + b.quantity, 0)
     const alert = exp30 > 0 ? "⚠ CRITICAL" : exp90 > 0 ? "• EXPIRING" : qty <= p.reorderLevel ? "▼ LOW STOCK" : ""
 
     const row = s3.addRow([

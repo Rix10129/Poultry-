@@ -27,7 +27,7 @@ export default async function NewSaleReturnPage({ searchParams }: Props) {
         name: true,
         unit: true,
         batches: {
-          orderBy: { expiryDate: "asc" },
+          orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
           select: {
             id: true,
             batchNumber: true,
@@ -57,7 +57,7 @@ export default async function NewSaleReturnPage({ searchParams }: Props) {
       batches: p.batches.map((b) => ({
         id: b.id,
         batchNumber: b.batchNumber,
-        expiryDate: b.expiryDate.toISOString(),
+        expiryDate: b.expiryDate ? b.expiryDate.toISOString() : null,
         currentQty: b.quantity,
         soldQty: b.initialQuantity - b.quantity,
         salePrice: b.salePrice.toString(),

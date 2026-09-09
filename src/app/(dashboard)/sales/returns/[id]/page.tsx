@@ -113,7 +113,7 @@ export default async function SaleReturnDetailPage({ params }: Props) {
                       <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                         {item.batch.batchNumber}
                       </span>
-                      <ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} />
+                      <ExpiryBadge expiryDate={item.batch.expiryDate ? item.batch.expiryDate.toISOString() : null} />
                     </div>
                   )}
                 </td>

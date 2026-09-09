@@ -27,7 +27,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
         taxRate: true,
         salePrice: true,
         batches: {
-          orderBy: { expiryDate: "asc" },
+          orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
           select: {
             id: true,
             batchNumber: true,
@@ -60,7 +60,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
       batches: p.batches.filter((b) => b.quantity > 0).map((b) => ({
         id: b.id,
         batchNumber: b.batchNumber,
-        expiryDate: b.expiryDate.toISOString(),
+        expiryDate: b.expiryDate ? b.expiryDate.toISOString() : null,
         quantity: b.quantity,
         salePrice: b.salePrice.toString(),
       })),

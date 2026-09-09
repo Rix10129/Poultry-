@@ -13,7 +13,7 @@ export default function NewCustomerPage() {
         </Link>
         <div>
           <h1 className="text-xl font-bold text-slate-900">New Customer</h1>
-          <p className="text-sm text-slate-500">Add a farm, vet shop, dealer, or retail customer</p>
+          <p className="text-sm text-slate-500">Add a retailer, wholesaler, garment unit, or export house</p>
         </div>
       </div>
 

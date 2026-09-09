@@ -35,7 +35,6 @@ export default async function EditProductPage({ params }: Props) {
     name: product.name,
     genericName: product.genericName,
     supplierId: product.supplierId,
-    species: product.species,
     unit: product.unit,
     subUnit: product.subUnit,
     unitsPerPack: product.unitsPerPack,

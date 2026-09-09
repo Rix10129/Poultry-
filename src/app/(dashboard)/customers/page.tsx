@@ -16,17 +16,17 @@ export const metadata = { title: "Customers" }
 const PAGE_SIZE = 50
 
 const TYPE_LABELS: Record<string, string> = {
-  FARM: "Farm",
-  VET_SHOP: "Vet Shop",
-  SUB_DEALER: "Sub-Dealer",
-  RETAIL: "Retail",
+  RETAILER: "Retailer",
+  WHOLESALER: "Wholesaler",
+  GARMENT_UNIT: "Garment Unit",
+  EXPORT_HOUSE: "Export House",
 }
 
 const TYPE_VARIANTS: Record<string, "info" | "success" | "warning" | "default"> = {
-  FARM: "info",
-  VET_SHOP: "success",
-  SUB_DEALER: "warning",
-  RETAIL: "default",
+  RETAILER: "default",
+  WHOLESALER: "info",
+  GARMENT_UNIT: "success",
+  EXPORT_HOUSE: "warning",
 }
 
 export default async function CustomersPage({
@@ -106,7 +106,7 @@ export default async function CustomersPage({
           )}
         </form>
         <div className="flex gap-1">
-          {["", "FARM", "VET_SHOP", "SUB_DEALER", "RETAIL"].map((t) => (
+          {["", "RETAILER", "WHOLESALER", "GARMENT_UNIT", "EXPORT_HOUSE"].map((t) => (
             <Link
               key={t}
               href={t ? `/customers?type=${t}` : "/customers"}

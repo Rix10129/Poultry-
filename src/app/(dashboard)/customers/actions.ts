@@ -13,7 +13,7 @@ import { validateInvoicePayment } from "@/lib/customer-payment"
 
 type ActionState = { error: string } | null
 
-const VALID_TYPES = ["FARM", "VET_SHOP", "SUB_DEALER", "RETAIL"] as const
+const VALID_TYPES = ["RETAILER", "WHOLESALER", "GARMENT_UNIT", "EXPORT_HOUSE"] as const
 const VALID_PAYMENT_MODES = ["CASH", "BANK", "CHEQUE", "CREDIT"] as const
 
 export async function createCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
@@ -25,7 +25,7 @@ export async function createCustomer(_: ActionState, formData: FormData): Promis
   const name = (formData.get("name") as string)?.trim()
   if (!name) return { error: "Name is required" }
 
-  const type = (formData.get("type") as string) || "RETAIL"
+  const type = (formData.get("type") as string) || "RETAILER"
   if (!VALID_TYPES.includes(type as any)) return { error: "Invalid customer type" }
 
   const phone = (formData.get("phone") as string)?.trim() || null
@@ -62,7 +62,7 @@ export async function createCustomer(_: ActionState, formData: FormData): Promis
 // A minimal, non-redirecting counterpart to createCustomer for the invoice
 // form's "walk-in wants credit" flow — a genuinely new customer shouldn't
 // force the operator to abandon an in-progress sale to fill out the full
-// customer form elsewhere first. Defaults to RETAIL; the record can be
+// customer form elsewhere first. Defaults to RETAILER; the record can be
 // reclassified and filled in later from the Customers page.
 export async function quickCreateCustomer(name: string): Promise<{ id: string; name: string } | { error: string }> {
   const session = await getActiveSession()
@@ -80,7 +80,7 @@ export async function quickCreateCustomer(name: string): Promise<{ id: string; n
     })
     if (existing) return existing
 
-    const c = await db.customer.create({ data: { companyId, name: trimmed, type: "RETAIL" } })
+    const c = await db.customer.create({ data: { companyId, name: trimmed, type: "RETAILER" } })
     revalidatePath("/customers")
     return { id: c.id, name: c.name }
   } catch {
@@ -98,7 +98,7 @@ export async function updateCustomer(_: ActionState, formData: FormData): Promis
   const name = (formData.get("name") as string)?.trim()
   if (!name) return { error: "Name is required" }
 
-  const type = (formData.get("type") as string) || "RETAIL"
+  const type = (formData.get("type") as string) || "RETAILER"
   if (!VALID_TYPES.includes(type as any)) return { error: "Invalid customer type" }
 
   const phone = (formData.get("phone") as string)?.trim() || null

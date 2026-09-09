@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto"
 
-export const BACKUP_SCHEMA = "poultry.company-backup"
+export const BACKUP_SCHEMA = "godown-ledger.company-backup"
 export const BACKUP_SCHEMA_VERSION = 2
 export const BACKUP_KDF = "scrypt" as const
 export const BACKUP_CIPHER = "aes-256-gcm" as const

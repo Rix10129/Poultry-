@@ -20,7 +20,7 @@ export default async function StockAdjustmentPage() {
       batches: {
         where: { quantity: { gt: 0 } },
         select: { id: true, batchNumber: true, quantity: true, expiryDate: true },
-        orderBy: { expiryDate: "asc" },
+        orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
       },
     },
     orderBy: { name: "asc" },

@@ -8,35 +8,28 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ExportButtons } from "@/components/reports/export-buttons"
 import { formatCurrency } from "@/lib/utils"
-import { Species } from "@prisma/client"
 import { Pagination } from "@/components/ui/pagination"
 
 export const metadata = { title: "Inventory" }
 
-const SPECIES_LIST = ["BROILER", "LAYER", "CATTLE", "SHEEP", "GOAT", "FISH", "GENERAL"]
 const PAGE_SIZE = 50
-
-function cap(s: string) {
-  return s.charAt(0) + s.slice(1).toLowerCase()
-}
 
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; species?: string; page?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { q, species, page: pageParam } = await searchParams
+  const { q, page: pageParam } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
 
   const where = {
     companyId,
     isActive: true,
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
-    ...(species && SPECIES_LIST.includes(species) ? { species: species as Species } : {}),
   }
 
   const [products, total] = await Promise.all([
@@ -72,9 +65,9 @@ export default async function InventoryPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportButtons endpoint="/api/reports/inventory/export" params={{ q, species }} />
+          <ExportButtons endpoint="/api/reports/inventory/export" params={{ q }} />
           <a
-            href={`/api/reports/inventory/export?${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}), format: "pdf" }).toString()}`}
+            href={`/api/reports/inventory/export?${new URLSearchParams({ ...(q ? { q } : {}), format: "pdf" }).toString()}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-700"
@@ -107,16 +100,8 @@ export default async function InventoryPage({
             className="pl-9 h-9 w-64 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
-        <select
-          name="species"
-          defaultValue={species ?? ""}
-          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All species</option>
-          {SPECIES_LIST.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
-        </select>
         <Button type="submit" variant="outline" size="sm">Filter</Button>
-        {(q || species) && (
+        {q && (
           <Link href="/inventory">
             <Button variant="ghost" size="sm">Clear</Button>
           </Link>
@@ -129,9 +114,9 @@ export default async function InventoryPage({
           <Package className="h-10 w-10 text-slate-300 mb-3" />
           <p className="font-medium text-slate-600">No products found</p>
           <p className="text-sm text-slate-400 mt-1">
-            {q || species ? "Try a different filter" : "Add your first product to get started"}
+            {q ? "Try a different filter" : "Add your first product to get started"}
           </p>
-          {!q && !species && (
+          {!q && (
             <Link href="/inventory/new" className="mt-4">
               <Button><Plus className="h-4 w-4" />Add Product</Button>
             </Link>
@@ -144,7 +129,6 @@ export default async function InventoryPage({
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Product</th>
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Category</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Species</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Stock</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Sale Price</th>
                 <th className="text-right px-4 py-3 font-medium text-slate-600">Amount</th>
@@ -170,9 +154,6 @@ export default async function InventoryPage({
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500">{product.category?.name ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="info">{cap(product.species)}</Badge>
-                    </td>
                     <td className="px-4 py-3 text-right">
                       <span className={isLow ? "font-bold text-red-600" : "font-semibold text-slate-900"}>
                         {totalStock}
@@ -199,7 +180,7 @@ export default async function InventoryPage({
             </tbody>
             <tfoot className="border-t-2 border-slate-200 bg-slate-50">
               <tr>
-                <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-right text-slate-700">
+                <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-right text-slate-700">
                   {isPartialPage ? "Total (this page)" : "Total"}
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-slate-900">{pageStock.toLocaleString()}</td>
@@ -216,7 +197,7 @@ export default async function InventoryPage({
               page={page}
               total={total}
               pageSize={PAGE_SIZE}
-              baseUrl={`/inventory${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString() ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(species ? { species } : {}) }).toString()}` : ""}`}
+              baseUrl={`/inventory${new URLSearchParams({ ...(q ? { q } : {}) }).toString() ? `?${new URLSearchParams({ ...(q ? { q } : {}) }).toString()}` : ""}`}
             />
           </div>
         </div>

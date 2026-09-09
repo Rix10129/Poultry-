@@ -9,10 +9,10 @@ import { formatCurrency } from "@/lib/utils"
 export const runtime = "nodejs"
 
 const TYPE_LABELS: Record<string, string> = {
-  FARM: "Farm",
-  VET_SHOP: "Vet Shop",
-  SUB_DEALER: "Sub-Dealer",
-  RETAIL: "Retail",
+  RETAILER: "Retailer",
+  WHOLESALER: "Wholesaler",
+  GARMENT_UNIT: "Garment Unit",
+  EXPORT_HOUSE: "Export House",
 }
 
 export async function GET(req: NextRequest) {

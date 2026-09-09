@@ -39,7 +39,7 @@ async function uploadToR2(
       Bucket: bucket,
       Key: key,
       Body: body,
-      ContentType: "application/vnd.poultry.backup+json",
+      ContentType: "application/vnd.godown-ledger.backup+json",
     })
   )
 
@@ -104,13 +104,13 @@ export async function GET(req: NextRequest) {
       const sizeKb = (payload.length / 1024).toFixed(1)
 
       if (useR2) {
-        const key = `backups/${dateStr}/${safeName}-${company.id.slice(0, 8)}.poultry-backup`
+        const key = `backups/${dateStr}/${safeName}-${company.id.slice(0, 8)}.godown-backup`
         await uploadToR2(key, payload, r2Bucket!, r2AccountId!, r2AccessKey!, r2SecretKey!)
         results.push(`✅ ${company.name}: uploaded to R2 (${sizeKb} KB)`)
       } else {
         // Email mode — collect as attachment
         attachments.push({
-          filename: `${safeName}-${dateStr}.poultry-backup`,
+          filename: `${safeName}-${dateStr}.godown-backup`,
           content: Buffer.from(payload),
         })
         results.push(`✅ ${company.name}: prepared for email (${sizeKb} KB)`)
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       .send({
         from,
         to: adminEmail!,
-        subject: `[Poultry Vet] Backup ${statusLabel} — ${dateStr}`,
+        subject: `[Godown Ledger] Backup ${statusLabel} — ${dateStr}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
             <h2 style="color:#1e3a5f">Nightly Backup Report</h2>

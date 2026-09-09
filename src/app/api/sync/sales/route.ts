@@ -136,17 +136,19 @@ export async function POST(req: NextRequest) {
             `Only ${batch.quantity} units available (you requested ${line.quantity}). Inventory changed while offline.`
           )
         }
-        if (daysUntilExpiry(batch.expiryDate) < 0) {
+        const daysLeft = daysUntilExpiry(batch.expiryDate)
+        if (daysLeft !== null && daysLeft < 0) {
           throw new Error(`Cannot sell an expired batch (${batch.batchNumber})`)
         }
         // FEFO is enforced server-side: the client may only sell from the
         // earliest-expiring batch that still has stock for this product.
+        // Batches with no expiry (yarn/cloth) fall back to FIFO by createdAt.
         const earliestAvailable = await tx.productBatch.findFirst({
           where: { companyId, productId: line.productId, quantity: { gt: 0 } },
-          orderBy: { expiryDate: "asc" },
+          orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
           select: { id: true, expiryDate: true, batchNumber: true },
         })
-        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate < batch.expiryDate) {
+        if (earliestAvailable && earliestAvailable.id !== batch.id && earliestAvailable.expiryDate && batch.expiryDate && earliestAvailable.expiryDate < batch.expiryDate) {
           throw new Error(
             `Batch ${batch.batchNumber} skips FEFO order — batch ${earliestAvailable.batchNumber} expires earlier and still has stock`
           )

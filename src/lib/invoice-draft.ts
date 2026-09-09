@@ -6,7 +6,7 @@ export type InvoiceDraftLine = {
   unit: string
   batchId: string
   batchNumber: string
-  expiryDate: string
+  expiryDate: string | null
   quantity: number
   salePrice: number
   discount: number
@@ -32,7 +32,7 @@ export type InvoiceDraftData = {
 export type DraftSnapshot = {
   customers: Map<string, { name: string }>
   products: Map<string, { name: string; active: boolean; salePrice: number; taxRate: number }>
-  batches: Map<string, { productId: string; batchNumber: string; quantity: number; salePrice: number; expiryDate: Date }>
+  batches: Map<string, { productId: string; batchNumber: string; quantity: number; salePrice: number; expiryDate: Date | null }>
 }
 
 /** Revalidates references and returns current values without silently changing the saved price. */
@@ -58,7 +58,7 @@ export function revalidateInvoiceDraft(data: InvoiceDraftData, current: DraftSna
       if (batch.batchNumber !== line.batchNumber) warnings.push(`Batch "${line.batchNumber}" is now named "${batch.batchNumber}".`)
       if (batch.quantity !== line.savedAvailable) warnings.push(`${line.productName} batch ${batch.batchNumber} availability changed from ${line.savedAvailable} to ${batch.quantity}.`)
       if (batch.salePrice !== line.salePrice) warnings.push(`${line.productName} batch price changed from ${line.salePrice} to ${batch.salePrice}.`)
-      if (batch.expiryDate.getTime() < now.getTime()) warnings.push(`${line.productName} batch ${batch.batchNumber} has expired.`)
+      if (batch.expiryDate && batch.expiryDate.getTime() < now.getTime()) warnings.push(`${line.productName} batch ${batch.batchNumber} has expired.`)
     }
     return { ...line, maxQty: batch?.quantity ?? 0 }
   })

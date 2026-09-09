@@ -14,10 +14,10 @@ export const dynamic = "force-dynamic"
 export const metadata = { title: "Customer Recovery" }
 
 const TYPE_LABELS: Record<string, string> = {
-  FARM: "Farm",
-  VET_SHOP: "Vet Shop",
-  SUB_DEALER: "Sub-Dealer",
-  RETAIL: "Retail",
+  RETAILER: "Retailer",
+  WHOLESALER: "Wholesaler",
+  GARMENT_UNIT: "Garment Unit",
+  EXPORT_HOUSE: "Export House",
 }
 
 export default async function RecoveryReportPage({

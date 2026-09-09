@@ -21,17 +21,17 @@ interface Props {
 }
 
 const TYPE_LABELS: Record<string, string> = {
-  FARM: "Farm",
-  VET_SHOP: "Vet Shop",
-  SUB_DEALER: "Sub-Dealer",
-  RETAIL: "Retail",
+  RETAILER: "Retailer",
+  WHOLESALER: "Wholesaler",
+  GARMENT_UNIT: "Garment Unit",
+  EXPORT_HOUSE: "Export House",
 }
 
 const TYPE_VARIANTS: Record<string, "info" | "success" | "warning" | "default"> = {
-  FARM: "info",
-  VET_SHOP: "success",
-  SUB_DEALER: "warning",
-  RETAIL: "default",
+  RETAILER: "default",
+  WHOLESALER: "info",
+  GARMENT_UNIT: "success",
+  EXPORT_HOUSE: "warning",
 }
 
 export async function generateMetadata({ params }: Props) {

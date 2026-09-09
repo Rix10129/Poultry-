@@ -19,7 +19,7 @@ import { lineBase, calculateDocumentTotals } from "@/lib/invoice-math"
 type BatchOption = {
   id: string
   batchNumber: string
-  expiryDate: string // ISO string
+  expiryDate: string | null // ISO string, null = doesn't expire (e.g. yarn/cloth)
   quantity: number   // original DB qty
   salePrice: string  // serialized Decimal
 }
@@ -46,7 +46,7 @@ type LineItem = {
   unit: string
   batchId: string
   batchNumber: string
-  expiryDate: string
+  expiryDate: string | null
   maxQty: number     // available at time of adding (accounts for other lines)
   quantity: number
   salePrice: number
@@ -65,7 +65,8 @@ function batchAvailable(batchId: string, batchTotal: number, lines: LineItem[]):
 }
 
 function isSellableBatch(batch: BatchOption) {
-  return daysUntilExpiry(batch.expiryDate) >= 0
+  const days = daysUntilExpiry(batch.expiryDate)
+  return days === null || days >= 0
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -257,7 +258,7 @@ export function InvoiceForm({ products, customers: initialCustomers, initialDraf
     try {
       const result = await quickCreateCustomer(name)
       if ("error" in result) { setAddCustomerError(result.error); return }
-      setCustomers(prev => prev.some(c => c.id === result.id) ? prev : [...prev, { id: result.id, name: result.name, type: "RETAIL" }])
+      setCustomers(prev => prev.some(c => c.id === result.id) ? prev : [...prev, { id: result.id, name: result.name, type: "RETAILER" }])
       setCustomerId(result.id)
       setCustomerSearch(result.name)
     } catch {

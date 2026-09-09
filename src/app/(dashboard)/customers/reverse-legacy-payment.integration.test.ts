@@ -28,7 +28,7 @@ test("reversing a customer payment that has no accounting entry (legacy pre-post
     password: "not-used-in-test", role: "OWNER",
   } })
   const customer = await db.customer.create({ data: {
-    companyId: company.id, name: `Legacy payment customer ${suffix}`, type: "RETAIL",
+    companyId: company.id, name: `Legacy payment customer ${suffix}`, type: "RETAILER",
   } })
 
   setAuthorizationSessionResolverForTests(async () => ({

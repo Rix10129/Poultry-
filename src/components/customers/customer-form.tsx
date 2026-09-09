@@ -26,10 +26,10 @@ interface Props {
 }
 
 const TYPE_OPTIONS = [
-  { value: "RETAIL", label: "Retail" },
-  { value: "FARM", label: "Farm" },
-  { value: "VET_SHOP", label: "Vet Shop" },
-  { value: "SUB_DEALER", label: "Sub-Dealer" },
+  { value: "RETAILER", label: "Retailer" },
+  { value: "WHOLESALER", label: "Wholesaler" },
+  { value: "GARMENT_UNIT", label: "Garment Unit" },
+  { value: "EXPORT_HOUSE", label: "Export House" },
 ]
 
 export function CustomerForm({ customer, canAdjustOpeningBalance = false }: Props) {
@@ -60,7 +60,7 @@ export function CustomerForm({ customer, canAdjustOpeningBalance = false }: Prop
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="type">Customer Type</Label>
-          <Select id="type" name="type" defaultValue={customer?.type ?? "RETAIL"}>
+          <Select id="type" name="type" defaultValue={customer?.type ?? "RETAILER"}>
             {TYPE_OPTIONS.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}

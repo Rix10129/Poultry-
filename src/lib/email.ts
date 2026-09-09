@@ -28,14 +28,14 @@ function baseTemplate(content: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-        <span style="font-size:20px;font-weight:700;color:#1e3a5f">Poultry Vet System</span>
+        <span style="font-size:20px;font-weight:700;color:#1e3a5f">Godown Ledger</span>
       </div>
-      <p style="color:#64748b;margin-top:2px;font-size:13px">Distribution &amp; Retail Management</p>
+      <p style="color:#64748b;margin-top:2px;font-size:13px">Mill-to-Market Trading</p>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0"/>
       ${content}
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0 16px"/>
       <p style="color:#94a3b8;font-size:11px;margin:0">
-        This email was sent by Poultry Vet System. If you didn't request this, you can safely ignore it.
+        This email was sent by Godown Ledger. If you didn't request this, you can safely ignore it.
       </p>
     </div>
   `
@@ -50,7 +50,7 @@ export async function sendVerificationEmail(
   await send({
     from: FROM,
     to,
-    subject: "Verify your email — Poultry Vet System",
+    subject: "Verify your email — Godown Ledger",
     html: baseTemplate(`
       <p>Hi <strong>${name}</strong>,</p>
       <p>Thank you for registering. Please verify your email address to activate your account:</p>
@@ -82,7 +82,7 @@ export async function sendAdminApprovalRequest(opts: {
     to: opts.to,
     subject: `[Action Required] New company registration: ${opts.companyName}`,
     html: baseTemplate(`
-      <p>A new company has registered on Poultry Vet System and requires your approval.</p>
+      <p>A new company has registered on Godown Ledger and requires your approval.</p>
       <table style="border-collapse:collapse;width:100%;margin:16px 0">
         <tr><td style="padding:8px;border:1px solid #e2e8f0;color:#64748b;width:140px">Company</td>
             <td style="padding:8px;border:1px solid #e2e8f0"><strong>${opts.companyName}</strong></td></tr>
@@ -119,11 +119,11 @@ export async function sendApprovalConfirmationEmail(
   await send({
     from: FROM,
     to,
-    subject: `Your ${companyName} account is approved — Poultry Vet System`,
+    subject: `Your ${companyName} account is approved — Godown Ledger`,
     html: baseTemplate(`
       <p>Hi <strong>${name}</strong>,</p>
       <p>Great news! Your company <strong>${companyName}</strong> has been approved.
-         You can now sign in and start using Poultry Vet System.</p>
+         You can now sign in and start using Godown Ledger.</p>
       <p style="margin:28px 0">
         <a href="${loginUrl}"
            style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:8px;
@@ -143,7 +143,7 @@ export async function sendRejectionEmail(
   await send({
     from: FROM,
     to,
-    subject: `Registration update — Poultry Vet System`,
+    subject: `Registration update — Godown Ledger`,
     html: baseTemplate(`
       <p>Hi <strong>${name}</strong>,</p>
       <p>Unfortunately, the registration for <strong>${companyName}</strong> was not approved.

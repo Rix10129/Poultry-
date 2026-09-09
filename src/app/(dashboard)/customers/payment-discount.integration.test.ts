@@ -35,7 +35,7 @@ test("recording a payment with a discount posts the split correctly and reverses
     password: "not-used-in-test", role: "OWNER",
   } })
   const customer = await db.customer.create({ data: {
-    companyId: company.id, name: `Discount customer ${suffix}`, type: "RETAIL",
+    companyId: company.id, name: `Discount customer ${suffix}`, type: "RETAILER",
   } })
 
   setAuthorizationSessionResolverForTests(async () => ({
@@ -121,7 +121,7 @@ test("a pure discount/write-off with no cash received is a valid payment", {
     password: "not-used-in-test", role: "OWNER",
   } })
   const customer = await db.customer.create({ data: {
-    companyId: company.id, name: `Pure discount customer ${suffix}`, type: "RETAIL",
+    companyId: company.id, name: `Pure discount customer ${suffix}`, type: "RETAILER",
   } })
 
   setAuthorizationSessionResolverForTests(async () => ({

@@ -1,7 +1,6 @@
-import { Prisma, Species, UnitType } from "@prisma/client"
+import { Prisma, UnitType } from "@prisma/client"
 
 const units = new Set(Object.values(UnitType))
-const species = new Set(Object.values(Species))
 
 export type ImportRow = {
   rowNumber: number
@@ -9,7 +8,6 @@ export type ImportRow = {
   supplierName: string
   productName: string
   unit: UnitType
-  species: Species
   batchNumber: string
   manufactureDate: Date | null
   expiryDate: Date
@@ -60,10 +58,9 @@ export function parseImportRows(payload: unknown, companyId: string): ImportRow[
       const expiryDate = date(batch.expiryDate)
       const manufactureDate = batch.manufactureDate == null ? null : date(batch.manufactureDate)
       const unit = text(product.unit) as UnitType
-      const productSpecies = (text(product.species) || "GENERAL") as Species
       const row: ImportRow = {
         rowNumber: rows.length + 1, sourceSupplierId, supplierName,
-        productName: text(product.name), unit, species: productSpecies,
+        productName: text(product.name), unit,
         batchNumber: text(batch.batchNumber), manufactureDate,
         expiryDate: expiryDate ?? new Date(0), quantity, purchasePrice, salePrice,
         warnings: [], errors: [],
@@ -74,7 +71,6 @@ export function parseImportRows(payload: unknown, companyId: string): ImportRow[
       if (!row.supplierName) row.errors.push("Supplier reference is missing or does not resolve within this file")
       if (!row.productName) row.errors.push("Product name is required")
       if (!units.has(unit)) row.errors.push(`Unsupported unit: ${unit || "(empty)"}`)
-      if (!species.has(productSpecies)) row.errors.push(`Unsupported species: ${productSpecies}`)
       if (!row.batchNumber) row.errors.push("Batch number is required")
       if (!expiryDate) row.errors.push("Expiry date is invalid")
       if (manufactureDate === null && batch.manufactureDate != null) row.errors.push("Manufacture date is invalid")
@@ -133,7 +129,7 @@ export async function commitInventoryImport(db: any, actor: Actor, preview: Impo
       let supplier = await tx.supplier.findFirst({ where: { companyId: actor.companyId, name: row.supplierName } })
       supplier ??= await tx.supplier.create({ data: { companyId: actor.companyId, name: row.supplierName } })
       let product = await tx.product.findFirst({ where: { companyId: actor.companyId, name: row.productName, supplierId: supplier.id } })
-      product ??= await tx.product.create({ data: { companyId: actor.companyId, supplierId: supplier.id, name: row.productName, unit: row.unit, species: row.species, purchasePrice: row.purchasePrice, salePrice: row.salePrice } })
+      product ??= await tx.product.create({ data: { companyId: actor.companyId, supplierId: supplier.id, name: row.productName, unit: row.unit, purchasePrice: row.purchasePrice, salePrice: row.salePrice } })
       let batch = await tx.productBatch.findUnique({ where: { batchNumber_productId_companyId: { companyId: actor.companyId, productId: product.id, batchNumber: row.batchNumber } } })
       const reused = !!batch
       batch = batch

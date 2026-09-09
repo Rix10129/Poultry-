@@ -14,13 +14,13 @@ export const metadata = { title: "Stock Valuation" }
 export default async function StockValuationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ categoryId?: string; species?: string; zero?: string }>
+  searchParams: Promise<{ categoryId?: string; zero?: string }>
 }) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
   const companyId = (session.user as any).companyId as string
 
-  const { categoryId, species, zero } = await searchParams
+  const { categoryId, zero } = await searchParams
   const showZero = zero === "1"
 
   const [products, categories] = await Promise.all([
@@ -29,14 +29,13 @@ export default async function StockValuationPage({
         companyId,
         isActive: true,
         ...(categoryId ? { categoryId } : {}),
-        ...(species ? { species: species as any } : {}),
       },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
       include: {
         category: { select: { name: true } },
         batches: {
           where: showZero ? {} : { quantity: { gt: 0 } },
-          orderBy: { expiryDate: "asc" },
+          orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
           select: {
             id: true,
             batchNumber: true,
@@ -54,12 +53,6 @@ export default async function StockValuationPage({
       select: { id: true, name: true },
     }),
   ])
-
-  const SPECIES_LABELS: Record<string, string> = {
-    BROILER: "Broiler", LAYER: "Layer", CATTLE: "Cattle",
-    SHEEP: "Sheep", GOAT: "Goat", FISH: "Fish", GENERAL: "General",
-  }
-  const speciesValues = Object.keys(SPECIES_LABELS)
 
   // Compute valuation per product
   const rows = products
@@ -107,23 +100,13 @@ export default async function StockValuationPage({
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <select
-          name="species"
-          defaultValue={species ?? ""}
-          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All species</option>
-          {speciesValues.map((v) => (
-            <option key={v} value={v}>{SPECIES_LABELS[v]}</option>
-          ))}
-        </select>
         <label className="flex items-center gap-2 h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 cursor-pointer">
           <input type="checkbox" name="zero" value="1" defaultChecked={showZero} />
           Include zero-stock
         </label>
         <Button type="submit" variant="outline" size="sm">Filter</Button>
-<ExportButtons endpoint="/api/reports/stock/export" params={{ categoryId, species, zero: showZero ? "1" : undefined }} />
-        {(categoryId || species || showZero) && (
+<ExportButtons endpoint="/api/reports/stock/export" params={{ categoryId, zero: showZero ? "1" : undefined }} />
+        {(categoryId || showZero) && (
           <Link href="/reports/stock">
             <Button variant="ghost" size="sm">Clear</Button>
           </Link>

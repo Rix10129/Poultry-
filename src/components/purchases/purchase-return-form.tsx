@@ -14,7 +14,7 @@ import { Plus, Trash2, AlertCircle } from "lucide-react"
 type BatchOption = {
   id: string
   batchNumber: string
-  expiryDate: string
+  expiryDate: string | null
   quantity: number
   purchasePrice: string
 }
@@ -38,7 +38,7 @@ type ReturnLine = {
   unit: string
   batchId: string
   batchNumber: string
-  expiryDate: string
+  expiryDate: string | null
   maxQty: number
   quantity: number
   purchasePrice: number

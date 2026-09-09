@@ -36,7 +36,7 @@ export default async function EditInvoicePage({ params }: Props) {
       where: { companyId },
       select: {
         id: true, name: true, isActive: true, unit: true, taxRate: true, salePrice: true,
-        batches: { orderBy: { expiryDate: "asc" }, select: { id: true, batchNumber: true, expiryDate: true, quantity: true, salePrice: true } },
+        batches: { orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }], select: { id: true, batchNumber: true, expiryDate: true, quantity: true, salePrice: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -62,7 +62,7 @@ export default async function EditInvoicePage({ params }: Props) {
       batches: p.batches.map((b) => ({
         id: b.id,
         batchNumber: b.batchNumber,
-        expiryDate: b.expiryDate.toISOString(),
+        expiryDate: b.expiryDate ? b.expiryDate.toISOString() : null,
         quantity: b.quantity + (restoredQtyByBatch.get(b.id) ?? 0),
         salePrice: b.salePrice.toString(),
       })),
@@ -89,7 +89,7 @@ export default async function EditInvoicePage({ params }: Props) {
       unit: item.product.unit,
       batchId: item.batchId,
       batchNumber: item.batch.batchNumber,
-      expiryDate: item.batch.expiryDate.toISOString(),
+      expiryDate: item.batch.expiryDate ? item.batch.expiryDate.toISOString() : null,
       quantity: item.quantity,
       salePrice: Number(item.salePrice),
       discount: Number(item.discount),

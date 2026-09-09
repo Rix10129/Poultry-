@@ -5,13 +5,13 @@ import { Providers } from "@/components/providers"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: { default: "Poultry Vet System", template: "%s | Poultry Vet System" },
-  description: "Poultry & Veterinary Medicine Distribution & Retail Management System",
+  title: { default: "Godown Ledger", template: "%s | Godown Ledger" },
+  description: "Textile Trading & Mill-to-Market Management System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PoultryVet",
+    title: "Godown Ledger",
   },
 }
 

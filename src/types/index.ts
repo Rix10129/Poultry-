@@ -1,6 +1,6 @@
-import type { UserRole, CustomerType, Species, UnitType, PaymentMode, MovementType, AccountType, VoucherType } from "@prisma/client"
+import type { UserRole, CustomerType, UnitType, PaymentMode, MovementType, AccountType, VoucherType } from "@prisma/client"
 
-export type { UserRole, CustomerType, Species, UnitType, PaymentMode, MovementType, AccountType, VoucherType }
+export type { UserRole, CustomerType, UnitType, PaymentMode, MovementType, AccountType, VoucherType }
 
 export interface ApiResponse<T = unknown> {
   data?: T

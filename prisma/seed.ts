@@ -1,6 +1,6 @@
 import { Pool } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
-import { PrismaClient, UserRole, CustomerType, Species, UnitType } from "@prisma/client"
+import { PrismaClient, UserRole, CustomerType, UnitType } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import fs from "fs"
 import path from "path"
@@ -33,10 +33,10 @@ async function main() {
     update: {},
     create: {
       id: "demo-company-001",
-      name: "Demo Pharma Distributors",
+      name: "Demo Textile Traders",
       phone: "+92-300-1234567",
-      email: "info@demopharma.pk",
-      address: "123 Industrial Area, Lahore, Pakistan",
+      email: "info@demotextile.pk",
+      address: "Yarn Market, Faisalabad, Pakistan",
       taxNumber: "NTN-1234567",
       currency: "PKR",
     },
@@ -48,7 +48,7 @@ async function main() {
   await prisma.user.upsert({
     where: { email_companyId: { email: "owner@demo.com", companyId: company.id } },
     update: {},
-    create: { companyId: company.id, name: "Muhammad Ali (Owner)", email: "owner@demo.com", password: hashed, role: UserRole.OWNER, phone: "+92-300-1111111" },
+    create: { companyId: company.id, name: "Imran Sheikh (Owner)", email: "owner@demo.com", password: hashed, role: UserRole.OWNER, phone: "+92-300-1111111" },
   })
   await prisma.user.upsert({
     where: { email_companyId: { email: "cashier@demo.com", companyId: company.id } },
@@ -61,163 +61,157 @@ async function main() {
     create: { companyId: company.id, name: "Rashid Khan", email: "salesman@demo.com", password: hashed, role: UserRole.SALESMAN, phone: "+92-300-3333333" },
   })
 
-  // ── Suppliers ─────────────────────────────────────────────────────────────
-  const msd = await prisma.supplier.upsert({
-    where: { id: "sup-msd-001" },
+  // ── Suppliers (Mills) ────────────────────────────────────────────────────
+  const alRehman = await prisma.supplier.upsert({
+    where: { id: "sup-alrehman-001" },
     update: {},
-    create: { id: "sup-msd-001", companyId: company.id, name: "MSD Animal Health Pakistan", phone: "+92-21-1234567", email: "orders@msd-ah.pk", address: "Karachi, Pakistan" },
+    create: { id: "sup-alrehman-001", companyId: company.id, name: "Al-Rehman Yarn Mills", phone: "+92-41-1234567", email: "orders@alrehmanyarn.pk", address: "Jhang Road, Faisalabad" },
   })
-  const pfizer = await prisma.supplier.upsert({
-    where: { id: "sup-pfizer-001" },
+  const sadiq = await prisma.supplier.upsert({
+    where: { id: "sup-sadiq-001" },
     update: {},
-    create: { id: "sup-pfizer-001", companyId: company.id, name: "Pfizer Animal Health", phone: "+92-42-9876543", email: "orders@pfizer-ah.pk", address: "Lahore, Pakistan" },
+    create: { id: "sup-sadiq-001", companyId: company.id, name: "Sadiq Weaving Mills", phone: "+92-41-9876543", email: "orders@sadiqweaving.pk", address: "Sargodha Road, Faisalabad" },
   })
-  const intervet = await prisma.supplier.upsert({
-    where: { id: "sup-intervet-001" },
+  const chenab = await prisma.supplier.upsert({
+    where: { id: "sup-chenab-001" },
     update: {},
-    create: { id: "sup-intervet-001", companyId: company.id, name: "Intervet Pakistan (Pvt) Ltd", phone: "+92-51-5555555", email: "orders@intervet.pk", address: "Islamabad, Pakistan" },
+    create: { id: "sup-chenab-001", companyId: company.id, name: "Chenab Valley Textiles", phone: "+92-61-5555555", email: "orders@chenabvalley.pk", address: "Multan, Pakistan" },
   })
 
-  // ── Customers ─────────────────────────────────────────────────────────────
+  // ── Customers (Buyers) ───────────────────────────────────────────────────
   await prisma.customer.createMany({
     skipDuplicates: true,
     data: [
-      { id: "cust-001", companyId: company.id, name: "Ali Poultry Farm", type: CustomerType.FARM, phone: "+92-311-1111111", area: "Sheikhupura", creditLimit: 500000 },
-      { id: "cust-002", companyId: company.id, name: "Dr. Khan Vet Shop", type: CustomerType.VET_SHOP, phone: "+92-311-2222222", area: "Gujranwala", creditLimit: 200000 },
-      { id: "cust-003", companyId: company.id, name: "Raza Agricultural Supplies", type: CustomerType.SUB_DEALER, phone: "+92-311-3333333", area: "Faisalabad", creditLimit: 1000000 },
-      { id: "cust-004", companyId: company.id, name: "City Poultry Farm", type: CustomerType.FARM, phone: "+92-311-4444444", area: "Lahore", creditLimit: 300000 },
-      { id: "cust-005", companyId: company.id, name: "Hassan Brothers", type: CustomerType.RETAIL, phone: "+92-311-5555555", area: "Multan", creditLimit: 100000 },
+      { id: "cust-001", companyId: company.id, name: "Anmol Cloth House", type: CustomerType.RETAILER, phone: "+92-311-1111111", area: "Faisalabad", creditLimit: 500000 },
+      { id: "cust-002", companyId: company.id, name: "Khan Brothers Wholesale", type: CustomerType.WHOLESALER, phone: "+92-311-2222222", area: "Karachi", creditLimit: 1500000 },
+      { id: "cust-003", companyId: company.id, name: "Elite Garments (Pvt) Ltd", type: CustomerType.GARMENT_UNIT, phone: "+92-311-3333333", area: "Lahore", creditLimit: 1000000 },
+      { id: "cust-004", companyId: company.id, name: "Al-Fateh Export House", type: CustomerType.EXPORT_HOUSE, phone: "+92-311-4444444", area: "Karachi", creditLimit: 2000000 },
+      { id: "cust-005", companyId: company.id, name: "Bismillah Cloth Store", type: CustomerType.RETAILER, phone: "+92-311-5555555", area: "Gujranwala", creditLimit: 200000 },
     ],
   })
 
   // ── Categories ────────────────────────────────────────────────────────────
-  const vaccines = await prisma.category.upsert({
-    where: { name_companyId: { name: "Vaccines", companyId: company.id } },
+  const yarn = await prisma.category.upsert({
+    where: { name_companyId: { name: "Yarn", companyId: company.id } },
     update: {},
-    create: { companyId: company.id, name: "Vaccines", description: "Poultry and livestock vaccines" },
+    create: { companyId: company.id, name: "Yarn", description: "Cotton, polyester and blended yarn (dhaga)" },
   })
-  const antibiotics = await prisma.category.upsert({
-    where: { name_companyId: { name: "Antibiotics", companyId: company.id } },
+  const greyCloth = await prisma.category.upsert({
+    where: { name_companyId: { name: "Grey Cloth", companyId: company.id } },
     update: {},
-    create: { companyId: company.id, name: "Antibiotics", description: "Antibacterial medicines" },
+    create: { companyId: company.id, name: "Grey Cloth", description: "Unprocessed woven cloth, straight off the loom" },
   })
-  const vitamins = await prisma.category.upsert({
-    where: { name_companyId: { name: "Vitamins & Supplements", companyId: company.id } },
+  const printedCloth = await prisma.category.upsert({
+    where: { name_companyId: { name: "Printed & Dyed Cloth", companyId: company.id } },
     update: {},
-    create: { companyId: company.id, name: "Vitamins & Supplements", description: "Nutritional supplements" },
+    create: { companyId: company.id, name: "Printed & Dyed Cloth", description: "Finished, printed and dyed fabric" },
   })
 
   // ── Products + Batches ────────────────────────────────────────────────────
-  const now = Date.now()
-  const days = (n: number) => new Date(now + n * 86400_000)
-  const mfgFromExpiry = (exp: Date) => new Date(exp.getTime() - 365 * 86400_000)
-
+  // Yarn and cloth carry no expiry — batches represent mill lots, tracked for
+  // shade/quality matching rather than shelf life, so `exp` is left undefined.
   const productSeed = [
     {
-      id: "prod-001", name: "Newcastle Disease Vaccine (NDV) La Sota",
-      genericName: "Newcastle Disease Virus Live Vaccine",
-      species: Species.BROILER, unit: UnitType.VIAL,
-      categoryId: vaccines.id, supplierId: msd.id,
-      salePrice: 850, purchasePrice: 620, reorderLevel: 50,
+      id: "prod-001", name: "20s Combed Cotton Yarn",
+      genericName: "100% Cotton, Combed, 20s Count",
+      unit: UnitType.CONE,
+      categoryId: yarn.id, supplierId: alRehman.id,
+      salePrice: 780, purchasePrice: 650, reorderLevel: 200,
       batches: [
-        { id: "bat-001-a", num: "NDV-2024-001", exp: days(20),  qty: 30 },   // ⚠ critical <30d
-        { id: "bat-001-b", num: "NDV-2024-002", exp: days(55),  qty: 100 },  // ⚠ <60d
-        { id: "bat-001-c", num: "NDV-2025-001", exp: days(200), qty: 200 },
+        { id: "bat-001-a", num: "LOT-2451", qty: 400 },
+        { id: "bat-001-b", num: "LOT-2467", qty: 350 },
       ],
     },
     {
-      id: "prod-002", name: "Infectious Bursal Disease Vaccine (IBD/Gumboro)",
-      genericName: "IBD Live Vaccine – Intermediate Plus",
-      species: Species.BROILER, unit: UnitType.VIAL,
-      categoryId: vaccines.id, supplierId: msd.id,
-      salePrice: 1200, purchasePrice: 890, reorderLevel: 30,
+      id: "prod-002", name: "30s Polyester Yarn",
+      genericName: "100% Spun Polyester, 30s Count",
+      unit: UnitType.CONE,
+      categoryId: yarn.id, supplierId: alRehman.id,
+      salePrice: 540, purchasePrice: 440, reorderLevel: 150,
       batches: [
-        { id: "bat-002-a", num: "IBD-2024-001", exp: days(45),  qty: 60 },   // ⚠ <60d
-        { id: "bat-002-b", num: "IBD-2025-001", exp: days(180), qty: 150 },
+        { id: "bat-002-a", num: "LOT-2480", qty: 90 },   // ⚠ below reorder (90 < 150)
       ],
     },
     {
-      id: "prod-003", name: "Marek's Disease Vaccine (HVT)",
-      genericName: "Herpesvirus of Turkeys Type 1",
-      species: Species.LAYER, unit: UnitType.VIAL,
-      categoryId: vaccines.id, supplierId: pfizer.id,
-      salePrice: 2500, purchasePrice: 1800, reorderLevel: 20,
+      id: "prod-003", name: "Ring Spun Cotton Yarn 10s",
+      genericName: "100% Cotton, Ring Spun, 10s Count",
+      unit: UnitType.KG,
+      categoryId: yarn.id, supplierId: sadiq.id,
+      salePrice: 690, purchasePrice: 575, reorderLevel: 500,
       batches: [
-        { id: "bat-003-a", num: "MDV-2024-001", exp: days(85),  qty: 25 },   // ⚠ <90d
-        { id: "bat-003-b", num: "MDV-2025-001", exp: days(270), qty: 80 },
+        { id: "bat-003-a", num: "LOT-1188", qty: 1200 },
       ],
     },
     {
-      id: "prod-004", name: "Infectious Bronchitis Vaccine (IB H120)",
-      genericName: "IB Live Attenuated Vaccine H120 Strain",
-      species: Species.LAYER, unit: UnitType.VIAL,
-      categoryId: vaccines.id, supplierId: intervet.id,
-      salePrice: 950, purchasePrice: 700, reorderLevel: 40,
+      id: "prod-004", name: "Grey Cloth 40x40 128",
+      genericName: "Plain Weave Grey Cloth, 40x40 construction, 128 reed",
+      unit: UnitType.THAAN,
+      categoryId: greyCloth.id, supplierId: sadiq.id,
+      salePrice: 12500, purchasePrice: 10200, reorderLevel: 20,
       batches: [
-        { id: "bat-004-a", num: "IB-2025-001", exp: days(150), qty: 8 },     // ⚠ below reorder (8 < 40)
+        { id: "bat-004-a", num: "LOT-3312", qty: 45 },
+        { id: "bat-004-b", num: "LOT-3340", qty: 18 },
       ],
     },
     {
-      id: "prod-005", name: "Oxytetracycline 20% Soluble Powder",
-      genericName: "Oxytetracycline Hydrochloride",
-      species: Species.GENERAL, unit: UnitType.SACHET,
-      categoryId: antibiotics.id, supplierId: pfizer.id,
-      salePrice: 450, purchasePrice: 320, reorderLevel: 100,
+      id: "prod-005", name: "Grey Cloth 20x20 60x60",
+      genericName: "Plain Weave Grey Cloth, 20x20 construction, 60x60",
+      unit: UnitType.THAAN,
+      categoryId: greyCloth.id, supplierId: chenab.id,
+      salePrice: 15800, purchasePrice: 13100, reorderLevel: 15,
       batches: [
-        { id: "bat-005-a", num: "OTC-2024-001", exp: days(25),  qty: 80 },   // ⚠ critical <30d
-        { id: "bat-005-b", num: "OTC-2025-001", exp: days(365), qty: 300 },
+        { id: "bat-005-a", num: "LOT-4021", qty: 6 },    // ⚠ below reorder (6 < 15)
       ],
     },
     {
-      id: "prod-006", name: "Tylosin Tartrate 50% Soluble Powder",
-      genericName: "Tylosin Tartrate",
-      species: Species.BROILER, unit: UnitType.SACHET,
-      categoryId: antibiotics.id, supplierId: msd.id,
-      salePrice: 680, purchasePrice: 490, reorderLevel: 80,
+      id: "prod-006", name: "Lawn Print — Design 245",
+      genericName: "Printed Lawn, Design 245, Multicolor",
+      unit: UnitType.METER,
+      categoryId: printedCloth.id, supplierId: chenab.id,
+      salePrice: 340, purchasePrice: 265, reorderLevel: 500,
       batches: [
-        { id: "bat-006-a", num: "TYL-2025-001", exp: days(400), qty: 5 },    // ⚠ below reorder (5 < 80)
+        { id: "bat-006-a", num: "LOT-5510", qty: 1800 },
+        { id: "bat-006-b", num: "LOT-5533", qty: 900 },
       ],
     },
     {
-      id: "prod-007", name: "Enrofloxacin 10% Oral Solution",
-      genericName: "Enrofloxacin",
-      species: Species.GENERAL, unit: UnitType.ML,
-      categoryId: antibiotics.id, supplierId: intervet.id,
-      salePrice: 1800, purchasePrice: 1300, reorderLevel: 50,
+      id: "prod-007", name: "Voile Printed — Floral",
+      genericName: "Printed Voile, Floral Design",
+      unit: UnitType.METER,
+      categoryId: printedCloth.id, supplierId: alRehman.id,
+      salePrice: 280, purchasePrice: 215, reorderLevel: 400,
       batches: [
-        { id: "bat-007-a", num: "ENR-2024-001", exp: days(70),  qty: 60 },   // ⚠ <90d
-        { id: "bat-007-b", num: "ENR-2025-001", exp: days(500), qty: 120 },
+        { id: "bat-007-a", num: "LOT-6109", qty: 260 },  // ⚠ below reorder (260 < 400)
       ],
     },
     {
-      id: "prod-008", name: "Amoxicillin 70% Water Soluble Powder",
-      genericName: "Amoxicillin Trihydrate",
-      species: Species.GENERAL, unit: UnitType.SACHET,
-      categoryId: antibiotics.id, supplierId: pfizer.id,
-      salePrice: 380, purchasePrice: 270, reorderLevel: 120,
+      id: "prod-008", name: "Cambric Dyed — Navy",
+      genericName: "Dyed Cambric, Solid Navy",
+      unit: UnitType.ROLL,
+      categoryId: printedCloth.id, supplierId: sadiq.id,
+      salePrice: 6200, purchasePrice: 4900, reorderLevel: 30,
       batches: [
-        { id: "bat-008-a", num: "AMX-2025-001", exp: days(300), qty: 250 },
+        { id: "bat-008-a", num: "LOT-7204", qty: 55 },
       ],
     },
     {
-      id: "prod-009", name: "Vitamin AD3E Oral Solution",
-      genericName: "Vitamins A, D3, and E",
-      species: Species.GENERAL, unit: UnitType.ML,
-      categoryId: vitamins.id, supplierId: intervet.id,
-      salePrice: 1200, purchasePrice: 850, reorderLevel: 60,
+      id: "prod-009", name: "Karandi Printed Suit Length",
+      genericName: "Printed Karandi, 3-Piece Suit Length",
+      unit: UnitType.PIECE,
+      categoryId: printedCloth.id, supplierId: chenab.id,
+      salePrice: 2650, purchasePrice: 2050, reorderLevel: 100,
       batches: [
-        { id: "bat-009-a", num: "VIT-2024-001", exp: days(40),  qty: 90 },   // ⚠ <60d
-        { id: "bat-009-b", num: "VIT-2025-001", exp: days(450), qty: 200 },
+        { id: "bat-009-a", num: "LOT-8017", qty: 320 },
       ],
     },
     {
-      id: "prod-010", name: "Multivitamin Electrolyte Powder",
-      genericName: "Multivitamin + Electrolyte Complex",
-      species: Species.GENERAL, unit: UnitType.SACHET,
-      categoryId: vitamins.id, supplierId: msd.id,
-      salePrice: 290, purchasePrice: 200, reorderLevel: 150,
+      id: "prod-010", name: "Khaddar Dyed — Maroon",
+      genericName: "Dyed Khaddar, Solid Maroon",
+      unit: UnitType.ROLL,
+      categoryId: printedCloth.id, supplierId: alRehman.id,
+      salePrice: 5800, purchasePrice: 4550, reorderLevel: 25,
       batches: [
-        { id: "bat-010-a", num: "MVE-2025-001", exp: days(550), qty: 12 },   // ⚠ below reorder (12 < 150)
+        { id: "bat-010-a", num: "LOT-9002", qty: 9 },    // ⚠ below reorder (9 < 25)
       ],
     },
   ]
@@ -234,7 +228,6 @@ async function main() {
         supplierId: data.supplierId,
         name: data.name,
         genericName: data.genericName,
-        species: data.species,
         unit: data.unit,
         salePrice: data.salePrice,
         purchasePrice: data.purchasePrice,
@@ -251,8 +244,6 @@ async function main() {
           companyId: company.id,
           productId: p.id,
           batchNumber: b.num,
-          expiryDate: b.exp,
-          manufactureDate: mfgFromExpiry(b.exp),
           purchasePrice: data.purchasePrice,
           salePrice: data.salePrice,
           quantity: b.qty,

@@ -33,7 +33,7 @@ export async function GET(req: Request) {
   const { data, error } = await resend.emails.send({
     from,
     to,
-    subject: "Test email — Poultry Vet System",
+    subject: "Test email — Godown Ledger",
     html: `
       <p>If you received this, Resend is working correctly.</p>
       <ul>

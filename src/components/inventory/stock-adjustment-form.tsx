@@ -4,7 +4,7 @@ import { useActionState, useState } from "react"
 import { createStockAdjustment } from "@/app/(dashboard)/inventory/adjustments/actions"
 import { Button } from "@/components/ui/button"
 
-type Batch = { id: string; batchNumber: string; quantity: number; expiryDate: Date }
+type Batch = { id: string; batchNumber: string; quantity: number; expiryDate: Date | null }
 type Product = { id: string; name: string; unit: string; batches: Batch[] }
 
 export function StockAdjustmentForm({ products }: { products: Product[] }) {
@@ -53,7 +53,7 @@ export function StockAdjustmentForm({ products }: { products: Product[] }) {
             {selectedProduct.batches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.batchNumber} — {b.quantity} {selectedProduct.unit.toLowerCase()} in stock
-                {" "}(Exp: {new Date(b.expiryDate).toLocaleDateString("en-GB")})
+                {b.expiryDate ? ` (Exp: ${new Date(b.expiryDate).toLocaleDateString("en-GB")})` : ""}
               </option>
             ))}
           </select>

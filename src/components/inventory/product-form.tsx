@@ -8,8 +8,16 @@ import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { createProduct, updateProduct } from "@/app/(dashboard)/inventory/actions"
 
-const SPECIES = ["BROILER", "LAYER", "CATTLE", "SHEEP", "GOAT", "FISH", "GENERAL"]
-const UNITS = ["CARTON", "VIAL", "ML", "TABLET", "SACHET", "KG", "GRAM", "LITER", "PIECE"]
+const UNITS = [
+  { value: "METER", label: "Meter" },
+  { value: "YARD", label: "Yard" },
+  { value: "THAAN", label: "Thaan" },
+  { value: "ROLL", label: "Roll" },
+  { value: "KG", label: "Kilogram" },
+  { value: "CONE", label: "Cone" },
+  { value: "BAG", label: "Bag" },
+  { value: "PIECE", label: "Piece" },
+]
 
 type SupplierOption = { id: string; name: string }
 
@@ -18,7 +26,6 @@ type ProductData = {
   name: string
   genericName: string | null
   supplierId: string | null
-  species: string
   unit: string
   subUnit: string | null
   unitsPerPack: number | null
@@ -32,10 +39,6 @@ type ProductData = {
 interface ProductFormProps {
   suppliers: SupplierOption[]
   product?: ProductData
-}
-
-function capitalize(s: string) {
-  return s.charAt(0) + s.slice(1).toLowerCase()
 }
 
 export function ProductForm({ suppliers, product }: ProductFormProps) {
@@ -73,24 +76,18 @@ export function ProductForm({ suppliers, product }: ProductFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="species">Species *</Label>
-          <Select id="species" name="species" defaultValue={product?.species ?? "GENERAL"} required>
-            {SPECIES.map((s) => <option key={s} value={s}>{capitalize(s)}</option>)}
-          </Select>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="unit">Primary Unit *</Label>
           <Select id="unit" name="unit" defaultValue={product?.unit ?? "PIECE"} required>
-            {UNITS.map((u) => <option key={u} value={u}>{capitalize(u)}</option>)}
+            {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="subUnit">Sub Unit</Label>
           <Select id="subUnit" name="subUnit" defaultValue={product?.subUnit ?? ""}>
             <option value="">None</option>
-            {UNITS.map((u) => <option key={u} value={u}>{capitalize(u)}</option>)}
+            {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </Select>
         </div>
       </div>

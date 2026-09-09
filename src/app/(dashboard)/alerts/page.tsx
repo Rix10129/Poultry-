@@ -34,14 +34,23 @@ async function getAlerts(companyId: string) {
     }),
   ])
 
-  const expiredBatches = urgentBatches.filter((b) => b.expiryDate < now)
-  const expiringBatches = urgentBatches.filter((b) => b.expiryDate >= now)
-  const criticalBatches = expiringBatches.filter((b) => daysUntilExpiry(b.expiryDate) <= 30)
+  // expiryDate is nullable at the type level, but the `lte` filter above
+  // already excludes null-expiry batches from urgentBatches at runtime —
+  // these guards just satisfy the type checker, they don't change behavior.
+  const expiredBatches = urgentBatches.filter((b) => b.expiryDate !== null && b.expiryDate < now)
+  const expiringBatches = urgentBatches.filter((b) => b.expiryDate !== null && b.expiryDate >= now)
+  const criticalBatches = expiringBatches.filter((b) => {
+    const d = daysUntilExpiry(b.expiryDate)
+    return d !== null && d <= 30
+  })
   const warningBatches = expiringBatches.filter((b) => {
     const d = daysUntilExpiry(b.expiryDate)
-    return d > 30 && d <= 60
+    return d !== null && d > 30 && d <= 60
   })
-  const cautionBatches = expiringBatches.filter((b) => daysUntilExpiry(b.expiryDate) > 60)
+  const cautionBatches = expiringBatches.filter((b) => {
+    const d = daysUntilExpiry(b.expiryDate)
+    return d !== null && d > 60
+  })
 
   const lowStockProducts = products
     .map((p) => ({ ...p, totalStock: p.batches.reduce((s, b) => s + b.quantity, 0) }))
@@ -257,7 +266,7 @@ function AlertSection({
 type BatchWithProduct = {
   id: string
   batchNumber: string
-  expiryDate: Date
+  expiryDate: Date | null
   quantity: number
   product: { id: string; name: string; unit: string; category: { name: string } | null }
 }

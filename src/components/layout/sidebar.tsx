@@ -13,7 +13,7 @@ import {
   BookOpen,
   BarChart3,
   Settings,
-  Syringe,
+  Factory,
   Bell,
   UserCog,
   FileText,
@@ -53,8 +53,8 @@ const navSections = [
   {
     title: "People",
     items: [
-      { href: "/customers",          label: "Customers",     icon: Users,         alert: false },
-      { href: "/suppliers",          label: "Suppliers",     icon: Building2,     alert: false },
+      { href: "/customers",          label: "Buyers",        icon: Users,         alert: false },
+      { href: "/suppliers",          label: "Mills",         icon: Building2,     alert: false },
       { href: "/suppliers/schedule", label: "Pay Schedule",  icon: CalendarClock, alert: false },
     ],
   },
@@ -127,14 +127,14 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
             />
           ) : (
             <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-              <Syringe className="w-4 h-4 text-blue-400" />
+              <Factory className="w-4 h-4 text-blue-400" />
             </div>
           )}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white leading-tight truncate">
-              {companyName ?? "Poultry Vet"}
+              {companyName ?? "Godown Ledger"}
             </p>
-            <p className="text-[11px] text-slate-500 leading-tight">Distribution System</p>
+            <p className="text-[11px] text-slate-500 leading-tight">Mill-to-Market Trading</p>
           </div>
         </div>
       </div>
@@ -180,7 +180,7 @@ export function Sidebar({ alertCount = 0, role, companyName, logoUrl }: SidebarP
       </nav>
 
       <div className="px-4 py-3 border-t border-slate-800">
-        <p className="text-[11px] text-slate-600 text-center">Poultry Vet System · v1.0</p>
+        <p className="text-[11px] text-slate-600 text-center">Godown Ledger · v1.0</p>
       </div>
     </aside>
   )

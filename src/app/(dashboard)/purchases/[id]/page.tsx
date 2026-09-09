@@ -168,7 +168,7 @@ export default async function PurchaseDetailPage({ params }: Props) {
                 </td>
                 <td className="px-6 py-3">
                   {item.batch ? (
-                    <ExpiryBadge expiryDate={item.batch.expiryDate.toISOString()} />
+                    <ExpiryBadge expiryDate={item.batch.expiryDate ? item.batch.expiryDate.toISOString() : null} />
                   ) : (
                     <span className="text-slate-400">—</span>
                   )}

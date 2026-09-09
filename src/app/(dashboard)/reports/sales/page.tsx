@@ -13,10 +13,10 @@ export const dynamic = "force-dynamic"
 export const metadata = { title: "Sales Report" }
 
 const TYPE_LABELS: Record<string, string> = {
-  FARM: "Farm",
-  VET_SHOP: "Vet Shop",
-  SUB_DEALER: "Sub-Dealer",
-  RETAIL: "Retail",
+  RETAILER: "Retailer",
+  WHOLESALER: "Wholesaler",
+  GARMENT_UNIT: "Garment Unit",
+  EXPORT_HOUSE: "Export House",
   WALK_IN: "Walk-in",
 }
 
@@ -64,7 +64,7 @@ export default async function SalesReportPage({
   // group by customer type
   const byType: Record<string, { count: number; net: number; paid: number }> = {}
   for (const inv of invoices) {
-    const key = inv.customerId ? (inv.customer?.type ?? "RETAIL") : "WALK_IN"
+    const key = inv.customerId ? (inv.customer?.type ?? "RETAILER") : "WALK_IN"
     if (!byType[key]) byType[key] = { count: 0, net: 0, paid: 0 }
     byType[key].count++
     byType[key].net += parseFloat(inv.netAmount.toString())

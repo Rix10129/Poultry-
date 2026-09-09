@@ -1,4 +1,4 @@
-// Service Worker — Poultry Vet System
+// Service Worker — Godown Ledger
 // Strategy:
 //   /_next/static/*  → Cache-first (content-hashed, safe forever)
 //   Page HTML        → Network-first, fall back to cache, then /offline

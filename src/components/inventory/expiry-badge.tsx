@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { daysUntilExpiry, expiryUrgency } from "@/lib/utils"
 
 interface ExpiryBadgeProps {
-  expiryDate: Date | string
+  expiryDate: Date | string | null
   className?: string
 }
 
@@ -15,6 +15,7 @@ const urgencyVariant = {
 
 export function ExpiryBadge({ expiryDate, className }: ExpiryBadgeProps) {
   const days = daysUntilExpiry(expiryDate)
+  if (days === null) return null
   const urgency = expiryUrgency(days)
   const label =
     days < 0 ? `Expired ${Math.abs(days)}d ago` : days === 0 ? "Expires today" : `${days}d left`

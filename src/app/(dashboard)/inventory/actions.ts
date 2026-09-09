@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { productSchema, batchSchema, batchPriceUpdateSchema } from "@/lib/validations/inventory"
-import { MovementType, Species, UnitType } from "@prisma/client"
+import { MovementType, UnitType } from "@prisma/client"
 import { postStockAdjustment } from "@/lib/accounting/posting-service"
 
 type ActionState = { error: string } | null
@@ -49,14 +49,13 @@ export async function createProduct(
   try { parsed = parseProductForm(formData) }
   catch (e: unknown) { return { error: e instanceof Error ? e.message : "Validation error" } }
 
-  const { species, unit, subUnit, ...rest } = parsed
+  const { unit, subUnit, ...rest } = parsed
 
   try {
     await db.product.create({
       data: {
         companyId,
         ...rest,
-        species: species as Species,
         unit: unit as UnitType,
         subUnit: subUnit ? (subUnit as UnitType) : undefined,
       },
@@ -81,14 +80,13 @@ export async function updateProduct(
   try { parsed = parseProductForm(formData) }
   catch (e: unknown) { return { error: e instanceof Error ? e.message : "Validation error" } }
 
-  const { species, unit, subUnit, ...rest } = parsed
+  const { unit, subUnit, ...rest } = parsed
 
   try {
     await db.product.updateMany({
       where: { id, companyId },
       data: {
         ...rest,
-        species: species as Species,
         unit: unit as UnitType,
         subUnit: subUnit ? (subUnit as UnitType) : null,
       },

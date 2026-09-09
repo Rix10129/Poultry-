@@ -13,7 +13,7 @@ type BatchRow = {
   id: string
   batchNumber: string
   manufactureDate: Date | null
-  expiryDate: Date
+  expiryDate: Date | null
   purchasePrice: string
   salePrice: string
   quantity: number

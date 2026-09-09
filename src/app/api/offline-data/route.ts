@@ -36,7 +36,7 @@ export async function GET() {
             quantity: true,
             salePrice: true,
           },
-          orderBy: { expiryDate: "asc" },
+          orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
         },
       },
       orderBy: { name: "asc" },
@@ -53,7 +53,7 @@ export async function GET() {
     batches: p.batches.map((b) => ({
       id: b.id,
       batchNumber: b.batchNumber,
-      expiryDate: b.expiryDate.toISOString(),
+      expiryDate: b.expiryDate ? b.expiryDate.toISOString() : null,
       quantity: b.quantity,
       salePrice: b.salePrice.toString(),
     })),

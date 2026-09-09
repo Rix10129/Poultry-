@@ -93,11 +93,11 @@ async function getStats(companyId: string) {
 
 const modules = [
   { n: 1, name: "Project Setup & Auth",          status: "done" },
-  { n: 2, name: "Inventory Management",           status: "done" },
-  { n: 3, name: "Expiry & Low-Stock Alerts",      status: "done" },
-  { n: 4, name: "Sales & Invoicing",              status: "done" },
-  { n: 5, name: "Purchases & Suppliers",          status: "done" },
-  { n: 6, name: "Customers & Ledger",             status: "done" },
+  { n: 2, name: "Godown & Stock",                 status: "done" },
+  { n: 3, name: "Low-Stock Alerts",               status: "done" },
+  { n: 4, name: "Udhar Sales & Invoicing",        status: "done" },
+  { n: 5, name: "Purchases & Mills",              status: "done" },
+  { n: 6, name: "Buyers & Recovery",              status: "done" },
   { n: 7, name: "Accounts & Vouchers",            status: "done" },
   { n: 8, name: "Reports & Dashboard",            status: "done" },
   { n: 9, name: "Users & Roles",                  status: "done" },
@@ -137,9 +137,9 @@ export default async function DashboardPage() {
           href="/reports/sales"
         />
         <KpiCard
-          label="Receivables"
+          label="Recovery"
           value={stats ? formatCurrency(stats.totalReceivables) : "—"}
-          sub="outstanding from customers"
+          sub="outstanding from buyers"
           color="orange"
           href="/reports/recovery"
           alert={!!stats && stats.totalReceivables > 0}
@@ -217,8 +217,8 @@ export default async function DashboardPage() {
           {[
             { label: "New Invoice", href: "/sales/new", icon: FileText, color: "text-blue-600 bg-blue-50" },
             { label: "New Purchase", href: "/purchases/new", icon: Package, color: "text-purple-600 bg-purple-50" },
-            { label: "Customers", href: "/customers", icon: Users, color: "text-green-600 bg-green-50" },
-            { label: "Suppliers", href: "/suppliers", icon: Building2, color: "text-slate-600 bg-slate-100" },
+            { label: "Buyers", href: "/customers", icon: Users, color: "text-green-600 bg-green-50" },
+            { label: "Mills", href: "/suppliers", icon: Building2, color: "text-slate-600 bg-slate-100" },
             { label: "Reports", href: "/reports", icon: TrendingUp, color: "text-orange-600 bg-orange-50" },
           ].map((link) => (
             <Link

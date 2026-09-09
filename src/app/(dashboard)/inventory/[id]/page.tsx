@@ -38,7 +38,7 @@ export default async function ProductDetailPage({ params }: Props) {
     include: {
       category: true,
       supplier: true,
-      batches: { orderBy: { expiryDate: "asc" } },
+      batches: { orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }] },
     },
   })
   if (!product) notFound()
@@ -124,10 +124,6 @@ export default async function ProductDetailPage({ params }: Props) {
           <div>
             <dt className="text-slate-500">Category</dt>
             <dd className="font-medium text-slate-900 mt-0.5">{product.category?.name ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Species</dt>
-            <dd className="mt-0.5"><Badge variant="info">{cap(product.species)}</Badge></dd>
           </div>
           <div>
             <dt className="text-slate-500">Supplier</dt>

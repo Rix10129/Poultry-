@@ -14,5 +14,5 @@ export async function GET(request: Request) {
   if (!secret) return NextResponse.json({ error: "Set an X-Backup-Passphrase header or BACKUP_ENCRYPTION_KEY." }, { status: 503 })
   const backup = encryptBackup(await dumpCompanyBackup(actor.companyId), secret)
   const date = new Date().toISOString().slice(0, 10)
-  return new NextResponse(JSON.stringify(backup), { headers: { "Content-Type": "application/vnd.poultry.backup+json", "Content-Disposition": `attachment; filename="company-backup-${date}.poultry-backup"`, "Cache-Control": "no-store" } })
+  return new NextResponse(JSON.stringify(backup), { headers: { "Content-Type": "application/vnd.godown-ledger.backup+json", "Content-Disposition": `attachment; filename="company-backup-${date}.godown-backup"`, "Cache-Control": "no-store" } })
 }

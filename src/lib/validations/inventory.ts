@@ -7,7 +7,6 @@ export const productSchema = z.object({
   genericName: z.string().optional(),
   categoryId: z.string().optional(),
   supplierId: z.string().optional(),
-  species: z.string().min(1, "Species is required"),
   unit: z.string().min(1, "Unit is required"),
   subUnit: z.string().optional(),
   unitsPerPack: z.coerce.number().int().positive().optional(),

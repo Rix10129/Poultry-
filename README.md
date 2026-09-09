@@ -1,6 +1,6 @@
-# Poultry & Vet Medicine Distribution System
+# Godown Ledger
 
-A full-stack web application for poultry and veterinary medicine distributors and retailers. Runs offline on a LAN server or online in the cloud — accessible from any desktop browser.
+A full-stack web application for textile traders — buy yarn and cloth from mills, warehouse it in the godown, sell on udhar, and track recovery. Runs offline on a LAN server or online in the cloud — accessible from any desktop browser.
 
 **Tech stack:** Next.js 16 · TypeScript · PostgreSQL · Prisma ORM · NextAuth.js · Tailwind CSS v4
 
@@ -110,7 +110,7 @@ src/
 
 ## Key design decisions
 
-- **FEFO enforced**: `SaleInvoiceItem.batchId` is non-nullable. Every sale line references a specific batch; the API always picks the one with the earliest `expiryDate` that has stock.
+- **FEFO enforced, expiry optional**: `SaleInvoiceItem.batchId` is non-nullable — every sale line references a specific lot. The API picks the earliest-`expiryDate` batch with stock; batches with no expiry (yarn/cloth doesn't expire) fall back to FIFO by received date.
 - **Money in `Decimal(12,2)`**: No floating-point arithmetic anywhere near money.
 - **Double-entry accounting**: Every financial event (sale, payment) auto-creates a balanced `JournalEntry` with `JournalLine` rows inside a database transaction.
 - **Multi-tenant**: Every record carries `companyId`. Isolating a new business means creating a `Company` + `OWNER` user — no schema changes.
@@ -123,14 +123,14 @@ src/
 | # | Module | Status |
 |---|---|---|
 | 1 | Project Setup, schema, seed, auth, layout | ✅ Done |
-| 2 | Inventory (products, batches, stock) | 🔜 Next |
-| 3 | Expiry & Low-Stock Alerts + FEFO logic | ⏳ |
-| 4 | Sales & Invoicing (PDF, WhatsApp link) | ⏳ |
-| 5 | Purchases & Suppliers | ⏳ |
-| 6 | Customers & Ledger | ⏳ |
-| 7 | Accounts (double-entry, day book, P&L) | ⏳ |
-| 8 | Reports & Dashboard | ⏳ |
-| 9 | Users, Roles & Audit Log | ⏳ |
+| 2 | Godown & Stock (products, lots, movements) | ✅ Done |
+| 3 | Low-Stock Alerts | ✅ Done |
+| 4 | Udhar Sales & Invoicing | ✅ Done |
+| 5 | Purchases & Mills | ✅ Done |
+| 6 | Buyers & Recovery | ✅ Done |
+| 7 | Accounts (double-entry, day book, P&L) | ✅ Done |
+| 8 | Reports & Dashboard | ✅ Done |
+| 9 | Users, Roles & Audit Log | ✅ Done |
 
 ---
 

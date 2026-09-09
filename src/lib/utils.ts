@@ -6,10 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
-  FARM: "Farm",
-  VET_SHOP: "Vet Shop",
-  SUB_DEALER: "Sub-Dealer",
-  RETAIL: "Retail",
+  RETAILER: "Retailer",
+  WHOLESALER: "Wholesaler",
+  GARMENT_UNIT: "Garment Unit",
+  EXPORT_HOUSE: "Export House",
 }
 
 /**
@@ -57,7 +57,9 @@ export function formatDate(date: Date | string | null | undefined): string {
   }).format(d)
 }
 
-export function daysUntilExpiry(expiryDate: Date | string): number {
+/** Null when the batch has no expiry (yarn/cloth) — there's nothing to count down. */
+export function daysUntilExpiry(expiryDate: Date | string | null | undefined): number | null {
+  if (!expiryDate) return null
   const expiry = typeof expiryDate === "string" ? new Date(expiryDate) : expiryDate
   const now = new Date()
   return Math.ceil((expiry.getTime() - now.getTime()) / 86400_000)
