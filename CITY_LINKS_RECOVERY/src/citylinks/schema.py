@@ -381,6 +381,6 @@ SETTING_KEYS = {s.key: s for s in SETTINGS}
 # Print-sheet columns (shared by Excel print sheet and the Python PDF)
 PRINT_COLUMNS = ["#", "Customer ID", "Customer Name", "Address", "VLAN ID", "Due Date", "Monthly Fee",
                  "Amount Paid", "Balance", "Status", "Collection Date", "Collector"]
-PRINT_COLUMNS_UR = ["نمبر", "کسٹمر آئی ڈی", "نام", "پتہ", "VLAN", "تاریخ", "ماہانہ فیس",
+PRINT_COLUMNS_UR = ["#", "کسٹمر آئی ڈی", "نام", "پتہ", "VLAN", "تاریخ", "ماہانہ فیس",
                     "وصول شدہ", "بقایا", "اسٹیٹس", "تاریخ وصولی", "ریکوری"]
 STATUS_UR = {"PAID": "ادا شدہ", "PARTIAL": "جزوی", "PENDING": "بقایا"}

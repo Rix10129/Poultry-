@@ -316,6 +316,7 @@ def add_customer(store: Store, fields: dict, confirm_duplicates=None, created: d
         from .util import parse_date
         row["Connection Date"] = parse_date(row["Connection Date"])
     store.t(S.CUSTOMERS).append(row)
+    snapshot_put(store, cid)
     log_event(store, d, cid, row.get("Connection Date") or today, "New Connection", "",
               f'{row["Location Code"]} / VLAN {row["VLAN ID"]}', event_note)
     return cid
@@ -384,7 +385,7 @@ def update_customer(store: Store, cid: str, changes: dict, event_date: dt.date |
     if upd:
         upd["Last Updated"] = dt.date.today()
         store.t(S.CUSTOMERS).update(c["_row"], upd)
-    refresh_snapshot(store)
+    snapshot_put(store, c["Customer ID"])
     return done
 
 
@@ -407,6 +408,21 @@ def _snapshot_sheet(store: Store):
         ws.sheet_state = "veryHidden"
         ws.append(["Customer ID"] + SNAP_FIELDS)
     return store.wb["_SNAPSHOT"]
+
+
+def snapshot_put(store: Store, cid: str):
+    """Record the current values of ONE customer (other customers' unsynced Excel edits stay detectable)."""
+    ws = _snapshot_sheet(store)
+    c = next((x for x in store.rows(S.CUSTOMERS) if x["Customer ID"].upper() == cid.upper()), None)
+    if c is None:
+        return
+    vals = [c["Customer ID"]] + [clean_text(c.get(f)) for f in SNAP_FIELDS]
+    for r in range(2, ws.max_row + 1):
+        if clean_text(ws.cell(r, 1).value).upper() == cid.upper():
+            for i, v in enumerate(vals, 1):
+                ws.cell(r, i).value = v
+            return
+    ws.append(vals)
 
 
 def refresh_snapshot(store: Store):

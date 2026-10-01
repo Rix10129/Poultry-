@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import tempfile
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -151,7 +152,9 @@ class Store:
             if check_lock and lock_file(self.path).exists():
                 raise WorkbookOpenError(
                     f"{self.path.name} is open in Excel. Please SAVE and CLOSE it in Excel, then try again.")
-            wb = load_workbook(self.path)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)    # formula print areas are re-added on save
+                wb = load_workbook(self.path)
         self.wb = wb
         self._tables: dict[str, TableIO] = {}
 

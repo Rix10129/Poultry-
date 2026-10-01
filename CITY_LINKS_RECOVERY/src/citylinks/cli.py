@@ -377,8 +377,11 @@ def filtered_bills(d, f):
 def act_print(app: App, f: dict | None = None, language=None):
     d = app.read()
     f = f or _ask_filters(app, d)
-    if f.get("location", "All") != "All" and "location_address" not in f:
-        f["location_address"] = svc.resolve_location(d, f["location"])["Full Address"]
+    if f.get("location", "All") != "All":
+        loc = svc.resolve_location(d, f["location"])
+        f.setdefault("location_address", loc["Full Address"])
+        if f.get("area", "All") == "All":
+            f["area"] = loc["Area"]          # display + consistent filter (location belongs to this area)
     bills = filtered_bills(d, f)
     print(f"\n  {pdfgen.list_title(f)} - {month_name(f['month'])}")
     print_bills(bills, 25)

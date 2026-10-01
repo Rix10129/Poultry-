@@ -10,7 +10,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.formatting.rule import CellIsRule, FormulaRule
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -125,7 +125,7 @@ def inp(cell, value=None, fmt=None):
         cell.value = value
     cell.fill = FILL_INPUT
     cell.border = BOX
-    cell.protection = cell.protection.copy(locked=False)
+    cell.protection = Protection(locked=False)
     if fmt:
         cell.number_format = fmt
 
@@ -250,6 +250,7 @@ def build_table_sheet(wb, tdef: S.TableDef):
     tbl.tableStyleInfo = TableStyleInfo(name="TableStyleLight1", showRowStripes=False)
     tbl._initialise_columns()
     for tc, col in zip(tbl.tableColumns, tdef.columns):
+        tc.name = col.name              # must equal the header text or Excel reports a damaged table
         if col.kind == S.CALC:
             tc.calculatedColumnFormula = TableFormula(attr_text=tdef.expand(col.formula)[1:])
     ws.add_table(tbl)
@@ -423,7 +424,7 @@ def build_dashboard(wb):
     kpis = [
         # (row, col, label, formula, fmt)
         ("CUSTOMERS", [
-            ("Total Customers", '=COUNTA(tblCustomers[Customer ID])-COUNTBLANK(tblCustomers[Customer ID])', "0"),
+            ("Total Customers", '=COUNTIF(tblCustomers[Customer ID],"?*")', "0"),
             ("Active Customers", '=COUNTIF(tblCustomers[Customer Status],"Active")', "0"),
             ("Suspended", '=COUNTIF(tblCustomers[Customer Status],"Suspended")', "0"),
             ("Disconnected Customers", '=COUNTIF(tblCustomers[Customer Status],"Disconnected")', "0"),
@@ -549,7 +550,7 @@ def build_dashboard(wb):
     widths(ws, {"A": 22, "B": 16, "C": 14, "D": 14, "E": 15, "F": 14, "G": 14, "H": 10, "I": 14, "J": 11, "K": 13, "L": 13, "M": 12, "N": 17})
     page_setup(ws)
     protect(ws)
-    ws["C2"].protection = ws["C2"].protection.copy(locked=False)
+    ws["C2"].protection = Protection(locked=False)
 
 
 # ------------------------------------------------------------- PRINT CENTER
@@ -634,7 +635,7 @@ def build_print_center(wb):
         ws.cell(r, 6).number_format = "@"
     name(wb, "PC_CustomIDs", "'PRINT_CENTER'!$F$4:$F$103")
     ws["G3"] = "Count"
-    ws["G4"] = '=COUNTA(PC_CustomIDs)-COUNTBLANK(PC_CustomIDs)'
+    ws["G4"] = '=COUNTIF(PC_CustomIDs,"?*")'
     name(wb, "PC_CustomCount", abs_ref("PRINT_CENTER", "G4"))
     widths(ws, {"A": 3, "B": 26, "C": 44, "D": 46, "E": 3, "F": 16, "G": 8})
     protect(ws)
@@ -1117,7 +1118,7 @@ def build_home(wb):
     ws["C6"] = '=CFG_CurrentMonth&"   ("&IFERROR(TEXT(DATE(LEFT(CFG_CurrentMonth,4),MID(CFG_CurrentMonth,6,2),1),"mmmm yyyy"),"not set")&")"'
     ws["C6"].font = F_B
     label(ws["B7"], "Customers (Active / Total):")
-    ws["C7"] = '=COUNTIF(tblCustomers[Customer Status],"Active")&" / "&(COUNTA(tblCustomers[Customer ID])-COUNTBLANK(tblCustomers[Customer ID]))'
+    ws["C7"] = '=COUNTIF(tblCustomers[Customer Status],"Active")&" / "&(COUNTIF(tblCustomers[Customer ID],"?*"))'
     label(ws["B8"], "Next Customer ID:")
     ws["C8"] = ('=CFG_CustomerIDPrefix&"-"&TEXT(IFERROR(AGGREGATE(14,6,--MID(tblCustomers[Customer ID],LEN(CFG_CustomerIDPrefix)+2,10)'
                 '/(LEFT(tblCustomers[Customer ID],LEN(CFG_CustomerIDPrefix)+1)=CFG_CustomerIDPrefix&"-"),1),0)+1,REPT("0",CFG_CustomerIDDigits))')
