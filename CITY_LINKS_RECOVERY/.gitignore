@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+# customer data produced while using the system stays local
+backups/*
+!backups/.gitkeep
+exports/**/*.pdf
+exports/**/*.xlsx
+imports/*.xlsx
+imports/handwritten/*
+!imports/handwritten/.gitkeep
+~$*.xlsx
