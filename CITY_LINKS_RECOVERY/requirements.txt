@@ -1,0 +1,4 @@
+openpyxl>=3.1.2
+fpdf2>=2.7.8
+uharfbuzz>=0.39      # correct Urdu shaping / right-to-left text in PDFs
+pytest>=7            # only needed to run the tests
