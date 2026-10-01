@@ -355,7 +355,31 @@ def upgrade_workbook(store) -> list[str]:
         home_batch_status(wb)
         link(wb["HOME"].cell(13 + len(NAV) - 1, 2), "IMPORT_BATCHES", "► Import Batches (Page Review)")
         done.append("added IMPORT_BATCHES (page review) sheet")
+    if "CFG_SharedVLANs" not in wb.defined_names:
+        ws = wb["SETTINGS"]
+        st = S.SETTING_KEYS["SharedVLANs"]
+        r = 5 + [s.key for s in S.SETTINGS].index("SharedVLANs")
+        while ws.cell(r, 1).value not in (None, ""):          # never overwrite an existing settings row
+            r += 1
+        label(ws.cell(r, 1), st.label)
+        inp(ws.cell(r, 2), st.default)
+        ws.cell(r, 2).number_format = "@"
+        ws.cell(r, 3, st.note).font = Font(size=9, color="595959")
+        name(wb, "CFG_SharedVLANs", abs_ref("SETTINGS", f"B{r}"))
+        refresh_calc_column(store, S.CUSTOMERS, "Data Check")
+        done.append("added SETTINGS > Shared VLANs and updated CUSTOMERS Data Check formula")
     return done
+
+
+def refresh_calc_column(store, tdef, colname):
+    """Re-write one calculated column (table definition + every row) from schema.py."""
+    t = store.t(tdef)
+    for tc in t.table.tableColumns:
+        if tc.name == colname:
+            tc.calculatedColumnFormula = TableFormula(attr_text=tdef.expand(tdef.col(colname).formula)[1:])
+    col = tdef.col(colname)
+    for r in range(t.header_row + 1, t.last_row + 1):
+        t._write_cell(r, col, None)
 
 
 # -------------------------------------------------------------------- LISTS

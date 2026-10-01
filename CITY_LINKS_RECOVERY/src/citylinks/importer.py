@@ -99,7 +99,7 @@ def prepare_customer(r: dict) -> dict:
         if k in c:
             c[k] = clean_text(c[k])
     if c.get("Location Code"):
-        c["Location Code"] = c["Location Code"].upper().replace(" ", "")
+        c["Location Code"] = svc.normalize_location_code(c["Location Code"])
     if "Monthly Fee" in c and c.get("Fee Override") in (None, ""):
         c["Fee Override"] = c.pop("Monthly Fee")
     else:
@@ -253,7 +253,7 @@ def _field_problem(fieldname: str, value: str, conf, threshold: float, known_loc
     if conf not in (None, "") and to_number(conf) is not None and to_number(conf) < threshold:
         return f"low OCR confidence ({to_number(conf)}%)"
     if fieldname == "Location Code":
-        code = v.upper().replace(" ", "")
+        code = svc.normalize_location_code(v)      # A04 / A010 match A4 / A10; the written form stays in staging
         if not svc.LOC_RE.match(code):
             return "not a valid location code format"
         if code not in known_locs:
@@ -521,10 +521,13 @@ def commit_batch(store: Store, batch_id: str, confirm_duplicate=None, default_st
             res["waiting_verification"] += 1
             continue
         d = svc.load(store)
-        c = {"Customer Name": r["Customer Name"], "Location Code": r["Location Code"].upper(), "VLAN ID": r["VLAN ID"],
+        c = {"Customer Name": r["Customer Name"], "Location Code": svc.normalize_location_code(r["Location Code"]), "VLAN ID": r["VLAN ID"],
              "Due Date": to_number(r["Due Date"]), "Fee Override": to_number(r["Monthly Fee"]),
              "Mobile Number": r["Mobile Number"], "Customer Status": default_status,
-             "Notes": f"Imported from handwritten sheet {batch_id} row {r['Row No']}" + (f"; other: {r['Other Fields']}" if clean_text(r.get('Other Fields')) else "")}
+             # Unresolved source marks (e.g. 'C-on') are NOT copied into the customer: they stay only in
+             # IMPORT_STAGING > Other Fields, exactly as written, until their meaning is confirmed.
+             "Notes": f"Imported from handwritten sheet {batch_id} row {r['Row No']}"
+                      + (" (unresolved source marks kept in IMPORT_STAGING)" if clean_text(r.get("Other Fields")) else "")}
         errs = svc.validate_customer(d, c)
         if errs:
             res["errors"].append(f"Row {r['Row No']}: " + "; ".join(errs))

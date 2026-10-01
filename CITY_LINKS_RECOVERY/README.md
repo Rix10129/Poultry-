@@ -194,6 +194,9 @@ Company Name, Short Name, Tagline, phone/address (printed on statements), Custom
 * Customers are never merged automatically. Possible duplicates are only *shown*.
 * Handwritten or OCR data is never guessed. Unclear values go to the Verification Queue, and no page is imported until a person confirms **PAGE REVIEWED**.
 * The production workbook is excluded from Git, so real customer data never goes to the public repository.
+* **Shared VLANs:** SETTINGS > *Shared VLANs* (default `405,207`) lists VLANs that many customers share by design. A shared VLAN is never a duplicate warning. Duplicates are detected only from identity signals: same Customer ID, same mobile, same name + location code, or same name + address. A VLAN that is *not* listed as shared but is used by several active customers is reported by *Check data* as information only.
+* **Location code forms:** `A04` = `A4`, `A010` = `A10`, and so on. Handwritten codes stay exactly as written in IMPORT_STAGING; customers are saved with the standard form (A4). Every code must still exist in LOCATION_CODES.
+* **Unresolved source marks** (e.g. "C-on" in the mobile column) stay only in IMPORT_STAGING > Other Fields. They are never treated as a mobile number and never copied into customer Notes.
 * Major operations make a backup first. Saving never happens while Excel has the file open.
 
 ## Command line (advanced)

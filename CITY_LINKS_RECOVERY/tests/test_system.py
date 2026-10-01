@@ -558,6 +558,95 @@ def test_import_existing_excel_preview(wb, tmp_path):
     assert ids == ["CL-0002"]
 
 
+# ------------------------------------------- shared VLANs / location normalization / source marks
+def test_shared_vlan_is_not_a_duplicate(wb):
+    a = add(wb, **{"Customer Name": "Jawad", "Location Code": "A2", "VLAN ID": "405"})
+    b = add(wb, **{"Customer Name": "Khalid", "Location Code": "A3", "VLAN ID": "405"})   # no confirmation needed
+    c = add(wb, **{"Customer Name": "Riaz", "Location Code": "A1", "VLAN ID": "207"})
+    d_ = add(wb, **{"Customer Name": "Aslam", "Location Code": "A2", "VLAN ID": "207"})
+    d = data(wb)
+    assert [x["VLAN ID"] for x in d.customers] == ["405", "405", "207", "207"]
+    assert svc.find_possible_duplicates(d, {"Customer Name": "New", "Location Code": "B1", "VLAN ID": "405"}) == []
+    assert svc.check_data(d) == []                                     # shared VLANs are not reported at all
+    # stronger identity signals still work
+    with pytest.raises(UserError, match="same Name \\+ Location Code"):
+        add(wb, **{"Customer Name": "jawad", "Location Code": "A02", "VLAN ID": "999"})
+
+
+def test_non_shared_vlan_reuse_is_info_only(wb):
+    add(wb, **{"Customer Name": "P", "VLAN ID": "777"})
+    add(wb, **{"Customer Name": "Q", "Location Code": "A2", "VLAN ID": "777"})          # still saved without a prompt
+    issues = svc.check_data(data(wb))
+    assert len(issues) == 1 and issues[0].startswith("Info: VLAN 777") and "Not a duplicate" in issues[0]
+
+
+def test_location_code_equivalent_forms(wb):
+    st = S_(wb)
+    for n in range(4, 11):
+        svc.add_location(st, f"A{n}", "")
+    st.save()
+    assert svc.normalize_location_code("A04") == "A4" and svc.normalize_location_code("a010") == "A10"
+    cid = add(wb, **{"Location Code": "A04", "VLAN ID": "405"})
+    c = data(wb).customer(cid)
+    assert c["Location Code"] == "A4" and c["Area"] == "Arif Town"
+    assert [b for b in svc.select_bills(data(wb), M1, location="A04")] == []      # no month yet, but no error
+
+
+def test_handwritten_codes_kept_as_written_and_marks_not_in_notes(wb, tmp_path):
+    st = S_(wb)
+    svc.add_location(st, "A4", "")
+    svc.add_location(st, "A10", "")
+    st.save()
+    txt = tmp_path / "p.txt"
+    txt.write_text("1 | Ali | A04 | 405 | 10 | 1500\n2 | Bilal | A010 | 405 | 10 | 1300", encoding="utf-8")
+    st = S_(wb)
+    imp.load_transcription(st, txt, "HW-N")
+    assert imp.open_items(st, "HW-N") == []                             # A04 / A010 accepted, 405 twice accepted
+    rows = imp.staged_rows(st, "HW-N")
+    assert [r["Location Code"] for r in rows] == ["A04", "A010"]        # original handwriting preserved
+    srow = rows[0]
+    st.t(S.STAGING).update(srow["_row"], {"Other Fields": "Mobile column: C-on"})
+    imp.confirm_page_reviewed(st, "HW-N", "Office", "PAGE REVIEWED")
+    r = imp.commit_batch(st, "HW-N")
+    st.save()
+    assert len(r["imported"]) == 2 and r["possible_duplicates"] == []   # shared VLAN 405: no duplicate prompt
+    d = data(wb)
+    assert [c["Location Code"] for c in d.customers] == ["A4", "A10"]
+    assert all("C-on" not in (c.get("Notes") or "") for c in d.customers)
+    assert "unresolved source marks kept in IMPORT_STAGING" in d.customers[0]["Notes"]
+    assert imp.staged_rows(S_(wb), "HW-N")[0]["Other Fields"] == "Mobile column: C-on"
+
+
+def test_old_workbook_gets_shared_vlan_setting(wb):
+    add(wb)
+    st = S_(wb)
+    del st.wb.defined_names["CFG_SharedVLANs"]
+    row = 5 + [x.key for x in S.SETTINGS].index("SharedVLANs")
+    for c in range(1, 4):
+        st.wb["SETTINGS"].cell(row, c).value = None
+    st.save()
+    st = S_(wb)
+    assert any("Shared VLANs" in u for u in st.upgraded)
+    st.save()
+    assert svc.shared_vlans(S_(wb).settings()) == {"405", "207"}
+    assert [c["Customer ID"] for c in data(wb).customers] == ["CL-0001"]
+
+
+@pytest.mark.skipif(shutil.which("soffice") is None, reason="LibreOffice not installed")
+def test_excel_data_check_ignores_shared_vlans(wb):
+    sys.path.insert(0, str(ROOT / "tools"))
+    import verify_workbook as vw
+    from openpyxl import load_workbook
+    for name, loc, vlan in (("A", "A1", "405"), ("B", "A2", "405"), ("C", "A3", "777"), ("D", "B1", "777")):
+        add(wb, **{"Customer Name": name, "Location Code": loc, "VLAN ID": vlan})
+    calc = vw.recalc(wb)
+    ws = load_workbook(calc, data_only=True)["CUSTOMERS"]
+    col = S.CUSTOMERS.names.index("Data Check") + 1
+    checks = [ws.cell(r, col).value for r in range(5, 9)]
+    assert checks[0] in (None, "") and checks[1] in (None, "")
+    assert checks[2].startswith("NOTE: VLAN") and checks[3].startswith("NOTE: VLAN")
+
+
 # ---------------------------------------------------------------- utilities
 def test_months_and_filenames():
     assert parse_month("November 2026") == "2026-11" and parse_month("11/2026") == "2026-11" and parse_month("Nov-2026") == "2026-11"

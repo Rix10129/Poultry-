@@ -21,6 +21,20 @@ from .util import (UserError, clean_text, digits, due_date_of, month_name, norm_
 LOC_RE = re.compile(r"^([A-Za-z]+)\s*-?\s*(\d+)$")
 
 
+def normalize_location_code(code) -> str:
+    """Equivalent written forms match the same street: A04 -> A4, A010 -> A10, 'a 1' -> A1.
+    Anything that is not letters+number is returned unchanged (upper-case) so validation can reject it.
+    The ORIGINAL handwritten form is kept in IMPORT_STAGING; customers store the normalized code."""
+    s = clean_text(code).upper().replace(" ", "")
+    m = LOC_RE.match(s)
+    return f"{m.group(1)}{int(m.group(2))}" if m else s
+
+
+def shared_vlans(settings: dict) -> set[str]:
+    """VLANs used by many customers by design (SETTINGS > Shared VLANs, e.g. 405,207)."""
+    return {clean_text(v) for v in str(settings.get("SharedVLANs") or "").replace(";", ",").split(",") if clean_text(v)}
+
+
 # =========================================================== data snapshot
 @dataclass
 class Data:
@@ -91,7 +105,7 @@ def location_map(d: Data) -> dict:
     areas = {clean_text(a["Area Code"]).upper(): a for a in d.areas}
     out = {}
     for l in d.locations:
-        code = clean_text(l["Location Code"]).upper()
+        code = normalize_location_code(l["Location Code"])
         a = areas.get(clean_text(l["Area Code"]).upper())
         area_name = clean_text(a["Area Name"]) if a else ""
         street = clean_text(l["Street Name"])
@@ -105,7 +119,7 @@ def location_map(d: Data) -> dict:
 
 
 def derive_customer(c: dict, loc_map: dict, pkg_fee: dict):
-    loc = loc_map.get(c["Location Code"].upper(), {})
+    loc = loc_map.get(normalize_location_code(c["Location Code"]), {})
     c["Area"] = loc.get("Area", "")
     c["Street"] = loc.get("Street", "")
     base = loc.get("Full Address", "")
@@ -190,7 +204,7 @@ def parse_location_code(code) -> tuple[str, int]:
 
 
 def resolve_location(d: Data, code) -> dict:
-    code = clean_text(code).upper().replace(" ", "")
+    code = normalize_location_code(code)
     loc = location_map(d).get(code)
     if not loc:
         raise UserError(f"Location Code {code} does not exist. Add it in LOCATION_CODES first (menu: Add location code).")
@@ -258,12 +272,14 @@ def validate_customer(d: Data, c: dict) -> list[str]:
 
 
 def find_possible_duplicates(d: Data, c: dict, exclude_id: str | None = None) -> list[tuple[str, str]]:
-    """Returns [(customer_id, reason)]. Never merges anything."""
+    """Returns [(customer_id, reason)]. Never merges anything.
+
+    Identity signals only: same Customer ID, same mobile, same name + location, same name + address.
+    A VLAN on its own is NOT a duplicate signal (VLANs such as 405 / 207 are shared by many customers)."""
     out = []
     name = norm_key(c.get("Customer Name"))
-    loc = clean_text(c.get("Location Code")).upper()
+    loc = normalize_location_code(c.get("Location Code"))
     mob = digits(c.get("Mobile Number"))
-    vlan = clean_text(c.get("VLAN ID"))
     detail = norm_key(c.get("Address Detail"))
     for o in d.customers:
         if exclude_id and o["Customer ID"].upper() == exclude_id.upper():
@@ -273,12 +289,10 @@ def find_possible_duplicates(d: Data, c: dict, exclude_id: str | None = None) ->
             reasons.append("same Customer ID")
         if mob and len(mob) >= 7 and digits(o.get("Mobile Number")) == mob:
             reasons.append("same Mobile Number")
-        if name and norm_key(o["Customer Name"]) == name and o["Location Code"].upper() == loc:
+        if name and norm_key(o["Customer Name"]) == name and normalize_location_code(o["Location Code"]) == loc:
             reasons.append("same Name + Location Code")
             if detail and norm_key(o.get("Address Detail")) == detail:
                 reasons.append("same Name + Address")
-        if vlan and o["VLAN ID"] == vlan and o["Customer Status"] == "Active":
-            reasons.append(f"VLAN {vlan} already used by an Active customer")
         if reasons:
             out.append((o["Customer ID"], "; ".join(reasons)))
     return out
@@ -291,7 +305,7 @@ def add_customer(store: Store, fields: dict, confirm_duplicates=None, created: d
     d = load(store)
     c = {k: (clean_text(v) if isinstance(v, str) else v) for k, v in fields.items()}
     c.setdefault("Customer Status", "Active")
-    c["Location Code"] = clean_text(c.get("Location Code")).upper().replace(" ", "")
+    c["Location Code"] = normalize_location_code(c.get("Location Code"))
     if c.get("Customer ID"):
         cid = clean_text(c["Customer ID"]).upper()
         if cid in d.by_id:
@@ -354,7 +368,7 @@ def update_customer(store: Store, cid: str, changes: dict, event_date: dt.date |
     for k, v in changes.items():
         new[k] = clean_text(v) if isinstance(v, str) else v
     if "Location Code" in changes:
-        new["Location Code"] = clean_text(new["Location Code"]).upper().replace(" ", "")
+        new["Location Code"] = normalize_location_code(new["Location Code"])
     if "Due Date" in changes:
         new["Due Date"] = to_number(new["Due Date"])
     if "Fee Override" in changes:
@@ -716,7 +730,7 @@ def select_bills(d: Data, month, area="All", location="All", collector="All", st
             continue
         if area != "All" and norm_key(b["Area"]) != norm_key(area):
             continue
-        if location != "All" and b["Location Code"].upper() != clean_text(location).upper():
+        if location != "All" and normalize_location_code(b["Location Code"]) != normalize_location_code(location):
             continue
         if collector != "All" and collector not in (b["Collector ID"], b["Collector Name"]):
             continue
@@ -892,6 +906,17 @@ def check_data(d: Data) -> list[str]:
             if pair not in reported:
                 reported.add(pair)
                 issues.append(f"Possible duplicate: {pair[0]} and {pair[1]} ({why}) - please check, nothing was merged.")
+    # Information only (never a duplicate warning): a VLAN that is NOT listed as shared but is used by
+    # several Active customers. Shared VLANs (SETTINGS > Shared VLANs) are never reported.
+    shared = shared_vlans(d.settings)
+    by_vlan: dict[str, list[str]] = {}
+    for c in d.customers:
+        if c["VLAN ID"] and c["Customer Status"] == "Active" and c["VLAN ID"] not in shared:
+            by_vlan.setdefault(c["VLAN ID"], []).append(c["Customer ID"])
+    for v, ids in by_vlan.items():
+        if len(ids) > 1:
+            issues.append(f"Info: VLAN {v} is used by {len(ids)} Active customers ({', '.join(ids)}). "
+                          "If this VLAN is shared by design, add it to SETTINGS > Shared VLANs. (Not a duplicate warning.)")
     bill_ids = {b["Billing ID"] for b in d.billing}
     seen_b = set()
     for b in d.billing:

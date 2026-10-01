@@ -174,7 +174,10 @@ CUSTOMERS = TableDef("CUSTOMERS", "tblCustomers", [
         '&IF([@Customer Status]="","STATUS MISSING. ","")'
         '&IF(AND([@Mobile Number]<>"",COUNTIF(tblCustomers[Mobile Number],[@Mobile Number])>1),"POSSIBLE DUPLICATE: SAME MOBILE. ","")'
         '&IF(AND([@Customer Name]<>"",COUNTIFS(tblCustomers[Customer Name],[@Customer Name],tblCustomers[Location Code],[@Location Code])>1),"POSSIBLE DUPLICATE: SAME NAME + LOCATION. ","")'
-        '&IF(AND([@VLAN ID]<>"",[@Customer Status]="Active",COUNTIFS(tblCustomers[VLAN ID],[@VLAN ID],tblCustomers[Customer Status],"Active")>1),"VLAN USED BY ANOTHER ACTIVE CUSTOMER. ",""))',
+        '&IF(AND([@VLAN ID]<>"",[@Customer Status]="Active",'
+        'NOT(ISNUMBER(SEARCH(","&[@VLAN ID]&",",","&SUBSTITUTE(CFG_SharedVLANs," ","")&","))),'
+        'COUNTIFS(tblCustomers[VLAN ID],[@VLAN ID],tblCustomers[Customer Status],"Active")>1),'
+        '"NOTE: VLAN ALSO USED BY ANOTHER ACTIVE CUSTOMER (add to SETTINGS > Shared VLANs if shared by design). ",""))',
         width=40),
     Col("Search Match", CALC,
         'IF(CH_SearchText="",0,IF(ISNUMBER(SEARCH(CH_SearchText,CHOOSE(MATCH(CH_SearchType,L_SearchTypes,0),'
@@ -396,6 +399,8 @@ SETTINGS: list[Setting] = [
     Setting("PaperSize", "Default Paper Size", "A4"),
     Setting("PrintOrientation", "Recovery List Orientation", "Landscape", dv="orientation"),
     Setting("WorkbookType", "Workbook Type", "REAL DATA", "DEMO workbooks contain sample data only"),
+    Setting("SharedVLANs", "Shared VLANs (comma separated)", "405,207",
+            "VLANs used by many customers by design. A shared VLAN is never a duplicate warning."),
 ]
 SETTING_KEYS = {s.key: s for s in SETTINGS}
 
