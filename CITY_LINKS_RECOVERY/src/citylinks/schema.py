@@ -120,7 +120,9 @@ LOCATIONS = TableDef("LOCATION_CODES", "tblLocations", [
     Col("Notes", width=26),
     Col("Data Check", CALC,
         'TRIM(IF(COUNTIF(tblLocations[Location Code],[@Location Code])>1,"DUPLICATE CODE. ","")'
-        '&IF([@Location Code]<>[@Area Code]&[@Street Number],"CODE SHOULD BE "&[@Area Code]&[@Street Number]&". ",""))',
+        '&IF(OR(LEFT([@Location Code],LEN([@Area Code]))<>[@Area Code],'
+        'IFERROR(VALUE(MID([@Location Code],LEN([@Area Code])+1,10)),-1)<>N([@Street Number])),'
+        '"CODE SHOULD BE "&[@Area Code]&[@Street Number]&" (or zero-padded e.g. "&[@Area Code]&"0"&[@Street Number]&"). ",""))',
         width=30),
 ], "LOCATION CODES", "A1 = Arif Town, Gali 1. Area Name and Full Address are calculated from AREAS.", key="Location Code")
 

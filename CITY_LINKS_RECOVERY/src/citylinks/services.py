@@ -102,10 +102,14 @@ def parse_month_safe(v) -> str:
 
 
 def location_map(d: Data) -> dict:
+    """Location Code -> derived address. Every row is reachable by its EXACT code (A4, A04, A010 ...).
+    An equivalent form (A04 -> A4) is only used as a fallback when no row has that exact code,
+    so a plain code never picks up the details of its zero-padded twin."""
     areas = {clean_text(a["Area Code"]).upper(): a for a in d.areas}
     out = {}
+    exact = {clean_text(l["Location Code"]).upper().replace(" ", "") for l in d.locations}
     for l in d.locations:
-        code = normalize_location_code(l["Location Code"])
+        code = clean_text(l["Location Code"]).upper().replace(" ", "")
         a = areas.get(clean_text(l["Area Code"]).upper())
         area_name = clean_text(a["Area Name"]) if a else ""
         street = clean_text(l["Street Name"])
@@ -115,11 +119,22 @@ def location_map(d: Data) -> dict:
             "Street": street, "Full Address": f"{area_name}, {street}" if street else area_name,
             "Active": clean_text(l.get("Active")) or "Yes", "exists_area": bool(a),
         }
+    for l in d.locations:                                   # fallbacks for equivalent forms
+        code = clean_text(l["Location Code"]).upper().replace(" ", "")
+        norm = normalize_location_code(code)
+        if norm not in exact and norm not in out:
+            out[norm] = out[code]
     return out
 
 
+def lookup_location(loc_map: dict, code) -> dict:
+    """Exact code first (A04 row for 'A04'), then the equivalent standard form (A4)."""
+    raw = clean_text(code).upper().replace(" ", "")
+    return loc_map.get(raw) or loc_map.get(normalize_location_code(raw)) or {}
+
+
 def derive_customer(c: dict, loc_map: dict, pkg_fee: dict):
-    loc = loc_map.get(normalize_location_code(c["Location Code"]), {})
+    loc = lookup_location(loc_map, c["Location Code"])
     c["Area"] = loc.get("Area", "")
     c["Street"] = loc.get("Street", "")
     base = loc.get("Full Address", "")
@@ -204,8 +219,8 @@ def parse_location_code(code) -> tuple[str, int]:
 
 
 def resolve_location(d: Data, code) -> dict:
+    loc = lookup_location(location_map(d), code) or None
     code = normalize_location_code(code)
-    loc = location_map(d).get(code)
     if not loc:
         raise UserError(f"Location Code {code} does not exist. Add it in LOCATION_CODES first (menu: Add location code).")
     return loc

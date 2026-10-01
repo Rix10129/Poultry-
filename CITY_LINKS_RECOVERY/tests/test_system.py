@@ -592,6 +592,41 @@ def test_location_code_equivalent_forms(wb):
     assert [b for b in svc.select_bills(data(wb), M1, location="A04")] == []      # no month yet, but no error
 
 
+def _add_street_rows(p, rows):
+    st = S_(p)
+    for code, num, name in rows:
+        st.t(S.LOCATIONS).append({"Location Code": code, "Area Code": "A", "Street Number": num,
+                                  "Street Name": name, "Active": "Yes"})
+    st.save()
+
+
+def test_plain_and_zero_padded_location_rows(wb):
+    _add_street_rows(wb, [("A4", 4, "Street Number 4"), ("A04", 4, "Street Number 04"),
+                          ("A10", 10, "Street Number 10"), ("A010", 10, "Street Number 10")])
+    d = data(wb)
+    m = svc.location_map(d)
+    assert m["A4"]["Street"] == "Street Number 4" and m["A04"]["Street"] == "Street Number 04"   # exact wins
+    assert m["A010"]["Full Address"] == "Arif Town, Street Number 10"
+    cid = add(wb, **{"Location Code": "A04", "VLAN ID": "405"})
+    c = data(wb).customer(cid)
+    assert (c["Location Code"], c["Street"], c["Full Address"]) == ("A4", "Street Number 4", "Arif Town, Street Number 4")
+    assert svc.check_data(data(wb)) == []
+
+
+@pytest.mark.skipif(shutil.which("soffice") is None, reason="LibreOffice not installed")
+def test_excel_location_check_accepts_zero_padded(wb):
+    sys.path.insert(0, str(ROOT / "tools"))
+    import verify_workbook as vw
+    from openpyxl import load_workbook
+    _add_street_rows(wb, [("A4", 4, "Street Number 4"), ("A04", 4, "Street Number 04"), ("A010", 10, "Street Number 10"),
+                          ("A11", 12, "wrong number")])
+    ws = load_workbook(vw.recalc(wb), data_only=True)["LOCATION_CODES"]
+    col = S.LOCATIONS.names.index("Data Check") + 1
+    checks = {ws.cell(r, 1).value: ws.cell(r, col).value for r in range(5, ws.max_row + 1) if ws.cell(r, 1).value}
+    assert all(checks[k] in (None, "") for k in ("A1", "A4", "A04", "A010"))
+    assert checks["A11"].startswith("CODE SHOULD BE A12")
+
+
 def test_handwritten_codes_kept_as_written_and_marks_not_in_notes(wb, tmp_path):
     st = S_(wb)
     svc.add_location(st, "A4", "")

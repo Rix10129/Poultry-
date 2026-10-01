@@ -371,6 +371,23 @@ def upgrade_workbook(store) -> list[str]:
     return done
 
 
+def sync_calc_formulas(store) -> list[str]:
+    """If a calculated column's formula differs from schema.py (older workbook), rewrite that column.
+    Only system formulas are rewritten - input and system-value columns are never touched."""
+    done = []
+    for tdef in S.ALL_TABLES:
+        if tdef.sheet not in store.wb.sheetnames or tdef.name not in store.wb[tdef.sheet].tables:
+            continue
+        tbl = store.wb[tdef.sheet].tables[tdef.name]
+        current = {tc.name: (tc.calculatedColumnFormula.attr_text if tc.calculatedColumnFormula is not None else None)
+                   for tc in tbl.tableColumns}
+        for col in tdef.columns:
+            if col.kind == S.CALC and col.name in current and current[col.name] != tdef.expand(col.formula)[1:]:
+                refresh_calc_column(store, tdef, col.name)
+                done.append(f"updated formula {tdef.sheet}[{col.name}]")
+    return done
+
+
 def refresh_calc_column(store, tdef, colname):
     """Re-write one calculated column (table definition + every row) from schema.py."""
     t = store.t(tdef)

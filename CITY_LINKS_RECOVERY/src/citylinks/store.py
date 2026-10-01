@@ -161,6 +161,9 @@ class Store:
         if "HOME" in wb.sheetnames and ("IMPORT_BATCHES" not in wb.sheetnames or "CFG_SharedVLANs" not in wb.defined_names):
             from .builder import upgrade_workbook          # older workbook: add new sheets, keep all data
             self.upgraded = upgrade_workbook(self)
+        if "HOME" in wb.sheetnames:
+            from .builder import sync_calc_formulas         # formulas changed in a newer version
+            self.upgraded += sync_calc_formulas(self)
 
     def t(self, tdef: S.TableDef) -> TableIO:
         if tdef.name not in self._tables:
