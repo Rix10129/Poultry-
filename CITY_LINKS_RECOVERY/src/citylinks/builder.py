@@ -888,7 +888,7 @@ def build_customer_history(wb):
         ("Total Billing", f'=IF({cid}="","",SUMIFS(tblBilling[Monthly Fee],tblBilling[Customer ID],{cid}))', S.FMT_MONEY),
         ("Total Paid", f'=IF({cid}="","",SUMIFS(tblBilling[Amount Paid],tblBilling[Customer ID],{cid}))', S.FMT_MONEY),
         ("Total Outstanding", f'=IF({cid}="","",SUMIFS(tblBilling[Balance],tblBilling[Customer ID],{cid}))', S.FMT_MONEY),
-        ("Last Payment Date", f'=IF({cid}="","",IF(COUNTIFS(tblPayments[Customer ID],{cid},tblPayments[Voided],"<>Yes")=0,"No payments",_xlfn.MAXIFS(tblPayments[Payment Date],tblPayments[Customer ID],{cid},tblPayments[Voided],"<>Yes")))', S.FMT_DATE),
+        ("Last Payment Date", f'=IF({cid}="","",IF(COUNTIFS(tblPayments[Customer ID],{cid},tblPayments[Voided],"<>Yes")=0,"No payments",IFERROR(_xlfn.MAXIFS(tblPayments[Payment Date],tblPayments[Customer ID],{cid},tblPayments[Voided],"<>Yes"),"")))', S.FMT_DATE),
         ("Last Payment Amount", f'=IF(OR({cid}="",NOT(ISNUMBER(H25))),"",SUMIFS(tblPayments[Amount],tblPayments[Customer ID],{cid},tblPayments[Payment Date],H25,tblPayments[Voided],"<>Yes"))', S.FMT_MONEY),
         ("Months Billed", f'=IF({cid}="","",COUNTIF(tblBilling[Customer ID],{cid}))', "0"),
     ]
