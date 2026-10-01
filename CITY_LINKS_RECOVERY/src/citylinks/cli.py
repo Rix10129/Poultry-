@@ -622,7 +622,8 @@ def act_handwritten(app: App):
     opt = choose("Handwritten import", [
         "Create a blank transcription template", "Load a transcription / OCR file into staging",
         "Run OCR on a scanned image (needs Tesseract)", "Answer verification questions",
-        "Apply answers typed in the VERIFICATION_QUEUE sheet", "Commit verified rows as customers", "Reject a staged row"])
+        "Apply answers typed in the VERIFICATION_QUEUE sheet", "Show batches / page review status",
+        "Confirm PAGE REVIEWED (after checking the original page)", "Commit reviewed page as customers", "Reject a staged row"])
     if opt.startswith("Create"):
         p = imp.create_transcription_template(app.imports / "handwritten" / f"transcription_{dt.datetime.now():%Y%m%d_%H%M%S}.xlsx")
         print(f"  Template saved: {p}\n  Type each row exactly as written. Type ? for anything unclear. Then use 'Load'.")
@@ -633,6 +634,7 @@ def act_handwritten(app: App):
         print(f"  Batch {batch}: {n} rows staged, {k} field(s) need verification.")
         if k:
             _verify_loop(app, batch)
+        print(PAGE_REVIEW_BANNER.format(batch=batch))
     elif opt.startswith("Run OCR"):
         img = Path(ask("Image path").strip('"'))
         out = imp.ocr_image(img, to_number(app.settings().get("OCRConfidenceThreshold")) or 90)
@@ -642,8 +644,16 @@ def act_handwritten(app: App):
     elif opt.startswith("Apply"):
         msgs = app.write(imp.apply_sheet_answers)
         print("  " + ("\n  ".join(msgs) if msgs else "No answers found in the sheet."))
+    elif opt.startswith("Show batches"):
+        show_batches(app)
+    elif opt.startswith("Confirm PAGE"):
+        act_page_review(app)
     elif opt.startswith("Commit"):
         batch = ask("Batch ID")
+        b = imp.get_batch(Store(app.workbook, check_lock=False), batch)
+        if not imp.is_reviewed(b):
+            print(PAGE_REVIEW_BANNER.format(batch=batch))
+            raise UserError(f"PAGE NOT REVIEWED: batch {batch} cannot be imported yet. Nothing was imported.")
 
         def confirm(row, dups):
             print(f"  Row {row['Row No']} {row['Customer Name']} {row['Location Code']} VLAN {row['VLAN ID']} looks like:")
@@ -651,6 +661,9 @@ def act_handwritten(app: App):
                 print(f"    - {i}: {why}")
             return yes("  Create as a NEW customer anyway?")
         r = app.write(lambda s: imp.commit_batch(s, batch, confirm), reason=f"before_commit_{batch}")
+        if r.get("review_cancelled"):
+            print("  >> " + r["review_cancelled"])
+            return
         print(f"  Imported: {len(r['imported'])}  " + ", ".join(f"row {a}->{b}" for a, b in r["imported"]))
         print(f"  Still waiting for verification: {r['waiting_verification']}   Possible duplicates (not imported): {len(r['possible_duplicates'])}")
         for e in r["errors"]:
@@ -661,6 +674,52 @@ def act_handwritten(app: App):
         reason = ask("Reason")
         app.write(lambda s: imp.reject_row(s, batch, row, reason))
         print("  Row rejected (kept in IMPORT_STAGING for the record).")
+
+
+PAGE_REVIEW_BANNER = """
+  ##################################################################
+  #  PAGE REVIEW REQUIRED - batch {batch}
+  #  Nothing from this page will become a customer until you:
+  #   1. answer all verification questions,
+  #   2. compare EVERY row with the original handwritten page/image,
+  #   3. Menu 15 > 'Confirm PAGE REVIEWED' and type: PAGE REVIEWED
+  ##################################################################"""
+
+
+def show_batches(app: App):
+    rows = imp.batches(Store(app.workbook, check_lock=False))
+    if not rows:
+        print("  No handwritten batches yet.")
+        return
+    print(f"\n   {'Batch':<20} {'Rows':>4} {'Open Q':>6}  {'Page Reviewed':<14} Source")
+    for b in rows:
+        rev = f"YES ({b['Reviewed By']})" if b["Reviewed"] else "NO"
+        print(f"   {b['Batch ID']:<20} {int(to_number(b['Rows']) or 0):>4} {b['Open Questions']:>6}  {rev:<14} {clean_text(b['Source File'])}")
+
+
+def act_page_review(app: App, batch: str | None = None):
+    st = Store(app.workbook, check_lock=False)
+    batch = batch or ask("Batch ID")
+    b = imp.get_batch(st, batch)
+    if imp.is_reviewed(b):
+        print(f"  Batch {batch} was already reviewed by {b['Reviewed By']} on {fmt_date(b['Reviewed At'])}.")
+        return
+    n_open = len(imp.open_items(st, batch))
+    if n_open:
+        raise UserError(f"Batch {batch} still has {n_open} open verification question(s). Answer them first (Menu 15 > Answer).")
+    rows = [r for r in imp.staged_rows(st, batch) if r["Row Status"] != "Rejected"]
+    print(f"\n  PAGE REVIEW - batch {batch} - source: {clean_text(b['Source File'])}")
+    print("  Hold the ORIGINAL handwritten page/image next to this list and check EVERY value:\n")
+    print(f"   {'Row':>3}  {'Customer Name':<26} {'Loc':<5} {'VLAN':<7} {'Due':<4} {'Fee':<7} Mobile")
+    for r in sorted(rows, key=lambda r: int(to_number(r["Row No"]))):
+        print(f"   {int(to_number(r['Row No'])):>3}  {clean_text(r['Customer Name'])[:26]:<26} {clean_text(r['Location Code']):<5} "
+              f"{clean_text(r['VLAN ID']):<7} {clean_text(r['Due Date']):<4} {clean_text(r['Monthly Fee']):<7} {clean_text(r['Mobile Number'])}")
+    print("\n  If ANY value is wrong: do NOT confirm. Reject that row (Menu 15 > Reject) or correct the transcription and load it again.")
+    who = ask("Your name (reviewer)")
+    typed = ask("Type PAGE REVIEWED to confirm you checked every row against the original page", allow_blank=True)
+    note = ask("Note (optional)", allow_blank=True)
+    app.write(lambda s: imp.confirm_page_reviewed(s, batch, who, typed, note))
+    print(f"  CONFIRMED: batch {batch} page reviewed by {who}. You can now 'Commit reviewed page as customers'.")
 
 
 def _verify_loop(app: App, batch):
@@ -800,6 +859,14 @@ MENU = [
 
 
 def menu(app: App):
+    if not app.workbook.exists():
+        print(f"\n  The workbook {app.workbook} does not exist yet.")
+        if sys.stdin.isatty() and yes("  Create a new EMPTY production workbook now (no customers)?", True):
+            from .seed import build_real
+            print(f"  Created {build_real(app.workbook)}. Edit PACKAGES, COLLECTORS and LOCATION_CODES first.")
+        else:
+            print("  Run SETUP_WINDOWS.bat (or: python citylinks.py setup) to create it.")
+            return
     while True:
         try:
             st = app.settings()
@@ -862,7 +929,11 @@ def main(argv=None):
     s = sub.add_parser("hw-load"); s.add_argument("file"); s.add_argument("--batch")
     s = sub.add_parser("hw-answer", help='e.g. hw-answer "9 = خالد محمود" "12 = 407"'); s.add_argument("answers", nargs="+"); s.add_argument("--batch")
     s = sub.add_parser("hw-open"); s.add_argument("--batch")
+    s = sub.add_parser("hw-batches", help="List handwritten batches and their PAGE REVIEWED status")
+    s = sub.add_parser("hw-review", help='Confirm a page was reviewed: hw-review BATCH --by NAME --confirm "PAGE REVIEWED"')
+    s.add_argument("batch"); s.add_argument("--by", required=True); s.add_argument("--confirm", required=True); s.add_argument("--note", default="")
     s = sub.add_parser("hw-commit"); s.add_argument("batch"); s.add_argument("--accept-duplicates", action="store_true")
+    sub.add_parser("setup", help="Create the production workbook if it does not exist (never overwrites)")
     s = sub.add_parser("build", help="Create a NEW empty workbook (never overwrites)"); s.add_argument("path")
     s = sub.add_parser("demo", help="Create the DEMO workbook with sample data"); s.add_argument("path", nargs="?")
     a = p.parse_args(argv)
@@ -928,6 +999,17 @@ def main(argv=None):
         elif a.cmd == "hw-answer":
             ans = imp.parse_answers("\n".join(a.answers))
             print("\n".join(app.write(lambda s: imp.apply_answers(s, ans, a.batch))))
+        elif a.cmd == "hw-batches":
+            show_batches(app)
+        elif a.cmd == "hw-review":
+            app.write(lambda s: imp.confirm_page_reviewed(s, a.batch, a.by, a.confirm, a.note))
+            print(f"Batch {a.batch}: PAGE REVIEWED by {a.by}.")
+        elif a.cmd == "setup":
+            from .seed import build_real
+            if app.workbook.exists():
+                print(f"{app.workbook} already exists - not changed.")
+            else:
+                print(f"Created {build_real(app.workbook)}")
         elif a.cmd == "hw-commit":
             r = app.write(lambda s: imp.commit_batch(s, a.batch, (lambda r, d: True) if a.accept_duplicates else None),
                           reason=f"before_commit_{a.batch}")

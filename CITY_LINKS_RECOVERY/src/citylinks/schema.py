@@ -45,7 +45,9 @@ PRINT_MODES = [
 ]
 # UNPAID = PENDING + PARTIAL (everything with a balance)
 PRINT_STATUSES = ["All", "UNPAID", "PENDING", "PARTIAL", "PAID", "OVERDUE"]
-STAGING_STATUSES = ["Needs Verification", "Ready", "Possible Duplicate", "Imported", "Rejected"]
+STAGING_STATUSES = ["Needs Verification", "Awaiting Page Review", "Ready", "Possible Duplicate", "Imported", "Rejected"]
+# Exact text the operator must type to confirm that a handwritten page/image was checked by a person.
+PAGE_REVIEWED_PHRASE = "PAGE REVIEWED"
 
 
 @dataclass
@@ -304,6 +306,25 @@ EVENTS = TableDef("CUSTOMER_EVENTS", "tblEvents", [
 ], "CUSTOMER EVENTS (CONNECTION HISTORY)", "New connections, VLAN / package / address / status changes. Never delete rows.",
     key="Event ID")
 
+BATCHES = TableDef("IMPORT_BATCHES", "tblBatches", [
+    Col("Batch ID", SYSTEM, width=18, text=True),
+    Col("Source File", SYSTEM, width=30, note="The page / image / transcription this batch came from"),
+    Col("Loaded At", SYSTEM, width=17, fmt=FMT_DATETIME),
+    Col("Rows", SYSTEM, width=7, fmt="0"),
+    Col("Page Reviewed", SYSTEM, width=13, note="YES only after the operator typed PAGE REVIEWED in the menu program"),
+    Col("Reviewed By", SYSTEM, width=16),
+    Col("Reviewed At", SYSTEM, width=17, fmt=FMT_DATETIME),
+    Col("Review Note", width=36),
+    Col("Review Fingerprint", SYSTEM, width=14, note="system: detects changes to staged values after the review"),
+    Col("Open Questions", CALC, 'IF([@Batch ID]="","",COUNTIFS(tblVerify[Batch ID],[@Batch ID],tblVerify[Status],"Open"))', width=10, fmt="0"),
+    Col("Batch Status", CALC,
+        'IF([@Batch ID]="","",IF([@Open Questions]>0,"WAITING FOR VERIFICATION ANSWERS",'
+        'IF(AND([@Page Reviewed]="YES",[@Reviewed By]<>"",[@Reviewed At]<>""),"PAGE REVIEWED - CAN BE COMMITTED",'
+        '"PAGE NOT REVIEWED - CANNOT BE COMMITTED")))', width=38),
+], "IMPORT BATCHES - PAGE REVIEW",
+    "One row per handwritten page/image. A batch can NEVER be imported until a person compares every row with the "
+    "original page and confirms 'PAGE REVIEWED' in the menu program.", key="Batch ID")
+
 STAGING = TableDef("IMPORT_STAGING", "tblStaging", [
     Col("Batch ID", SYSTEM, width=16, text=True),
     Col("Row No", SYSTEM, width=7, fmt="0"),
@@ -336,7 +357,7 @@ VERIFY = TableDef("VERIFICATION_QUEUE", "tblVerify", [
 ], "VERIFICATION QUEUE", "Unclear handwriting goes here. The system NEVER guesses. Type the correct value in Answer, then run 'Apply verification answers'.")
 
 ALL_TABLES: list[TableDef] = [AREAS, LOCATIONS, PACKAGES, COLLECTORS, CUSTOMERS, MONTHS, BILLING,
-                              PAYMENTS, ASSIGNMENTS, CASH, EVENTS, STAGING, VERIFY]
+                              PAYMENTS, ASSIGNMENTS, CASH, EVENTS, BATCHES, STAGING, VERIFY]
 TABLES = {t.name: t for t in ALL_TABLES}
 
 # ---------------------------------------------------------------------------

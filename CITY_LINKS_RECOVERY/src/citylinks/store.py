@@ -157,6 +157,10 @@ class Store:
                 wb = load_workbook(self.path)
         self.wb = wb
         self._tables: dict[str, TableIO] = {}
+        self.upgraded: list[str] = []
+        if "HOME" in wb.sheetnames and "IMPORT_BATCHES" not in wb.sheetnames:
+            from .builder import upgrade_workbook          # older workbook: add new sheets, keep all data
+            self.upgraded = upgrade_workbook(self)
 
     def t(self, tdef: S.TableDef) -> TableIO:
         if tdef.name not in self._tables:

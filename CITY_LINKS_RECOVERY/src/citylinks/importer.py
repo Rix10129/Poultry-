@@ -308,6 +308,10 @@ def load_transcription(store: Store, path: Path, batch_id: str | None = None, th
                             clean_text(row.get("Other Fields")), []))
     if not entries:
         raise UserError("No rows found in the file.")
+    if any(b["Batch ID"] == batch_id for b in store.rows(S.BATCHES)):
+        raise UserError(f"Batch {batch_id} already exists.")
+    store.t(S.BATCHES).append({"Batch ID": batch_id, "Source File": source_label or path.name, "Loaded At": now(),
+                               "Rows": len(entries), "Page Reviewed": "NO"})
     st, vq = store.t(S.STAGING), store.t(S.VERIFY)
     existing = store.rows(S.VERIFY)
     k = int(svc._next_seq(existing, "Item ID", "VQ", 5).split("-")[1])
@@ -320,7 +324,7 @@ def load_transcription(store: Store, path: Path, batch_id: str | None = None, th
                 items.append((f, why))
         if probs and not items:
             items.append(("Customer Name", "; ".join(probs)))
-        status = "Needs Verification" if items else "Ready"
+        status = "Needs Verification" if items else "Awaiting Page Review"   # never "Ready" before the page review
         st.append({"Batch ID": batch_id, "Row No": row_no, "Page": page, **{f: vals.get(f, "") for f in HW_FIELDS},
                    "Other Fields": other, "Source File": source_label or path.name, "Row Status": status,
                    "Notes": "; ".join(probs)})
@@ -410,13 +414,78 @@ def _set_staging_field(store, batch, row_no, fieldname, value):
 
 def _refresh_row_status(store):
     open_rows = {(i["Batch ID"], int(to_number(i["Row No"]))) for i in open_items(store)}
+    reviewed = {b["Batch ID"] for b in store.rows(S.BATCHES) if is_reviewed(b)}
     for r in store.rows(S.STAGING):
         if r["Row Status"] in ("Imported", "Rejected"):
             continue
-        new = "Needs Verification" if (r["Batch ID"], int(to_number(r["Row No"]))) in open_rows else (
-            "Possible Duplicate" if r["Row Status"] == "Possible Duplicate" else "Ready")
+        if (r["Batch ID"], int(to_number(r["Row No"]))) in open_rows:
+            new = "Needs Verification"
+        elif r["Row Status"] == "Possible Duplicate":
+            new = "Possible Duplicate"
+        else:
+            new = "Ready" if r["Batch ID"] in reviewed else "Awaiting Page Review"
         if new != r["Row Status"]:
             store.t(S.STAGING).update(r["_row"], {"Row Status": new})
+
+
+# ------------------------------------------------------------ page review
+def is_reviewed(batch: dict) -> bool:
+    """A page counts as reviewed only with all three: Page Reviewed = YES, a reviewer name and a time."""
+    return (clean_text(batch.get("Page Reviewed")).upper() == "YES" and bool(clean_text(batch.get("Reviewed By")))
+            and batch.get("Reviewed At") not in (None, ""))
+
+
+def get_batch(store: Store, batch_id: str) -> dict:
+    for b in store.rows(S.BATCHES):
+        if b["Batch ID"] == batch_id:
+            return b
+    if staged_rows(store, batch_id):
+        # staged before page review existed: it has no review record, so it is treated as NOT reviewed
+        rows = staged_rows(store, batch_id)
+        store.t(S.BATCHES).append({"Batch ID": batch_id, "Source File": rows[0].get("Source File"), "Loaded At": now(),
+                                   "Rows": len(rows), "Page Reviewed": "NO",
+                                   "Review Note": "Registered automatically - needs page review"})
+        return get_batch(store, batch_id)
+    raise UserError(f"Batch {batch_id} was not found.")
+
+
+def fingerprint(store: Store, batch_id: str) -> str:
+    import hashlib
+    parts = []
+    for r in sorted(staged_rows(store, batch_id), key=lambda r: int(to_number(r["Row No"]))):
+        if r["Row Status"] == "Rejected":
+            continue
+        parts.append("|".join([clean_text(r["Row No"])] + [clean_text(r.get(f)) for f in HW_FIELDS]))
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def batches(store: Store) -> list[dict]:
+    out = []
+    for b in store.rows(S.BATCHES):
+        b["Open Questions"] = len(open_items(store, b["Batch ID"]))
+        b["Reviewed"] = is_reviewed(b)
+        out.append(b)
+    return out
+
+
+def confirm_page_reviewed(store: Store, batch_id: str, reviewed_by: str, typed_confirmation: str, note: str = ""):
+    """The operator states that they compared EVERY staged row of this batch with the original page/image.
+    Requires: no open verification questions, a reviewer name, and the exact words PAGE REVIEWED."""
+    b = get_batch(store, batch_id)
+    if is_reviewed(b):
+        raise UserError(f"Batch {batch_id} was already confirmed as reviewed by {b['Reviewed By']}.")
+    n_open = len(open_items(store, batch_id))
+    if n_open:
+        raise UserError(f"Batch {batch_id} still has {n_open} open verification question(s). Answer them first, "
+                        "then review the whole page.")
+    if not clean_text(reviewed_by):
+        raise UserError("Reviewer name is required.")
+    if clean_text(typed_confirmation).upper() != S.PAGE_REVIEWED_PHRASE:
+        raise UserError(f"Page review NOT confirmed. You must type exactly: {S.PAGE_REVIEWED_PHRASE}")
+    store.t(S.BATCHES).update(b["_row"], {"Page Reviewed": "YES", "Reviewed By": clean_text(reviewed_by),
+                                          "Reviewed At": now(), "Review Note": note or b.get("Review Note"),
+                                          "Review Fingerprint": fingerprint(store, batch_id)})
+    _refresh_row_status(store)
 
 
 def staged_rows(store: Store, batch_id: str) -> list[dict]:
@@ -429,11 +498,26 @@ def commit_batch(store: Store, batch_id: str, confirm_duplicate=None, default_st
     rows = staged_rows(store, batch_id)
     if not rows:
         raise UserError(f"Batch {batch_id} was not found.")
-    res = {"imported": [], "waiting_verification": 0, "possible_duplicates": [], "errors": []}
+    b = get_batch(store, batch_id)
+    if is_reviewed(b) and clean_text(b.get("Review Fingerprint")) != fingerprint(store, batch_id):
+        store.t(S.BATCHES).update(b["_row"], {"Page Reviewed": "NO", "Reviewed By": None, "Reviewed At": None,
+                                              "Review Fingerprint": None,
+                                              "Review Note": f"Review cancelled {now():%d-%m-%Y %H:%M}: staged values changed after the review"})
+        _refresh_row_status(store)
+        # returned (not raised) so the cancellation is saved and visible in IMPORT_BATCHES
+        return {"imported": [], "waiting_verification": 0, "possible_duplicates": [], "errors": [],
+                "review_cancelled": f"Batch {batch_id}: staged values were changed AFTER the page review. The review was "
+                                    "cancelled - please review the page again. Nothing was imported."}
+    if not is_reviewed(b):
+        _refresh_row_status(store)
+        raise UserError(f"PAGE NOT REVIEWED: batch {batch_id} cannot be imported. Compare every row with the original "
+                        f"page/image, then confirm with Menu 15 > 'Confirm PAGE REVIEWED'. Nothing was imported.")
+    res = {"imported": [], "waiting_verification": 0, "possible_duplicates": [], "errors": [], "review_cancelled": None}
     for r in rows:
         if r["Row Status"] in ("Imported", "Rejected"):
             continue
-        if r["Row Status"] == "Needs Verification":
+        if r["Row Status"] == "Needs Verification" or open_items(store, batch_id) and any(
+                int(to_number(i["Row No"])) == int(to_number(r["Row No"])) for i in open_items(store, batch_id)):
             res["waiting_verification"] += 1
             continue
         d = svc.load(store)

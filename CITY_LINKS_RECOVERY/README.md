@@ -5,7 +5,7 @@ Urdu recovery sheets.
 
 | File | What it is |
 |---|---|
-| `data/CITY_LINKS_Recovery.xlsx` | **Your real workbook.** It has no customers yet. Areas A (Arif Town) and B (Arai Colony) with Gali 1–3 are set up. |
+| `data/CITY_LINKS_Recovery.xlsx` | **Your real workbook.** It starts with no customers; areas A (Arif Town) and B (Arai Colony) with Gali 1–3 are set up. `SETUP_WINDOWS.bat` creates it on your PC. **It is never stored in Git** (`.gitignore`), because this repository is public. Keep it and its backups on your PC, USB or Google Drive. |
 | `data/DEMO_CITY_LINKS_Recovery.xlsx` | A **DEMO** workbook with sample customers, for practice only. Every name starts with `[DEMO]`. |
 | `CityLinks.bat` | Double-click to open the **menu program** (new month, payments, PDFs, imports…). |
 | `SETUP_WINDOWS.bat` | Run once to install what the menu program needs. |
@@ -21,7 +21,7 @@ Urdu recovery sheets.
 ## 0. One-time setup (Windows)
 
 1. Install Python 3.10 or newer from python.org. During setup, tick **"Add Python to PATH"**.
-2. Double-click **`SETUP_WINDOWS.bat`**. It installs `openpyxl`, `fpdf2` and `uharfbuzz`; the last one makes Urdu display correctly in PDFs.
+2. Double-click **`SETUP_WINDOWS.bat`**. It installs `openpyxl`, `fpdf2` and `uharfbuzz` (the last one makes Urdu display correctly in PDFs). It also creates `data/CITY_LINKS_Recovery.xlsx` if it doesn't exist; an existing workbook is never changed.
 3. Done. The workbook also works in Excel on its own, but the actions listed below need the menu program.
 
 **Important:** close the workbook in Excel before using a menu option that *saves* something. If it is still open, the program stops with the message *"…is open in Excel. Please SAVE and CLOSE it"*, and nothing is changed.
@@ -122,7 +122,16 @@ The system **never guesses unclear handwriting**.
    You can also write a `.txt` file, one row per line, like `1 | Shahid Mahmood | A1 | 405 | 10 | 1300`.
    If Tesseract OCR is installed, **"Run OCR on a scanned image"** makes the draft with confidence scores. Handwriting OCR is weak, so expect many questions.
 2. **Menu → 15 → "Load a transcription"**. Rows go to **IMPORT_STAGING**. Every unclear, low-confidence (below 90%, set in SETTINGS) or invalid value goes to the **VERIFICATION_QUEUE**. This applies to names, VLANs, due dates, fees, mobiles and location codes.
-3. **Menu → 15 → "Commit verified rows"**. Rows that are fully verified become customers with new IDs. Rows that look like existing customers wait for your confirmation.
+3. **PAGE REVIEWED (mandatory).** Even when every field looks valid, **nothing is imported until a person checks the page**. Use **Menu → 15 → "Confirm PAGE REVIEWED"**:
+   * It is only possible after every verification question is answered, or the row is rejected.
+   * The program lists every staged row. Hold the original page or image next to it and check every value.
+   * Enter your name and type exactly **`PAGE REVIEWED`**. Anything else is refused and the page stays unreviewed.
+   * If any value is wrong, do **not** confirm. Reject that row (Menu 15 → Reject) or correct the transcription and load it again.
+   * The **IMPORT_BATCHES** sheet shows every page in red, amber or green: *PAGE NOT REVIEWED – CANNOT BE COMMITTED* / *WAITING FOR VERIFICATION ANSWERS* / *PAGE REVIEWED – CAN BE COMMITTED*. HOME shows *Pages NOT yet reviewed*.
+   * Typing "YES" in the sheet by hand does not count. If a staged value is changed after the review, the review is **cancelled automatically** and the page must be reviewed again.
+4. **Menu → 15 → "Commit reviewed page as customers"**. This works only for a reviewed page. Its rows become customers with new IDs, and rows that look like existing customers wait for your confirmation. A page is never committed automatically.
+
+Row status in IMPORT_STAGING: *Needs Verification* → *Awaiting Page Review* → *Ready* (page reviewed) → *Imported*. A row can also become *Rejected*.
 
 Old Excel/CSV customer lists: **Menu → 16**. You first see a **preview** of new customers, possible duplicates, invalid location codes and missing fields, and a preview file is saved in `imports/`. Nothing is imported until you confirm. Use `templates/Customer_Import_Template.xlsx` as the format.
 
@@ -183,7 +192,8 @@ Company Name, Short Name, Tagline, phone/address (printed on statements), Custom
 * Monthly bills are snapshots. A new month never changes old months.
 * Payments are separate transactions. They are never overwritten or deleted, only voided with a reason.
 * Customers are never merged automatically. Possible duplicates are only *shown*.
-* Handwritten or OCR data is never guessed. Unclear values go to the Verification Queue.
+* Handwritten or OCR data is never guessed. Unclear values go to the Verification Queue, and no page is imported until a person confirms **PAGE REVIEWED**.
+* The production workbook is excluded from Git, so real customer data never goes to the public repository.
 * Major operations make a backup first. Saving never happens while Excel has the file open.
 
 ## Command line (advanced)
@@ -198,6 +208,10 @@ python citylinks.py show PENDING
 python citylinks.py dashboard --month 2026-11
 python citylinks.py hw-load imports/handwritten/page1.txt
 python citylinks.py hw-answer "9 = خالد محمود" "12 = 407"
+python citylinks.py hw-batches                                   # page review status
+python citylinks.py hw-review HW-20261001-101500 --by "Office" --confirm "PAGE REVIEWED"
+python citylinks.py hw-commit HW-20261001-101500
+python citylinks.py setup                                        # create the production workbook if missing
 python citylinks.py check
 python citylinks.py --workbook data/DEMO_CITY_LINKS_Recovery.xlsx dashboard   # practise on the demo
 ```

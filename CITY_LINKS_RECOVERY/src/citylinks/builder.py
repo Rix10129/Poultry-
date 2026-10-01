@@ -54,7 +54,7 @@ SHEET_ORDER = [
     "HOME", "DASHBOARD", "CUSTOMERS", "MONTHLY_BILLING", "PAYMENTS", "PAYMENT_ENTRY", "PRINT_CENTER",
     "PRINT_SHEET", "PRINT_SHEET_UR", "CUSTOMER_HISTORY", "STATEMENT", "CASH_RECONCILIATION",
     "RECOVERY_ASSIGNMENTS", "REPORTS", "MONTHS", "CUSTOMER_EVENTS", "AREAS", "LOCATION_CODES",
-    "PACKAGES", "COLLECTORS", "IMPORT_STAGING", "VERIFICATION_QUEUE", "SETTINGS", "LISTS",
+    "PACKAGES", "COLLECTORS", "IMPORT_BATCHES", "IMPORT_STAGING", "VERIFICATION_QUEUE", "SETTINGS", "LISTS",
 ]
 
 NAV = [
@@ -64,7 +64,8 @@ NAV = [
     ("Pending Recovery", "PRINT_CENTER"), ("Cash Reconciliation", "CASH_RECONCILIATION"),
     ("Recovery Assignments", "RECOVERY_ASSIGNMENTS"), ("Reports", "REPORTS"), ("Monthly Archive", "MONTHS"),
     ("Connection History", "CUSTOMER_EVENTS"), ("Areas", "AREAS"), ("Location Codes", "LOCATION_CODES"),
-    ("Packages", "PACKAGES"), ("Collectors", "COLLECTORS"), ("Verification Queue", "VERIFICATION_QUEUE"),
+    ("Packages", "PACKAGES"), ("Collectors", "COLLECTORS"), ("Import Batches (Page Review)", "IMPORT_BATCHES"),
+    ("Verification Queue", "VERIFICATION_QUEUE"),
     ("Settings", "SETTINGS"),
 ]
 
@@ -316,6 +317,45 @@ def table_conditional_formats(wb):
     ws.conditional_formatting.add(rng, CellIsRule(operator="equal", formula=['"Needs Verification"'], fill=amber))
     ws.conditional_formatting.add(rng, CellIsRule(operator="equal", formula=['"Possible Duplicate"'], fill=red))
     ws.conditional_formatting.add(rng, CellIsRule(operator="equal", formula=['"Imported"'], fill=green))
+
+
+def batches_conditional_formats(wb):
+    ws = wb["IMPORT_BATCHES"]
+    r0, last = HEADER_ROW + 1, HEADER_ROW + S.BATCHES.dv_rows
+    L = get_column_letter(S.BATCHES.names.index("Page Reviewed") + 1)
+    ws.conditional_formatting.add(f"{L}{r0}:{L}{last}", CellIsRule(operator="equal", formula=['"YES"'], fill=PatternFill("solid", fgColor=GREEN), font=Font(bold=True)))
+    ws.conditional_formatting.add(f"{L}{r0}:{L}{last}", CellIsRule(operator="equal", formula=['"NO"'], fill=PatternFill("solid", fgColor=RED), font=Font(bold=True, color="9C0006")))
+    L = get_column_letter(S.BATCHES.names.index("Batch Status") + 1)
+    rng = f"{L}{r0}:{L}{last}"
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'LEFT({L}{r0},13)="PAGE REVIEWED"'], fill=PatternFill("solid", fgColor=GREEN), font=Font(bold=True)))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'LEFT({L}{r0},17)="PAGE NOT REVIEWED"'], fill=PatternFill("solid", fgColor=RED), font=Font(bold=True, color="9C0006")))
+    ws.conditional_formatting.add(rng, FormulaRule(formula=[f'LEFT({L}{r0},7)="WAITING"'], fill=PatternFill("solid", fgColor=AMBER), font=Font(bold=True)))
+    ws["A3"] = ("RULE: nothing from a handwritten page becomes a customer until a person has checked EVERY row against the original "
+                "page/image and typed PAGE REVIEWED in the menu program (Menu 15). Unclear values stay in VERIFICATION_QUEUE.")
+    ws["A3"].font = Font(size=10, bold=True, color="C00000")
+    ws.sheet_properties.tabColor = "BF8F00"
+
+
+def home_batch_status(wb):
+    ws = wb["HOME"]
+    label(ws["B11"], "Pages NOT yet reviewed:")
+    ws["C11"] = '=COUNTIF(tblBatches[Batch Status],"PAGE NOT REVIEWED*")+COUNTIF(tblBatches[Batch Status],"WAITING*")'
+    ws["C11"].font = Font(bold=True, color="C00000")
+
+
+def upgrade_workbook(store) -> list[str]:
+    """Add sheets/tables introduced after a workbook was created. Never touches existing data."""
+    wb = store.wb
+    done = []
+    if "IMPORT_BATCHES" not in wb.sheetnames:
+        wb.create_sheet("IMPORT_BATCHES", index=wb.sheetnames.index("IMPORT_STAGING"))
+        build_table_sheet(wb, S.BATCHES)
+        batches_conditional_formats(wb)
+        store.t(S.BATCHES).ensure_formulas()
+        home_batch_status(wb)
+        link(wb["HOME"].cell(13 + len(NAV) - 1, 2), "IMPORT_BATCHES", "► Import Batches (Page Review)")
+        done.append("added IMPORT_BATCHES (page review) sheet")
+    return done
 
 
 # -------------------------------------------------------------------- LISTS
@@ -1194,6 +1234,8 @@ def build_workbook(path, settings: dict | None = None, seed: dict | None = None)
     build_statement(wb)
     build_reports(wb)
     build_home(wb)
+    batches_conditional_formats(wb)
+    home_batch_status(wb)
     # tab colours
     for s, color in {"HOME": NAVY, "DASHBOARD": NAVY, "PRINT_CENTER": "C65911", "PRINT_SHEET": "C65911",
                      "PRINT_SHEET_UR": "C65911", "CUSTOMERS": "548235", "MONTHLY_BILLING": "548235", "PAYMENTS": "548235",

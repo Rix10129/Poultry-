@@ -419,12 +419,99 @@ def test_handwritten_verification_queue(wb, tmp_path):
     st = S_(wb)
     staged = {int(r["Row No"]): r for r in imp.staged_rows(st, batch)}
     assert staged[9]["Customer Name"] == "خالد محمود" and staged[12]["VLAN ID"] == "407" and staged[14]["Monthly Fee"] == "1500"
-    assert staged[1]["Row Status"] == "Ready" and staged[15]["Row Status"] == "Needs Verification"
+    # all fields valid is NOT enough: rows wait for the page review
+    assert staged[1]["Row Status"] == "Awaiting Page Review" and staged[15]["Row Status"] == "Needs Verification"
+    with pytest.raises(UserError, match="PAGE NOT REVIEWED"):
+        imp.commit_batch(st, batch)
+    with pytest.raises(UserError, match="open verification question"):       # row 15 still unclear
+        imp.confirm_page_reviewed(st, batch, "Office", "PAGE REVIEWED")
+    imp.reject_row(st, batch, 15, "location code unreadable - will re-check page")
+    imp.confirm_page_reviewed(st, batch, "Office", "PAGE REVIEWED")
+    st.save()
+    st = S_(wb)
+    assert {r["Row Status"] for r in imp.staged_rows(st, batch)} == {"Ready", "Rejected"}
     r = imp.commit_batch(st, batch)
     st.save()
-    assert len(r["imported"]) == 4 and r["waiting_verification"] == 1
+    assert len(r["imported"]) == 4
     names = [c["Customer Name"] for c in data(wb).customers]
     assert "خالد محمود" in names and "Nadeem" not in names
+
+
+def _clean_page(wb, tmp_path, batch="HW-PAGE"):
+    txt = tmp_path / f"{batch}.txt"
+    txt.write_text("1 | Shahid Mahmood | A1 | 405 | 10 | 1300\n2 | Imran | B1 | 207 | 10 | 1500", encoding="utf-8")
+    st = S_(wb)
+    imp.load_transcription(st, txt, batch)
+    st.save()
+    return batch
+
+
+def test_page_review_required_even_when_all_fields_valid(wb, tmp_path):
+    batch = _clean_page(wb, tmp_path)
+    st = S_(wb)
+    b = imp.get_batch(st, batch)
+    assert b["Page Reviewed"] == "NO" and not imp.is_reviewed(b)
+    assert {r["Row Status"] for r in imp.staged_rows(st, batch)} == {"Awaiting Page Review"}
+    assert imp.open_items(st, batch) == []
+    with pytest.raises(UserError, match="PAGE NOT REVIEWED"):
+        imp.commit_batch(st, batch)
+    assert data(wb).customers == []                                           # nothing auto-committed
+
+
+def test_page_review_needs_exact_phrase_and_name(wb, tmp_path):
+    batch = _clean_page(wb, tmp_path)
+    st = S_(wb)
+    for who, typed in (("Office", "yes"), ("Office", "reviewed"), ("Office", ""), ("", "PAGE REVIEWED")):
+        with pytest.raises(UserError):
+            imp.confirm_page_reviewed(st, batch, who, typed)
+    assert not imp.is_reviewed(imp.get_batch(st, batch))
+    imp.confirm_page_reviewed(st, batch, "Office", "page reviewed")            # capital letters do not matter
+    st.save()
+    st = S_(wb)
+    b = imp.get_batch(st, batch)
+    assert (b["Page Reviewed"], b["Reviewed By"]) == ("YES", "Office") and b["Reviewed At"]
+    assert {r["Row Status"] for r in imp.staged_rows(st, batch)} == {"Ready"}
+    r = imp.commit_batch(st, batch)
+    st.save()
+    assert [cid for _, cid in r["imported"]] == ["CL-0001", "CL-0002"]
+
+
+def test_yes_typed_in_excel_alone_is_not_a_review(wb, tmp_path):
+    batch = _clean_page(wb, tmp_path)
+    st = S_(wb)
+    b = imp.get_batch(st, batch)
+    st.t(S.BATCHES).ws.cell(b["_row"], S.BATCHES.names.index("Page Reviewed") + 1).value = "YES"   # no name / time
+    st.save()
+    with pytest.raises(UserError, match="PAGE NOT REVIEWED"):
+        imp.commit_batch(S_(wb), batch)
+
+
+def test_changes_after_review_cancel_the_review(wb, tmp_path):
+    batch = _clean_page(wb, tmp_path)
+    st = S_(wb)
+    imp.confirm_page_reviewed(st, batch, "Office", "PAGE REVIEWED")
+    st.save()
+    st = S_(wb)
+    row = imp.staged_rows(st, batch)[0]
+    st.t(S.STAGING).update(row["_row"], {"VLAN ID": "406"})                  # edited in Excel after the review
+    st.save()
+    st = S_(wb)
+    r = imp.commit_batch(st, batch)
+    st.save()
+    assert r["review_cancelled"] and r["imported"] == []
+    assert not imp.is_reviewed(imp.get_batch(S_(wb), batch))
+    assert data(wb).customers == []
+
+
+def test_old_workbook_is_upgraded_without_data_loss(wb):
+    add(wb)
+    st = S_(wb)
+    del st.wb["IMPORT_BATCHES"]                                                # simulate a workbook made before this feature
+    st.save()
+    st = S_(wb)
+    assert st.upgraded and "IMPORT_BATCHES" in st.wb.sheetnames
+    st.save()
+    assert [c["Customer ID"] for c in data(wb).customers] == ["CL-0001"]
 
 
 def test_low_ocr_confidence_goes_to_queue(wb, tmp_path):

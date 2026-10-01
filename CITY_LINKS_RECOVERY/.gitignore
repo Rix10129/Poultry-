@@ -1,3 +1,8 @@
+# PRODUCTION WORKBOOK - real customer data. NEVER commit it (this repository is public).
+# Create it on your PC with SETUP_WINDOWS.bat / "python citylinks.py setup".
+data/CITY_LINKS_Recovery.xlsx
+data/*.xlsx
+!data/DEMO_CITY_LINKS_Recovery.xlsx
 __pycache__/
 *.pyc
 .pytest_cache/
