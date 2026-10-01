@@ -494,8 +494,7 @@ def build_dashboard(wb):
         for c, fx in f.items():
             cell = ws.cell(r, c, fx)
             cell.number_format = S.FMT_PCT if c == 11 else (S.FMT_MONEY if c in (5, 6, 7) else "0")
-        for c in range(1, 12):
-            ws.cell(r, c).border = BOX
+    ws.conditional_formatting.add(f"A{r0 + 2}:K{r0 + 26}", FormulaRule(formula=[f'$A{r0 + 2}<>""'], border=BOX))
     ws.auto_filter.ref = f"A{r0 + 1}:K{r0 + 26}"
 
     # --- collector-wise
@@ -536,8 +535,7 @@ def build_dashboard(wb):
         for c, fx in f.items():
             cell = ws.cell(r, c, fx)
             cell.number_format = S.FMT_PCT if c == 10 else ("#,##0;[Red]-#,##0;0" if c == 13 else (S.FMT_MONEY if c in (4, 5, 6, 11, 12) else "0"))
-        for c in range(1, 15):
-            ws.cell(r, c).border = BOX
+    ws.conditional_formatting.add(f"A{r1 + 2}:N{r1 + 22}", FormulaRule(formula=[f'$B{r1 + 2}<>""'], border=BOX))
     rng = f"M{r1 + 2}:M{r1 + 22}"
     ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND(M{r1+2}<>"",M{r1+2}<0)'], fill=PatternFill("solid", fgColor=RED), font=Font(bold=True, color="9C0006")))
     ws.conditional_formatting.add(rng, FormulaRule(formula=[f'AND(M{r1+2}<>"",M{r1+2}>0)'], fill=PatternFill("solid", fgColor=AMBER)))
@@ -1164,6 +1162,7 @@ def build_home(wb):
     for i, s in enumerate(rules):
         ws.cell(33 + i, 5, "• " + s)
     widths(ws, {"A": 3, "B": 30, "C": 26, "D": 4, "E": 6, "F": 90})
+    page_setup(ws)
     protect(ws)
 
 
